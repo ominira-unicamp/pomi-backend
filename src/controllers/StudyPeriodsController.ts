@@ -14,41 +14,38 @@ const registry = new OpenAPIRegistry()
 
 registry.registerPath({
 	method: 'get',
-	path: '/institutes',
-	tags: ['institute'],
+	path: '/study-periods',
+	tags: ['studyPeriod'],
 	responses: {
 		200: {
-			description: "A list of institutes",
+			description: "A list of study periods",
 			content: {
 				'application/json': {
-					schema: z.array(z.any()), 
+					schema: z.array(z.any()),
 				},
 			},
 		},
 	},
 });
 async function get(req: Request, res: Response) {
-	prisma.institute.findMany().then((institutes) => {
-		res.json(
-			institutes.map(institute => ({
-				...institute,
-				_paths: {
-					classes: resourcesPaths.class.list({
-						instituteId: institute.id
-					}),
-					coursesOfferings: resourcesPaths.courseOffering.list({
-						instituteId: institute.id
-					}),
-					courses: resourcesPaths.course.list({
-						instituteId: institute.id
-					})
-				}
-			})),
-		)
+	prisma.studyPeriod.findMany().then((studyPeriods) => {
+		res.json(studyPeriods.map((studyPeriod) => ({
+			...studyPeriod,
+			_paths: {
+				courseOfferings: resourcesPaths.courseOffering.list({
+					periodId: studyPeriod.id
+				}),
+				classes: resourcesPaths.class.list({
+					periodId: studyPeriod.id
+				}),
+				classSchedules: resourcesPaths.classSchedule.list({
+					periodId: studyPeriod.id
+				}),
+			}
+		})));
 	})
 }
-router.get('/institutes', get)
-
+router.get('/study-periods', get)
 export default {
 	router,
 	registry,

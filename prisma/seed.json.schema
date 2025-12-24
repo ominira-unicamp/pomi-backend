@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Caderno de Horário",
+  "description": "Schema para o arquivo JSON de saída do caderno de horários da DAC Unicamp",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "ano": {
+        "type": "integer",
+        "description": "Ano do caderno de horários",
+        "example": 2026
+      },
+      "semestre": {
+        "type": "integer",
+        "description": "Semestre do caderno de horários (1 ou 2)",
+        "enum": [1, 2]
+      },
+      "institutos": {
+        "type": "array",
+        "description": "Lista de institutos",
+        "items": {
+          "type": "object",
+          "properties": {
+            "nome": {
+              "type": "string",
+              "description": "Nome do instituto",
+              "example": "Instituto de Computação"
+            },
+            "diciplinas": {
+              "type": "array",
+              "description": "Lista de disciplinas oferecidas pelo instituto",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "codigo": {
+                    "type": "string",
+                    "description": "Código da disciplina",
+                    "example": "MC102"
+                  },
+                  "nome": {
+                    "type": "string",
+                    "description": "Nome da disciplina",
+                    "example": "Algoritmos e Programação de Computadores"
+                  },
+                  "turmas": {
+                    "type": "array",
+                    "description": "Lista de turmas da disciplina",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "nome": {
+                          "type": "string",
+                          "description": "Identificador da turma",
+                          "example": "A"
+                        },
+                        "docentes": {
+                          "type": "array",
+                          "description": "Lista de docentes responsáveis pela turma",
+                          "items": {
+                            "type": "string"
+                          },
+                          "example": ["Prof. João Silva", "Prof. Maria Santos"]
+                        },
+                        "aulas": {
+                          "type": "array",
+                          "description": "Lista de aulas da turma",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "dia_semana": {
+                                "type": "string",
+                                "description": "Dia da semana da aula",
+                                "example": "Seg"
+                              },
+                              "horario": {
+                                "type": "object",
+                                "description": "Horário de início e fim da aula",
+                                "properties": {
+                                  "inicio": {
+                                    "type": "string",
+                                    "description": "Horário de início",
+                                    "example": "08:00"
+                                  },
+                                  "fim": {
+                                    "type": "string",
+                                    "description": "Horário de fim",
+                                    "example": "10:00"
+                                  }
+                                },
+                                "required": ["inicio", "fim"]
+                              },
+                              "sala": {
+                                "type": "string",
+                                "description": "Sala onde a aula ocorre",
+                                "example": "CB01"
+                              }
+                            },
+                            "required": ["dia_semana", "horario", "sala"]
+                          }
+                        },
+                        "reservas": {
+                          "type": "array",
+                          "description": "Lista de números de reserva",
+                          "items": {
+                            "type": "integer"
+                          },
+                          "example": [123456, 789012]
+                        }
+                      },
+                      "required": ["nome", "docentes", "aulas", "reservas"]
+                    }
+                  }
+                },
+                "required": ["codigo", "nome", "turmas"]
+              }
+            }
+          },
+          "required": ["nome", "diciplinas"]
+        }
+      }
+    },
+    "required": ["ano", "semestre", "institutos"]
+  }
+}

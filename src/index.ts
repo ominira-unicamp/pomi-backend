@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import express from 'express'
 import openapi from './OpenApi'
-import Controlellers from './Controlellers'
+import Controlellers from './Controllers'
 
 const app = express()
 

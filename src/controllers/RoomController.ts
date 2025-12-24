@@ -9,14 +9,13 @@ extendZodWithOpenApi(z);
 const router = Router()
 const registry = new OpenAPIRegistry();
 
-
 registry.registerPath({
     method: 'get',
-    path: '/teachers',
-    tags: ['teacher'],
+    path: '/rooms',
+    tags: ['room'],
     responses: {
         200: {
-            description: "A list of teachers",
+            description: "A list of rooms",
             content: {
                 'application/json': {
                     schema: z.array(z.any()), 
@@ -25,12 +24,13 @@ registry.registerPath({
         },
     },
 });
+
 async function get(req: Request, res: Response) {
-	prisma.teacher.findMany().then((teachers) => {
-		res.json(teachers)
+    prisma.room.findMany().then((rooms) => {
+		res.json(rooms)
 	})
 }
-router.get('/teachers', get)
+router.get('/rooms', get)
 
 export default {
 	router,

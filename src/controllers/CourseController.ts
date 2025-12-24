@@ -4,13 +4,14 @@ import { extendZodWithOpenApi, OpenAPIRegistry } from '@asteasolutions/zod-to-op
 import z from 'zod';
 
 import prisma from '../PrismaClient'
+import { resourcesPaths } from '../Controllers';
 extendZodWithOpenApi(z);
 
 const router = Router()
 const registry = new OpenAPIRegistry();
 
 const getCourse = z.object({
-	institute: z.int().optional(),
+	instituteId: z.coerce.number().int().optional(),
 }).openapi('GetCourseQuery');
 
 registry.registerPath({
@@ -34,12 +35,32 @@ registry.registerPath({
 async function get(req: Request, res: Response) {
 	const query = getCourse.parse(req.query);
 	prisma.course.findMany().then((courses) => {
-		res.json(courses)
+		res.json(courses.map((course) => ({
+			...course,
+			_paths: {
+				classes: resourcesPaths.class.list({courseId: course.id}),
+				courseOfferings: resourcesPaths.courseOffering.list({courseId: course.id}),
+			}
+		})))
 	})
 }
 router.get('/courses', get)
+interface ListQueryParams{
+	instituteId?: number,
+}
+
+function listPath({
+	instituteId,
+} : ListQueryParams) {
+	return `http://localhost:3000/courses?` + [
+		instituteId ? "instituteId=" + instituteId : undefined,
+	].filter(Boolean).join('&');
+} 
 
 export default {
 	router,
 	registry,
+	paths: {
+		list: listPath,
+	}
 }

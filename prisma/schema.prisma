@@ -18,14 +18,14 @@ model User {
 model Institute {
   id               Int              @id @default(autoincrement())
   name             String
-  coursesOfferings CourseOffering[]
-  prefixes         Prefixes[]
+  coursesOfferings  CourseOffering[]
+  prefixes          Prefixes[]
   programs         Program[]
 }
 
 model Prefixes {
   id          Int       @id @default(autoincrement())
-  prefix      String    @unique
+  prefix       String     @unique
   institute   Institute @relation(fields: [instituteId], references: [id])
   instituteId Int
 }
@@ -101,7 +101,7 @@ model StudyPeriod {
   coursesOfferings CourseOffering[]
 }
 
-model Teacher {
+model Professor {
   id      Int     @id @default(autoincrement())
   name    String
   classes Class[]
@@ -122,13 +122,12 @@ model CourseOffering {
   classes       Class[]
   institute     Institute   @relation(fields: [instituteId], references: [id])
   instituteId   Int
-  reservations  Int[]
 }
 
 model Class {
   id               Int             @id @default(autoincrement())
   name             String
-  Teachers         Teacher[]
+  professors       Professor[]
   classSchedules   ClassSchedule[]
   reservations     Int[]
   coursesOffering CourseOffering  @relation(fields: [courseOfferingId], references: [id])

@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.env*
 prisma/generated
+data/
+prisma/seed.json
