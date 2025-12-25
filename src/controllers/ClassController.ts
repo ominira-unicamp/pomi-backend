@@ -4,13 +4,98 @@ import { extendZodWithOpenApi, OpenAPIRegistry } from '@asteasolutions/zod-to-op
 import z from 'zod';
 
 import prisma from '../PrismaClient'
+import { models } from '../PrismaClient';
 import { resourcesPaths } from '../Controllers';
 extendZodWithOpenApi(z);
 
 const router = Router()
 const registry = new OpenAPIRegistry();
 
-const getClasses = z.object({
+const prismaClassFieldSelection = {
+	include: {
+		professors: {
+			select: {
+				id: true,
+				name: true,
+			}
+		},
+		coursesOffering: {
+			select: {
+				studyPeriod: {
+					select: {
+						id: true,
+						name: true,
+					}
+				},
+				course: {
+					select: {
+						id: true,
+						code: true,
+					}
+				},
+				institute: {
+					select: {
+						id: true,
+						name: true,
+					}
+				}
+			}
+		}
+	}
+}
+
+
+function relatedPathsForClass(
+	classId: number,
+	studyPeriodId: number,
+	instituteId: number,
+	courseId: number,
+	courseOfferingId: number,
+) {
+	return {
+		studyPeriod: resourcesPaths.studyPeriod.entity(studyPeriodId),
+		institute: resourcesPaths.institute.entity(instituteId),
+		course: resourcesPaths.course.entity(courseId),
+		courseOffering: resourcesPaths.courseOffering.entity(courseOfferingId),
+		class: resourcesPaths.class.entity(classId),
+		classSchedules: resourcesPaths.classSchedule.list({
+			classId: classId,
+		}),
+		professors: resourcesPaths.professor.list({
+			classId: classId,
+		}),
+	}
+}
+
+const classEntity = z.object({
+	id: z.number().int(),
+	name: z.string(),
+	reservations: z.array(z.number().int()),
+	courseOfferingId: z.number().int(),
+	studyPeriodId: z.number().int(),
+	studyPeriodName: z.string(),
+	courseId: z.number().int(),
+	courseCode: z.string(),
+	instituteId: z.number().int(),
+	instituteName: z.string(),
+	professors: z.array(z.object({
+		id: z.number().int(),
+		name: z.string(),
+	}).strict()),
+	_paths: z.object({
+		studyPeriod: z.string(),
+		institute: z.string(),
+		course: z.string(),
+		courseOffering: z.string(),
+		class: z.string(),
+		classSchedules: z.string(),
+		professors: z.string(),
+	}).strict(),
+}).strict().openapi('ClassEntity');
+
+
+
+const listClassesQuery = z.object({
 	instituteId: z.coerce.number().int().optional(),
 	instituteName: z.string().optional(),
 	courseId: z.coerce.number().int().optional(),
@@ -26,21 +111,23 @@ registry.registerPath({
 	path: '/classes',
 	tags: ['class'],
 	request: {
-		query: getClasses,
+		query: listClassesQuery,
 	},
 	responses: {
 		200: {
 			description: "A list of classes",
 			content: {
 				'application/json': {
-					schema: z.array(z.any()), 
+					schema: z.array(classEntity),
 				},
 			},
 		},
 	},
 });
-async function get(req: Request, res: Response) {
-	const query = getClasses.parse(req.query);
+
+
+async function listAll(req: Request, res: Response) {
+	const query = listClassesQuery.parse(req.query);
 	prisma.class.findMany({
 		where: {
 			coursesOffering: {
@@ -53,7 +140,7 @@ async function get(req: Request, res: Response) {
 					}
 				},
 				course: {
-					
+
 					id: query.courseId,
 					code: {
 						equals: query.courseCode,
@@ -69,7 +156,7 @@ async function get(req: Request, res: Response) {
 				},
 			},
 			professors: {
-				some: { 
+				some: {
 					id: query.professorId,
 					name: {
 						equals: query.professorName,
@@ -78,59 +165,40 @@ async function get(req: Request, res: Response) {
 				}
 			},
 		},
-		omit: {
-			courseOfferingId: true,
-		},
-		include: {
-			professors: {
-				select: {
-					id: true,
-					name: true,
-				}
-			},
-			coursesOffering: {
-				select: {
-					studyPeriod: {
-						select: {
-							id: true,
-							name: true,
-						}
-					},
-					course: {
-						select: {
-							id: true,
-							code: true,
-						}
-					}, 
-					institute: {
-						select: {
-							id: true,
-							name: true,
-						}
-					}
-				}
-			}
-		}
+		...prismaClassFieldSelection,
+
 	}).then((classes) => {
-		res.json(classes.map(c => ({
-			...c,
-			_paths: {
-				classSchedules: resourcesPaths.classSchedule.list({
-					classId: c.id,
-				}),
-				professors: resourcesPaths.professor.list({
-					classId: c.id,
-				}),
-			}
-		})))
+		const entities: z.infer<typeof classEntity>[] = classes.map(c => {
+			const { coursesOffering, ...rest } = c;
+			return {
+				...rest,
+				studyPeriodId: coursesOffering.studyPeriod.id,
+				studyPeriodName: coursesOffering.studyPeriod.name,
+				courseId: coursesOffering.course.id,
+				courseCode: coursesOffering.course.code,
+				instituteId: coursesOffering.institute.id,
+				instituteName: coursesOffering.institute.name,
+				_paths: relatedPathsForClass(
+					c.id,
+					coursesOffering.studyPeriod.id,
+					coursesOffering.institute.id,
+					coursesOffering.course.id,
+					rest.courseOfferingId
+				),
+			};
+		});
+		res.json(z.array(classEntity).parse(entities));
 	})
 }
-router.get('/classes', get)
+router.get('/classes', listAll)
+
+
+
 
 type ListQueryParams = {
 	instituteId?: number | undefined,
-	courseId?: number | undefined ,
-	periodId?: number | undefined ,
+	courseId?: number | undefined,
+	periodId?: number | undefined,
 	professorId?: number | undefined
 }
 
@@ -140,19 +208,79 @@ function listPath({
 	courseId,
 	periodId,
 	professorId
-} : ListQueryParams) {
-	
-	return `http://localhost:3000/classes?` + [
+}: ListQueryParams) {
+	return `/classes?` + [
 		instituteId ? "instituteId=" + instituteId : undefined,
 		courseId ? "courseId=" + courseId : undefined,
 		periodId ? "periodId=" + periodId : undefined,
 		professorId ? "professorId=" + professorId : undefined,
 	].filter(Boolean).join('&');
-} 
+}
+
+
+registry.registerPath({
+	method: 'get',
+	path: '/classes/{id}',
+	tags: ['class'],
+	request: {
+		params: z.object({
+			id: z.int(),
+		}),
+	},
+	responses: {
+		200: {
+			description: "A class",
+			content: {
+				'application/json': {
+					schema: classEntity,
+				},
+			},
+		},
+	},
+});
+async function get(req: Request, res: Response) {
+	const id = z.coerce.number().int().parse(req.params.id);
+	prisma.class.findUnique({
+		where: {
+			id: id,
+		},
+		...prismaClassFieldSelection
+	}).then((classData) => {
+		if (!classData) {
+			res.status(404).json({ error: "Class not found" });
+			return;
+		}
+		const { coursesOffering, ...rest } = classData;
+		const entity: z.infer<typeof classEntity> = classEntity.parse({
+			...rest,
+			studyPeriodId: coursesOffering.studyPeriod.id,
+			studyPeriodName: coursesOffering.studyPeriod.name,
+			courseId: coursesOffering.course.id,
+			courseCode: coursesOffering.course.code,
+			instituteId: coursesOffering.institute.id,
+			instituteName: coursesOffering.institute.name,
+			_paths: relatedPathsForClass(
+				rest.id,
+				coursesOffering.studyPeriod.id,
+				coursesOffering.institute.id,
+				coursesOffering.course.id,
+				rest.courseOfferingId
+			),
+		})
+		res.json(entity)
+	})
+}
+router.get('/classes/:id', get)
+
+function entityPath(id: number) {
+	return `/classes/${id}`;
+}
+
 export default {
 	router,
 	registry,
 	paths: {
 		list: listPath,
+		entity: entityPath,
 	}
 }

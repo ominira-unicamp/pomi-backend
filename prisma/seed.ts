@@ -146,7 +146,7 @@ async function main() {
               name: turmaData.nome,
               courseOfferingId: courseOffering.id,
               reservations: turmaData.reservas,
-              Professors: {
+              professors: {
                 connect: professors.map(t => ({ id: t.id })),
               },
             },

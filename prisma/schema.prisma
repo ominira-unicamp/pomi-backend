@@ -2,7 +2,11 @@ generator client {
   provider = "prisma-client"
   output   = "./generated"
 }
-
+generator zod {
+  provider = "prisma-zod-generator"
+  output   = "./generated/zod"
+  config = "./config-zod.json"
+}
 datasource db {
   provider = "postgresql"
 }

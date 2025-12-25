@@ -12,11 +12,14 @@ import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi'
 
 
 const paths = {
-	professor: professor.paths,
+	class: classController.paths,
+	classSchedule: classSchedule.paths,
 	course: course.paths,
 	courseOffering: courseOffering.paths,
-	class: classController.paths,
-	classSchedule: classSchedule.paths
+	institute: institute.paths,	
+	professor: professor.paths,
+	room: room.paths,
+	studyPeriod: studyPeriods.paths,
 }
 
 export default {

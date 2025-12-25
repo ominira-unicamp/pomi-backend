@@ -11,6 +11,29 @@ extendZodWithOpenApi(z);
 const router = Router()
 const registry = new OpenAPIRegistry()
 
+function relatedPathsForInstitute(instituteId: number) {
+	return {
+		classes: resourcesPaths.class.list({
+			instituteId: instituteId
+		}),
+		coursesOfferings: resourcesPaths.courseOffering.list({
+			instituteId: instituteId
+		}),
+		courses: resourcesPaths.course.list({
+			instituteId: instituteId
+		})
+	}
+}
+
+const instituteEntity = z.object({
+	id: z.number().int(),
+	name: z.string(),
+	_paths: z.object({
+		classes: z.string(),
+		coursesOfferings: z.string(),
+		courses: z.string(),
+	})
+}).strict().openapi('InstituteEntity');
 
 registry.registerPath({
 	method: 'get',
@@ -21,35 +44,74 @@ registry.registerPath({
 			description: "A list of institutes",
 			content: {
 				'application/json': {
-					schema: z.array(z.any()), 
+					schema: z.array(instituteEntity),
+				},
+			},
+		},
+	},
+});
+async function list(req: Request, res: Response) {
+	prisma.institute.findMany().then((institutes) => {
+		res.json(
+			institutes.map(institute => ({
+				...institute,
+				_paths: relatedPathsForInstitute(institute.id)
+			})),
+		)
+	})
+}
+router.get('/institutes', list)
+
+registry.registerPath({
+	method: 'get',
+	path: '/institutes/{id}',
+	tags: ['institute'],
+	request: {
+		params: z.object({
+			id: z.int(),
+		}),
+	},
+	responses: {
+		200: {
+			description: "A list of institutes",
+			content: {
+				'application/json': {
+					schema: instituteEntity,
 				},
 			},
 		},
 	},
 });
 async function get(req: Request, res: Response) {
-	prisma.institute.findMany().then((institutes) => {
+	const id = z.coerce.number().int().parse(req.params.id);
+
+	prisma.institute.findUnique({
+		where: {
+			id: id,
+		}
+	}).then((institute) => {
+		if (!institute) {
+			res.status(404).send({ error: "Institute not found" });
+			return;
+		}
+
 		res.json(
-			institutes.map(institute => ({
+			{
 				...institute,
-				_paths: {
-					classes: resourcesPaths.class.list({
-						instituteId: institute.id
-					}),
-					coursesOfferings: resourcesPaths.courseOffering.list({
-						instituteId: institute.id
-					}),
-					courses: resourcesPaths.course.list({
-						instituteId: institute.id
-					})
-				}
-			})),
+				_paths: relatedPathsForInstitute(institute.id)
+			} 
 		)
 	})
 }
-router.get('/institutes', get)
+router.get('/institutes/:id', get)
 
+function entityPath(instituteId: number) {
+	return `/institutes/${instituteId}`;
+}
 export default {
 	router,
 	registry,
+	paths: {
+		entity: entityPath,
+	}
 }

@@ -9,6 +9,14 @@ extendZodWithOpenApi(z);
 const router = Router()
 const registry = new OpenAPIRegistry();
 
+const professorEntity = z.object({
+    id: z.number().int(),
+    name: z.string(),
+    _paths: z.object({
+        entity: z.string(),
+    })
+}).strict().openapi('ProfessorEntity');
+
 const listProfessorsQuery = z.object({
     classId: z.coerce.number().int().optional(),
 }).openapi('ListProfessorsQuery');
@@ -25,14 +33,14 @@ registry.registerPath({
             description: "A list of professors",
             content: {
                 'application/json': {
-                    schema: z.array(z.any()), 
+                    schema: z.array(professorEntity), 
                 },
             },
         },
     },
 });
 
-async function get(req: Request, res: Response) {
+async function list(req: Request, res: Response) {
     const query = listProfessorsQuery.parse(req.query);
     prisma.professor.findMany({
         where: {
@@ -43,10 +51,16 @@ async function get(req: Request, res: Response) {
             }
         },
     }).then((professors) => {
-		res.json(professors)
+        const entities : z.infer<typeof professorEntity>[] = professors.map((professor) => ({
+            ...professor,
+            _paths: {
+                entity: entityPath(professor.id),
+            }
+        }))
+		res.json(entities)
 	})
 }
-router.get('/professors', get)
+router.get('/professors', list)
 interface ListQueryParams {
     classId?: number;
 }
@@ -56,13 +70,60 @@ function listPath({
 	return `/professors?` + [
 		classId ? "classId=" + classId : undefined
 	].filter(Boolean).join('&');
-} 
+}
 
+registry.registerPath({
+    method: 'get',
+    path: '/professors/{id}',
+    tags: ['professor'],
+    request: {
+        params: z.object({
+            id: z.int(),
+        }),
+    },
+    responses: {
+        200: {
+            description: "A list of professors",
+            content: {
+                'application/json': {
+                    schema: professorEntity, 
+                },
+            },
+        },
+    },
+});
+
+async function get(req: Request, res: Response) {
+    const id = z.coerce.number().int().parse(req.params.id);
+    prisma.professor.findUnique({
+        where: {
+            id: id,
+        },
+    }).then((professor) => {
+        if (!professor) {
+            res.status(404).json({ error: "Professor not found" });
+            return;
+        }
+        const entity : z.infer<typeof professorEntity> = {
+            ...professor,
+            _paths: {
+                entity: entityPath(professor.id),
+            }
+        }
+		res.json(entity)
+	})
+}
+router.get('/professors/:id', get)
+
+function entityPath(professorId: number) {
+    return `/professors/${professorId}`;
+}
 
 export default {
 	router,
     registry,
     paths: {
         list: listPath,
+        entity: entityPath,
     },
 }
