@@ -85,7 +85,7 @@ async function get(req: Request, res: Response) {
 		}
 	}).then((institute) => {
 		if (!institute) {
-			res.status(404).send({ error: "Institute not found" });
+			res.status(404).json({ error: "Institute not found" });
 			return;
 		}
 

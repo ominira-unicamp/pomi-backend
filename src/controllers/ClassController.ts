@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import type { Request, Response } from "express";
 import { extendZodWithOpenApi, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
-import z from 'zod';
+import z, { ZodTuple } from 'zod';
 
 import prisma, { selectIdCode, selectIdName, whereIdCode, whereIdName } from '../PrismaClient'
 import { models } from '../PrismaClient';
@@ -88,21 +88,22 @@ const listClassesQuery = z.object({
 	professorName: z.string().optional(),
 }).openapi('GetClassesQuery');
 
-const internalServerError =
-	registry.registerPath({
-		method: 'get',
-		path: '/classes',
-		tags: ['class'],
-		request: {
-			query: listClassesQuery,
-		},
-		responses: new ResponseBuilder()
+
+registry.registerPath({
+	method: 'get',
+	path: '/classes',
+	tags: ['class'],
+	request: {
+		query: listClassesQuery,
+	},
+	responses: {
+		...new ResponseBuilder()
 			.ok(z.array(classEntity), "A list of classes")
 			.badRequest()
 			.internalServerError()
-			.build(),
-
-	});
+			.build()
+	},
+});
 
 async function listAll(req: Request, res: Response) {
 	const { success, data: query, error } = listClassesQuery.safeParse(req.query);
@@ -186,11 +187,17 @@ registry.registerPath({
 	},
 	responses: new ResponseBuilder()
 		.ok(classEntity, "A class")
+		.notFound()
+		.badRequest()
 		.internalServerError()
 		.build(),
 });
 async function get(req: Request, res: Response) {
-	const id = z.coerce.number().int().parse(req.params.id);
+	const {data: id, success, error} = z.coerce.number().int().safeParse(req.params.id);
+	if (!success) {
+		res.status(400).json(ZodErrorResponse(["params","id"], error));
+		return;
+	}
 	prisma.class.findUnique({
 		where: {
 			id: id,

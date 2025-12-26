@@ -46,8 +46,13 @@ router.get('/rooms', list)
 
 registry.registerPath({
     method: 'get',
-    path: '/rooms/:id',
+    path: '/rooms/{id}',
     tags: ['room'],
+    request: {
+        params: z.object({
+            id: z.int(),
+        }),
+    },
     responses: new ResponseBuilder()
         .ok(roomEntity, "A room by id")
         .badRequest()
