@@ -6,7 +6,7 @@ import z, { success, ZodAny, ZodType } from 'zod';
 import prisma from '../PrismaClient'
 import { resourcesPaths } from '../Controllers';
 import ResponseBuilder from '../openapi/ResponseBuilder';
-import { requestSafeParse, ValidationErrorField, ValidationErrorType, ZodErrorResponse } from '../Validation';
+import { requestSafeParse, ValidationError, ValidationErrorField, ValidationErrorType, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
 import { ParamsDictionary } from 'express-serve-static-core';
 
@@ -82,15 +82,18 @@ registry.registerPath({
 		.build(),
 });
 async function get(req: Request, res: Response) {
-	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
+	const { success, params, error } = requestSafeParse({
+		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
+		params: req.params,
+	});
 	if (!success) {
-		res.status(400).json(ZodErrorResponse(["params", "id"], error));
+		res.status(400).json(error);
 		return;
 	}
 
 	prisma.studyPeriod.findUnique({
 		where: {
-			id: id,
+			id: params.id,
 		},
 	}).then((studyPeriod) => {
 		if (!studyPeriod) {
@@ -126,17 +129,17 @@ registry.registerPath({
 
 async function create(req: Request, res: Response) {
 	const { success, data: body, error } = createStudyPeriodBody.safeParse(req.body);
-	const validationErrors = []
+	const errors = new ValidationError('Validation errors', []);
 	if (!success)
-		validationErrors.push(...ZodErrorResponse(["body"], error));
+		errors.addErrors(ZodErrorResponse(["body"], error));
 
 	if (body) {
 		const existing = await prisma.studyPeriod.findFirst({ where: { code: body.code } });
 		if (existing)
-			validationErrors.push({ error: "A study period with this code already exists", path: ["body", "code"] });
+			errors.addError(["body", "code"], "A study period with this code already exists");
 	}
-	if (validationErrors.length > 0 || !success) {
-		res.status(400).json(validationErrors);
+	if (errors.errors.length > 0 || !success) {
+		res.status(400).json(errors);
 		return;
 	}
 
@@ -195,7 +198,7 @@ async function patch(req: Request, res: Response) {
 		res.status(400).json(error);
 		return;
 	}	
-	const id = params!.id;
+	const id = params.id;
 	const existing = await prisma.studyPeriod.findUnique({ where: { id } });
 	if (!existing) {
 		res.status(404).json({ error: "Study period not found" });
@@ -237,18 +240,21 @@ registry.registerPath({
 });
 
 async function remove(req: Request, res: Response) {
-	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
+	const { success, params, error } = requestSafeParse({
+		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
+		params: req.params,
+	});
 	if (!success) {
-		res.status(400).json(ZodErrorResponse(["params", "id"], error));
+		res.status(400).json(error);
 		return;
 	}
-	const existing = await prisma.studyPeriod.findUnique({ where: { id } });
+	const existing = await prisma.studyPeriod.findUnique({ where: { id: params.id } });
 	if (!existing) {
 		res.status(404).json({ error: "Study period not found" });
 		return;
 	}
 
-	await prisma.studyPeriod.delete({ where: { id } });
+	await prisma.studyPeriod.delete({ where: { id: params.id } });
 	res.status(204).send();
 }
 router.delete('/study-periods/:id', remove)

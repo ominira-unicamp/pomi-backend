@@ -3,10 +3,11 @@ import type { Request, Response } from "express";
 import { extendZodWithOpenApi, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import z from 'zod';
 
-import prisma, { selectIdCode, whereIdName, whereIdCode } from '../PrismaClient'
+import prisma, { selectIdCode, whereIdName, whereIdCode, MyPrisma } from '../PrismaClient'
 import { resourcesPaths } from '../Controllers';
 import ResponseBuilder from '../openapi/ResponseBuilder';
-import { ZodErrorResponse } from '../Validation';
+import { requestSafeParse, ValidationError, ZodErrorResponse } from '../Validation';
+import RequestBuilder from '../openapi/RequestBuilder';
 extendZodWithOpenApi(z);
 
 const router = Router()
@@ -20,7 +21,7 @@ const prismaClassScheduleFieldSelection = {
 		class: {
 			select: {
 				id: true,
-				name: true,
+				code: true,
 				courseOfferingId: true,
 				coursesOffering: {
 					select: {
@@ -32,32 +33,8 @@ const prismaClassScheduleFieldSelection = {
 			}
 		},
 	},
-}
-const ClassScheduleEntity = z.object({
-	id: z.number().int(),
-	dayOfWeek: daysOfWeekEnum,
-	start: z.string(),
-	end: z.string(),
-	roomId: z.number().int(),
-	roomCode: z.string(),
-	classId: z.number().int(),
-	className: z.string(),
-	instituteId: z.number().int(),
-	instituteCode: z.string(),
-	courseId: z.number().int(),
-	courseCode: z.string(),
-	courseOfferingId: z.number().int(),
-	periodId: z.number().int(),
-	periodName: z.string(),
-	_paths: z.object({
-		entity: z.string(),
-		studyPeriod: z.string(),
-		institute: z.string(),
-		course: z.string(),
-		courseOffering: z.string(),
-		class: z.string(),
-	}).strict(),
-}).strict().openapi('ClassScheduleEntity');
+} as const satisfies MyPrisma.ClassScheduleDefaultArgs;
+type PrismaClassSchedulePayload = MyPrisma.ClassScheduleGetPayload<typeof prismaClassScheduleFieldSelection>;
 
 function relatedPathsForClassSchedule(
 	classScheduleId: number,
@@ -76,6 +53,60 @@ function relatedPathsForClassSchedule(
 		entity: entityPath(classScheduleId)
 	}
 }
+
+function buildClassScheduleEntity(classSchedule: PrismaClassSchedulePayload) : z.infer<typeof ClassScheduleEntity> {
+	const { room, class: classObj, ...rest } = classSchedule
+	return {
+		...rest,
+		roomCode: room.code,
+		classCode: classObj.code,
+		classId: classObj.id,
+		instituteId: classObj.coursesOffering.institute.id,
+		instituteCode: classObj.coursesOffering.institute.code,
+		courseId: classObj.coursesOffering.course.id,
+		courseCode: classObj.coursesOffering.course.code,
+		courseOfferingId: classObj.courseOfferingId,
+		periodId: classObj.coursesOffering.studyPeriod.id,
+		periodName: classObj.coursesOffering.studyPeriod.code,
+		_paths: relatedPathsForClassSchedule(
+			classSchedule.id,
+			classObj.coursesOffering.studyPeriod.id,
+			classObj.coursesOffering.institute.id,
+			classObj.coursesOffering.course.id,
+			classObj.courseOfferingId,
+			classObj.id
+		)
+	}
+}
+const classScheduleBase = z.object({
+	id: z.number().int(),
+	dayOfWeek: daysOfWeekEnum,
+	start: z.string().min(1),
+	end: z.string().min(1),
+	roomId: z.number().int(),
+	classId: z.number().int(),
+});
+
+const ClassScheduleEntity = classScheduleBase.extend({
+	roomCode: z.string(),
+	classCode: z.string(),
+	instituteId: z.number().int(),
+	instituteCode: z.string(),
+	courseId: z.number().int(),
+	courseCode: z.string(),
+	courseOfferingId: z.number().int(),
+	periodId: z.number().int(),
+	periodName: z.string(),
+	_paths: z.object({
+		entity: z.string(),
+		studyPeriod: z.string(),
+		institute: z.string(),
+		course: z.string(),
+		courseOffering: z.string(),
+		class: z.string(),
+	}).strict(),
+}).strict().openapi('ClassScheduleEntity');
+
 const getClassSchedules = z.object({
 	studyPeriodId: z.coerce.number().int().optional(),
 	studyPeriodCode: z.string().optional(),
@@ -103,9 +134,12 @@ registry.registerPath({
 		.build(),
 });
 async function list(req: Request, res: Response) {
-	const { success, data: query, error } = getClassSchedules.safeParse(req.query);
+	const { success, query, error } = requestSafeParse({
+		querySchema: getClassSchedules,
+		query: req.query,
+	});
 	if (!success) {
-		res.status(400).json(ZodErrorResponse(["query"], error));
+		res.status(400).json(error);
 		return;
 	}
 	prisma.classSchedule.findMany({
@@ -122,30 +156,7 @@ async function list(req: Request, res: Response) {
 		},
 		...prismaClassScheduleFieldSelection,
 	}).then((classSchedules) => {
-		const entities: z.infer<typeof ClassScheduleEntity>[] = classSchedules.map((classSchedule) => {
-			const { room, class: classObj, ...rest } = classSchedule
-			return {
-				...rest,
-				roomCode: room.code,
-				className: classObj.name,
-				classId: classObj.id,
-				instituteId: classObj.coursesOffering.institute.id,
-				instituteCode: classObj.coursesOffering.institute.code,
-				courseId: classObj.coursesOffering.course.id,
-				courseCode: classObj.coursesOffering.course.code,
-				courseOfferingId: classObj.courseOfferingId,
-				periodId: classObj.coursesOffering.studyPeriod.id,
-				periodName: classObj.coursesOffering.studyPeriod.code,
-				_paths: relatedPathsForClassSchedule(
-					classSchedule.id,
-					classObj.coursesOffering.studyPeriod.id,
-					classObj.coursesOffering.institute.id,
-					classObj.coursesOffering.course.id,
-					classObj.courseOfferingId,
-					classObj.id
-				)
-			}
-		})
+		const entities: z.infer<typeof ClassScheduleEntity>[] = classSchedules.map((classSchedule) => buildClassScheduleEntity(classSchedule));
 		res.json(z.array(ClassScheduleEntity).parse(entities));
 	})
 }
@@ -183,14 +194,17 @@ registry.registerPath({
 		.build(),
 });
 async function get(req: Request, res: Response) {
-	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
+	const { success, params, error } = requestSafeParse({
+		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
+		params: req.params,
+	});
 	if (!success) {
-		res.status(400).json(ZodErrorResponse(["params", "id"], error));
+		res.status(400).json(error);
 		return;
 	}
 	prisma.classSchedule.findUnique({
 		where: {
-			id: id,
+			id: params.id,
 		},
 		...prismaClassScheduleFieldSelection,
 	}).then((classSchedule) => {
@@ -198,33 +212,169 @@ async function get(req: Request, res: Response) {
 			res.status(404).json({ error: "Class schedule not found" });
 			return;
 		}
-		const { room, class: classObj, ...rest } = classSchedule
-		const entity: z.infer<typeof ClassScheduleEntity> = ClassScheduleEntity.parse({
-			...rest,
-			roomCode: room.code,
-			className: classObj.name,
-			classId: classObj.id,
-			instituteId: classObj.coursesOffering.institute.id,
-			instituteCode: classObj.coursesOffering.institute.code,
-			courseId: classObj.coursesOffering.course.id,
-			courseCode: classObj.coursesOffering.course.code,
-			courseOfferingId: classObj.courseOfferingId,
-			periodId: classObj.coursesOffering.studyPeriod.id,
-			periodName: classObj.coursesOffering.studyPeriod.code,
-			_paths: relatedPathsForClassSchedule(
-				classSchedule.id,
-				classObj.coursesOffering.studyPeriod.id,
-				classObj.coursesOffering.institute.id,
-				classObj.coursesOffering.course.id,
-				classObj.courseOfferingId,
-				classObj.id
-			),
-		})
-		res.json(entity)
+		const entity: z.infer<typeof ClassScheduleEntity> = buildClassScheduleEntity(classSchedule);
+		res.json(ClassScheduleEntity.parse(entity))
 	})
 }
 router.get('/class-schedules/:id', get)
 
+
+const createClassScheduleBody = classScheduleBase.openapi('CreateClassScheduleBody');
+
+registry.registerPath({
+	method: 'post',
+	path: '/class-schedules',
+	tags: ['class-schedule'],
+	request: new RequestBuilder()
+		.body(createClassScheduleBody, "Class schedule to create")
+		.build(),
+	responses: new ResponseBuilder()
+		.created(ClassScheduleEntity, "Class schedule created successfully")
+		.badRequest()
+		.internalServerError()
+		.build(),
+});
+
+async function create(req: Request, res: Response) {
+	const { success, data: body, error } = createClassScheduleBody.safeParse(req.body);
+	const errors = new ValidationError('Validation errors', []);
+	if (!success) {
+		errors.addErrors(ZodErrorResponse(['body'], error));
+	}
+	
+	if (body) {
+		const room = await prisma.room.findUnique({ where: { id: body.roomId } });
+		if (!room) {
+			errors.addError(['body', 'roomId'], 'Room not found');
+		}
+		
+		const classData = await prisma.class.findUnique({ where: { id: body.classId } });
+		if (!classData) {
+			errors.addError(['body', 'classId'], 'Class not found');
+		}
+	}
+	
+	if (errors.errors.length > 0 || !success) {
+		res.status(400).json(errors);
+		return;
+	}
+
+	const classSchedule = await prisma.classSchedule.create({
+		data: body,
+		...prismaClassScheduleFieldSelection,
+	});
+
+	const entity = buildClassScheduleEntity(classSchedule)
+
+	res.status(201).json(ClassScheduleEntity.parse(entity));
+}
+router.post('/class-schedules', create)
+
+const patchClassScheduleBody = classScheduleBase.partial().openapi('PatchClassScheduleBody');
+
+registry.registerPath({
+	method: 'patch',
+	path: '/class-schedules/{id}',
+	tags: ['class-schedule'],
+	request: new RequestBuilder()
+		.params(z.object({ id: z.int() }).strict())
+		.body(patchClassScheduleBody, "Class schedule fields to update")
+		.build(),
+	responses: new ResponseBuilder()
+		.ok(ClassScheduleEntity, "Class schedule updated successfully")
+		.badRequest()
+		.notFound()
+		.internalServerError()
+		.build(),
+});
+
+async function patch(req: Request, res: Response) {
+	const { success, params, body, error } = requestSafeParse({
+		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
+		params: req.params,
+		bodySchema: patchClassScheduleBody,
+		body: req.body,
+	});
+	const validation = new ValidationError('Validation errors', error);
+
+	if (success && body?.roomId !== undefined) {
+		const room = await prisma.room.findUnique({ where: { id: body.roomId } });
+		if (!room) {
+			validation.addError(['body', 'roomId'], 'Room not found');
+		}
+	}
+
+	if (success && body?.classId !== undefined) {
+		const classData = await prisma.class.findUnique({ where: { id: body.classId } });
+		if (!classData) {
+			validation.addError(['body', 'classId'], 'Class not found');
+		}
+	}
+
+	if (!success || validation.errors.length > 0) {
+		res.status(400).json(validation);
+		return;
+	}
+
+	const existing = await prisma.classSchedule.findUnique({ where: { id: params.id } });
+	if (!existing) {
+		res.status(404).json({ error: 'Class schedule not found' });
+		return;
+	}
+
+	const classSchedule = await prisma.classSchedule.update({
+		where: { id: params.id },
+		data: {
+			...(body.dayOfWeek !== undefined && { dayOfWeek: body.dayOfWeek }),
+			...(body.start !== undefined && { start: body.start }),
+			...(body.end !== undefined && { end: body.end }),
+			...(body.roomId !== undefined && { roomId: body.roomId }),
+			...(body.classId !== undefined && { classId: body.classId }),
+		},
+		...prismaClassScheduleFieldSelection,
+	});
+
+	const entity = buildClassScheduleEntity(classSchedule)
+	res.json(ClassScheduleEntity.parse(entity));
+}
+router.patch('/class-schedules/:id', patch)
+
+
+registry.registerPath({
+	method: 'delete',
+	path: '/class-schedules/{id}',
+	tags: ['class-schedule'],
+	request: new RequestBuilder()
+		.params(z.object({ id: z.int() }).strict())
+		.build(),
+	responses: new ResponseBuilder()
+		.noContent()
+		.badRequest()
+		.notFound()
+		.internalServerError()
+		.build(),
+});
+
+async function deleteClassSchedule(req: Request, res: Response) {
+	const { success, params, error } = requestSafeParse({
+		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
+		params: req.params,
+	});
+	if (!success) {
+		res.status(400).json(error);
+		return;
+	}
+
+	const existing = await prisma.classSchedule.findUnique({ where: { id: params.id } });
+	if (!existing) {
+		res.status(404).json({ error: 'Class schedule not found' });
+		return;
+	}
+
+	await prisma.classSchedule.delete({ where: { id: params.id } });
+	res.status(204).send();
+}
+router.delete('/class-schedules/:id', deleteClassSchedule)
 
 function entityPath(id: number) {
 	return `/class-schedules/${id}`;

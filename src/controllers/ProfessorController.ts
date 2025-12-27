@@ -4,7 +4,8 @@ import prisma from '../PrismaClient'
 import { OpenAPIRegistry, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
 import ResponseBuilder from '../openapi/ResponseBuilder';
-import { ZodErrorResponse } from '../Validation';
+import { requestSafeParse, ValidationError, ZodErrorResponse } from '../Validation';
+import RequestBuilder from '../openapi/RequestBuilder';
 
 extendZodWithOpenApi(z);
 
@@ -38,11 +39,14 @@ registry.registerPath({
 });
 
 async function list(req: Request, res: Response) {
-    const { success, data: query, error } = listProfessorsQuery.safeParse(req.query);
-    if (!success) {
-        res.status(400).json(ZodErrorResponse(["query"], error));
-        return;
-    }
+	const { success, query, error } = requestSafeParse({
+		querySchema: listProfessorsQuery,
+		query: req.query,
+	});
+	if (!success) {
+		res.status(400).json(error);
+		return;
+	}
     prisma.professor.findMany({
         where: {
             classes: {
@@ -91,14 +95,17 @@ registry.registerPath({
 });
 
 async function get(req: Request, res: Response) {
-    const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
-    if (!success) {
-        res.status(400).json(ZodErrorResponse(["params", "id"], error));
-        return;
-    }
+	const { success, params, error } = requestSafeParse({
+		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
+		params: req.params,
+	});
+	if (!success) {
+		res.status(400).json(error);
+		return;
+	}
     prisma.professor.findUnique({
         where: {
-            id: id,
+            id: params.id,
         },
     }).then((professor) => {
         if (!professor) {

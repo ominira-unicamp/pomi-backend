@@ -4,7 +4,8 @@ import prisma from '../PrismaClient'
 import { OpenAPIRegistry, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
 import ResponseBuilder from '../openapi/ResponseBuilder';
-import { ZodErrorResponse } from '../Validation';
+import { requestSafeParse, ValidationError, ZodErrorResponse } from '../Validation';
+import RequestBuilder from '../openapi/RequestBuilder';
 
 extendZodWithOpenApi(z);
 
@@ -62,14 +63,17 @@ registry.registerPath({
 });
 
 async function get(req: Request, res: Response) {
-	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
+	const { success, params, error } = requestSafeParse({
+		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
+		params: req.params,
+	});
 	if (!success) {
-		res.status(400).json(ZodErrorResponse(["params", "id"], error));
+		res.status(400).json(error);
 		return;
 	}
     prisma.room.findUnique({
 		where: {
-			id: id,
+			id: params.id,
 		},
 	}).then((room) => {
 		if (!room) {
