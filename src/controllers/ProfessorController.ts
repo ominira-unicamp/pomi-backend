@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import prisma from '../PrismaClient'
 import { OpenAPIRegistry, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
-import ResponseBuilder from '../ResponseBuilder';
+import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ZodErrorResponse } from '../Validation';
 
 extendZodWithOpenApi(z);

@@ -2,11 +2,13 @@ generator client {
   provider = "prisma-client"
   output   = "./generated"
 }
+
 generator zod {
   provider = "prisma-zod-generator"
   output   = "./generated/zod"
-  config = "./config-zod.json"
+  config   = "./config-zod.json"
 }
+
 datasource db {
   provider = "postgresql"
 }
@@ -21,15 +23,15 @@ model User {
 
 model Institute {
   id               Int              @id @default(autoincrement())
-  name             String
-  coursesOfferings  CourseOffering[]
-  prefixes          Prefixes[]
+  code             String           @unique
+  coursesOfferings CourseOffering[]
+  prefixes         Prefixes[]
   programs         Program[]
 }
 
 model Prefixes {
   id          Int       @id @default(autoincrement())
-  prefix       String     @unique
+  prefix      String    @unique
   institute   Institute @relation(fields: [instituteId], references: [id])
   instituteId Int
 }
@@ -39,7 +41,7 @@ model Course {
   code             String                  @unique
   name             String
   credits          Int
-  coursesOfferings  CourseOffering[]
+  coursesOfferings CourseOffering[]
   programCourses   ProgramModalityCourse[]
   studentCourses   StudentCourse[]
 }
@@ -68,11 +70,11 @@ model Program {
 
 model Modality {
   id   Int    @id @default(autoincrement())
-  code String @unique
+  code String 
   name String
 
   programCourses ProgramModalityCourse[]
-  students Student[]
+  students       Student[]
 }
 
 model CatalogProgram {
@@ -99,9 +101,8 @@ model ProgramModalityCourse {
 
 model StudyPeriod {
   id               Int              @id @default(autoincrement())
-  name             String
+  code             String           @unique
   startDate        DateTime
-  endDate          DateTime
   coursesOfferings CourseOffering[]
 }
 
@@ -130,11 +131,11 @@ model CourseOffering {
 
 model Class {
   id               Int             @id @default(autoincrement())
-  name             String
+  code             String
   professors       Professor[]
   classSchedules   ClassSchedule[]
   reservations     Int[]
-  coursesOffering CourseOffering  @relation(fields: [courseOfferingId], references: [id])
+  coursesOffering  CourseOffering  @relation(fields: [courseOfferingId], references: [id])
   courseOfferingId Int
 }
 
@@ -148,14 +149,15 @@ enum DayOfWeek {
   SATURDAY
   SUNDAY
 }
+
 model ClassSchedule {
-  id        Int    @id @default(autoincrement())
-  dayOfWeek DayOfWeek 
+  id        Int       @id @default(autoincrement())
+  dayOfWeek DayOfWeek
   start     String
   end       String
-  room      Room   @relation(fields: [roomId], references: [id])
+  room      Room      @relation(fields: [roomId], references: [id])
   roomId    Int
-  class     Class  @relation(fields: [classId], references: [id])
+  class     Class     @relation(fields: [classId], references: [id])
   classId   Int
 }
 
@@ -190,6 +192,3 @@ model StudentCourse {
 
   @@unique([studentId, courseId])
 }
-
-
-

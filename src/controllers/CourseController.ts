@@ -5,7 +5,7 @@ import z from 'zod';
 
 import prisma from '../PrismaClient'
 import { resourcesPaths } from '../Controllers';
-import ResponseBuilder from '../ResponseBuilder';
+import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ZodErrorResponse } from '../Validation';
 extendZodWithOpenApi(z);
 

@@ -6,7 +6,7 @@ import z from 'zod';
 import prisma, { selectIdName, selectIdCode, whereIdName, whereIdCode } from '../PrismaClient'
 import { resourcesPaths } from '../Controllers';
 import { id } from 'zod/v4/locales';
-import ResponseBuilder from '../ResponseBuilder';
+import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ZodErrorResponse } from '../Validation';
 extendZodWithOpenApi(z);
 
@@ -44,7 +44,7 @@ const ClassScheduleEntity = z.object({
 	classId: z.number().int(),
 	className: z.string(),
 	instituteId: z.number().int(),
-	instituteName: z.string(),
+	instituteCode: z.string(),
 	courseId: z.number().int(),
 	courseCode: z.string(),
 	courseOfferingId: z.number().int(),
@@ -81,7 +81,7 @@ const getClassSchedules = z.object({
 	periodId: z.coerce.number().int().optional(),
 	periodName: z.string().optional(),
 	instituteId: z.coerce.number().int().optional(),
-	instituteName: z.string().optional(),
+	instituteCode: z.string().optional(),
 	courseId: z.coerce.number().int().optional(),
 	courseCode: z.string().optional(),
 	roomId: z.coerce.number().int().optional(),
@@ -115,7 +115,7 @@ async function list(req: Request, res: Response) {
 			room: whereIdCode(query.roomId, query.roomCode),
 			class: {
 				coursesOffering: {
-					institute: whereIdName(query.instituteId, query.instituteName),
+					institute: whereIdName(query.instituteId, query.instituteCode),
 					course: whereIdCode(query.courseId, query.courseCode),
 					studyPeriod: whereIdName(query.periodId, query.periodName),
 				},
@@ -131,7 +131,7 @@ async function list(req: Request, res: Response) {
 				className: classObj.name,
 				classId: classObj.id,
 				instituteId: classObj.coursesOffering.institute.id,
-				instituteName: classObj.coursesOffering.institute.name,
+				instituteCode: classObj.coursesOffering.institute.name,
 				courseId: classObj.coursesOffering.course.id,
 				courseCode: classObj.coursesOffering.course.code,
 				courseOfferingId: classObj.courseOfferingId,
@@ -206,7 +206,7 @@ async function get(req: Request, res: Response) {
 			className: classObj.name,
 			classId: classObj.id,
 			instituteId: classObj.coursesOffering.institute.id,
-			instituteName: classObj.coursesOffering.institute.name,
+			instituteCode: classObj.coursesOffering.institute.name,
 			courseId: classObj.coursesOffering.course.id,
 			courseCode: classObj.coursesOffering.course.code,
 			courseOfferingId: classObj.courseOfferingId,

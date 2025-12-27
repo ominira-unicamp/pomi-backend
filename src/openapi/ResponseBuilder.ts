@@ -1,19 +1,13 @@
 import { extendZodWithOpenApi, ResponseConfig, ZodContentObject, ZodMediaTypeObject } from "@asteasolutions/zod-to-openapi";
 import { ReferenceObject, SchemaObject } from "@asteasolutions/zod-to-openapi/dist/types";
 import z, { ZodType } from "zod";
+import { ValidationErrorSchema } from "../Validation";
 extendZodWithOpenApi(z)
 
 interface BadRequestErrors {
 	query: ZodType<unknown> | SchemaObject | ReferenceObject
 }
  
-const ValidationErrorSchema = z.object({
-	message: z.string(),
-	errors: z.array(z.object({
-		path: z.array(z.string()),
-		message: z.string()
-	}))
-}).openapi("ValidationError");
 class ResponseBuilder {
 	response: Record<number, ResponseConfig | ReferenceObject> = {}
 	internalServerError(): ResponseBuilder {
@@ -30,6 +24,23 @@ class ResponseBuilder {
 					schema: schema,
 				},
 			},
+		};
+		return this;
+	}
+	created(schema: ZodType<unknown> | SchemaObject | ReferenceObject, description: string): ResponseBuilder {
+		this.response[201] = {
+			description: description,
+			content: {
+				'application/json': {
+					schema: schema,
+				},
+			},
+		};
+		return this;
+	}
+	noContent(): ResponseBuilder {
+		this.response[204] = {
+			description: "No content"
 		};
 		return this;
 	}

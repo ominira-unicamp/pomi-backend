@@ -5,7 +5,7 @@ import z from 'zod';
 
 import prisma, { selectIdName, selectIdCode, whereIdName, whereIdCode } from '../PrismaClient'
 import { resourcesPaths } from '../Controllers';
-import ResponseBuilder from '../ResponseBuilder';
+import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ZodErrorResponse } from '../Validation';
 
 extendZodWithOpenApi(z);
@@ -37,7 +37,7 @@ const relatedPathsForClassOffering = (
 const CourseOfferingEntity = z.object({
 	id: z.number().int(),
 	instituteId: z.number().int(),
-	instituteName: z.string(),
+	instituteCode: z.string(),
 	courseId: z.number().int(),
 	courseCode: z.string(),
 	studyPeriodId: z.number().int(),
@@ -90,7 +90,7 @@ async function list(req: Request, res: Response) {
 			const {institute, course, studyPeriod, ...rest} = co;
 			return {
 				...rest,
-				instituteName: institute.name,
+				instituteCode: institute.name,
 				courseCode: course.code,
 				studyPeriodName: studyPeriod.name,
 				_paths: relatedPathsForClassOffering(
@@ -162,7 +162,7 @@ async function get(req: Request, res: Response) {
 		
 		const entity: z.infer<typeof CourseOfferingEntity> = {
 			...rest,
-			instituteName: institute.name,
+			instituteCode: institute.name,
 			courseCode: course.code,
 			studyPeriodName: studyPeriod.name,
 			_paths: relatedPathsForClassOffering(

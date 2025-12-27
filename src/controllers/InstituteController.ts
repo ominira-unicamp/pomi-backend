@@ -5,7 +5,7 @@ import z from 'zod';
 
 import prisma from '../PrismaClient'
 import { resourcesPaths } from '../Controllers';
-import ResponseBuilder from '../ResponseBuilder';
+import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ZodErrorResponse } from '../Validation';
 
 extendZodWithOpenApi(z);
@@ -27,7 +27,7 @@ function relatedPathsForInstitute(instituteId: number) {
 
 const instituteEntity = z.object({
 	id: z.number().int(),
-	name: z.string(),
+	code: z.string(),
 	_paths: z.object({
 		classes: z.string(),
 		coursesOfferings: z.string(),

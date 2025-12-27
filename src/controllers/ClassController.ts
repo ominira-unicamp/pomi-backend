@@ -6,7 +6,7 @@ import z, { ZodTuple } from 'zod';
 import prisma, { selectIdCode, selectIdName, whereIdCode, whereIdName } from '../PrismaClient'
 import { models } from '../PrismaClient';
 import { resourcesPaths } from '../Controllers';
-import ResponseBuilder from '../ResponseBuilder';
+import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ZodErrorResponse } from '../Validation';
 extendZodWithOpenApi(z);
 
@@ -20,7 +20,7 @@ const prismaClassFieldSelection = {
 			select: {
 				studyPeriod: selectIdName,
 				course: selectIdCode,
-				institute: selectIdName,
+				institute: selectIdCode,
 			}
 		}
 	}
@@ -51,7 +51,7 @@ function relatedPathsForClass(
 
 const classEntity = z.object({
 	id: z.number().int(),
-	name: z.string(),
+	code: z.string(),
 	reservations: z.array(z.number().int()),
 	courseOfferingId: z.number().int(),
 	studyPeriodId: z.number().int(),
@@ -59,7 +59,7 @@ const classEntity = z.object({
 	courseId: z.number().int(),
 	courseCode: z.string(),
 	instituteId: z.number().int(),
-	instituteName: z.string(),
+	instituteCode: z.string(),
 	professors: z.array(z.object({
 		id: z.number().int(),
 		name: z.string(),
@@ -79,7 +79,7 @@ const classEntity = z.object({
 
 const listClassesQuery = z.object({
 	instituteId: z.coerce.number().int().optional(),
-	instituteName: z.string().optional(),
+	instituteCode: z.string().optional(),
 	courseId: z.coerce.number().int().optional(),
 	courseCode: z.string().optional(),
 	periodId: z.coerce.number().int().optional(),
@@ -115,7 +115,7 @@ async function listAll(req: Request, res: Response) {
 		where: {
 			coursesOffering: {
 				instituteId: query.instituteId,
-				institute: whereIdName(query.instituteId, query.instituteName),
+				institute: whereIdCode(query.instituteId, query.instituteCode),
 				course: whereIdCode(query.courseId, query.courseCode),
 				studyPeriod: whereIdName(query.periodId, query.periodName)
 			},
@@ -136,7 +136,7 @@ async function listAll(req: Request, res: Response) {
 			courseId: coursesOffering.course.id,
 			courseCode: coursesOffering.course.code,
 			instituteId: coursesOffering.institute.id,
-			instituteName: coursesOffering.institute.name,
+			instituteCode: coursesOffering.institute.code,
 			_paths: relatedPathsForClass(
 				c.id,
 				coursesOffering.studyPeriod.id,
@@ -216,7 +216,7 @@ async function get(req: Request, res: Response) {
 			courseId: coursesOffering.course.id,
 			courseCode: coursesOffering.course.code,
 			instituteId: coursesOffering.institute.id,
-			instituteName: coursesOffering.institute.name,
+			instituteCode: coursesOffering.institute.code,
 			_paths: relatedPathsForClass(
 				rest.id,
 				coursesOffering.studyPeriod.id,

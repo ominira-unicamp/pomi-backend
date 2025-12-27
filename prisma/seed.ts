@@ -79,12 +79,11 @@ async function main() {
     // Criar período de estudo
     const studyPeriod = await prisma.studyPeriod.create({
       data: {
-        name: `${periodo.ano}s${periodo.semestre}`,
+        code: `${periodo.ano}s${periodo.semestre}`,
         startDate: new Date(`${periodo.ano}-${periodo.semestre === 1 ? '02' : '08'}-01`),
-        endDate: new Date(`${periodo.ano}-${periodo.semestre === 1 ? '06' : '12'}-30`),
       },
     })
-    console.log(`   ✅ Período de estudo criado: ${studyPeriod.name}`)
+    console.log(`   ✅ Período de estudo criado: ${studyPeriod.code}`)
 
     // Processar institutos
     for (const institutoData of periodo.institutos) {
@@ -93,9 +92,9 @@ async function main() {
       console.log(`\n   🏛️  Instituto: ${institutoData.nome}`)
 
       // Criar instituto
-      const institute = await prisma.institute.findFirst({ where: { name: institutoData.nome } }) || await prisma.institute.create({
+      const institute = await prisma.institute.findFirst({ where: { code: institutoData.nome } }) || await prisma.institute.create({
         data: {
-          name: institutoData.nome,
+          code: institutoData.nome,
         },
       })
 
@@ -143,7 +142,7 @@ async function main() {
           // Criar turma
           const classEntity = await prisma.class.create({
             data: {
-              name: turmaData.nome,
+              code: turmaData.nome,
               courseOfferingId: courseOffering.id,
               reservations: turmaData.reservas,
               professors: {
