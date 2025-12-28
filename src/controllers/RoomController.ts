@@ -5,7 +5,7 @@ import { AuthRegistry } from '../auth';
 import { OpenAPIRegistry, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
 import ResponseBuilder from '../openapi/ResponseBuilder';
-import { requestSafeParse, ValidationError, ZodErrorResponse } from '../Validation';
+import { ValidationError, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
 
 extendZodWithOpenApi(z);
@@ -78,17 +78,14 @@ registry.registerPath({
 });
 
 async function get(req: Request, res: Response) {
-	const { success, params, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-	});
+	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
 	if (!success) {
 		res.status(400).json(error);
 		return;
 	}
     prisma.room.findUnique({
 		where: {
-			id: params.id,
+			id: id,
 		},
 	}).then((room) => {
 		if (!room) {
@@ -120,9 +117,9 @@ registry.registerPath({
 
 async function create(req: Request, res: Response) {
 	const { success, data: body, error } = createRoomBody.safeParse(req.body);
-	const errors = new ValidationError('Validation errors', []);
+	const errors = new ValidationError([]);
 	if (!success) {
-		errors.addErrors(ZodErrorResponse(['body'], error));
+		errors.addErrors(ZodErrorResponse(error, ['body']));
 	}
 	
 	if (body) {
@@ -141,8 +138,7 @@ async function create(req: Request, res: Response) {
 		data: body,
 	});
 
-	const entity = buildRoomEntity(room);
-	res.status(201).json(roomEntity.parse(entity));
+	res.status(201).json(buildRoomEntity(room));
 }
 router.post('/rooms', create)
 
@@ -166,17 +162,14 @@ registry.registerPath({
 });
 
 async function patch(req: Request, res: Response) {
-	const { success, params, body, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-		bodySchema: patchRoomBody,
-		body: req.body,
-	});
-	const validation = new ValidationError('Validation errors', error);
-
-	if (success && body?.code !== undefined) {
-		const existing = await prisma.room.findUnique({ where: { code: body.code } });
-		if (existing && existing.id !== params.id) {
+	const { success, data, error } = z.object({
+		params: z.object({ id: z.coerce.number().int() }).strict(),
+		body: patchRoomBody,
+	}).safeParse(req);
+	const validation = new ValidationError(ZodErrorResponse(error));
+	if (success) {
+		const existing = await prisma.room.findUnique({ where: { code: data.body.code } });
+		if (existing && existing.id !== data.params.id) {
 			validation.addError(['body', 'code'], 'A room with this code already exists');
 		}
 	}
@@ -186,21 +179,20 @@ async function patch(req: Request, res: Response) {
 		return;
 	}
 
-	const existing = await prisma.room.findUnique({ where: { id: params.id } });
+	const existing = await prisma.room.findUnique({ where: { id: data.params.id } });
 	if (!existing) {
 		res.status(404).json({ error: 'Room not found' });
 		return;
 	}
 
 	const room = await prisma.room.update({
-		where: { id: params.id },
+		where: { id: data.params.id },
 		data: {
-			...(body.code !== undefined && { code: body.code }),
+			...(data.body.code !== undefined && { code: data.body.code }),
 		},
 	});
 
-	const entity = buildRoomEntity(room);
-	res.json(roomEntity.parse(entity));
+	res.json(buildRoomEntity(room));
 }
 router.patch('/rooms/:id', patch)
 
@@ -221,22 +213,18 @@ registry.registerPath({
 });
 
 async function deleteRoom(req: Request, res: Response) {
-	const { success, params, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-	});
+	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
 	if (!success) {
 		res.status(400).json(error);
 		return;
 	}
-
-	const existing = await prisma.room.findUnique({ where: { id: params.id } });
+	const existing = await prisma.room.findUnique({ where: { id: id } });
 	if (!existing) {
 		res.status(404).json({ error: 'Room not found' });
 		return;
 	}
 
-	await prisma.room.delete({ where: { id: params.id } });
+	await prisma.room.delete({ where: { id } });
 	res.status(204).send();
 }
 router.delete('/rooms/:id', deleteRoom)

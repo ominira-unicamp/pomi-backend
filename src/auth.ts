@@ -4,6 +4,7 @@ import { match, pathToRegexp, compile, parse, stringify } from "path-to-regexp";
 if (!process.env.secretKey) {
 	console.warn("Warning: secretKey environment variable is not set. Using default value.");
 } 
+const disabled = process.env.DISABLED_AUTH === 'true';
 const secretKey = process.env.secretKey ?? "default";
 const secret = new TextEncoder().encode(secretKey)
 const alg = 'HS256'
@@ -46,6 +47,9 @@ class AuthRegistry {
 	}
 	middleware() {
 		return async (req: Request, res: Response, next: NextFunction) => {
+			if (disabled) {
+				return next();
+			}
 			const authHeader = req.headers.authorization;
 			if (this.checkException(req.method as Methods, req.path)) {
 				return next();

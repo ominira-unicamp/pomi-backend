@@ -5,7 +5,7 @@ import { AuthRegistry } from '../auth';
 import { OpenAPIRegistry, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
 import ResponseBuilder from '../openapi/ResponseBuilder';
-import { requestSafeParse, ValidationError, ZodErrorResponse } from '../Validation';
+import { ValidationError, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
 
 extendZodWithOpenApi(z);
@@ -31,61 +31,50 @@ const professorBase = z.object({
 });
 
 const professorEntity = professorBase.extend({
-    id: z.number().int(),
-    name: z.string(),
-    _paths: z.object({
-        entity: z.string(),
-    })
+	id: z.number().int(),
+	name: z.string(),
+	_paths: z.object({
+		entity: z.string(),
+	})
 }).strict().openapi('ProfessorEntity');
 
 const listProfessorsQuery = z.object({
-    classId: z.coerce.number().int().optional(),
+	classId: z.coerce.number().int().optional(),
 }).openapi('ListProfessorsQuery');
 
 authRegistry.addException('GET', '/professors');
 registry.registerPath({
-    method: 'get',
-    path: '/professors',
-    tags: ['professor'],
-    request: {
-        query: listProfessorsQuery,
-    },
-    responses: new ResponseBuilder()
-        .ok(z.array(professorEntity), "A list of professors")
-        .badRequest()
-        .internalServerError()
-        .build(),
+	method: 'get',
+	path: '/professors',
+	tags: ['professor'],
+	request: {
+		query: listProfessorsQuery,
+	},
+	responses: new ResponseBuilder()
+		.ok(z.array(professorEntity), "A list of professors")
+		.badRequest()
+		.internalServerError()
+		.build(),
 });
 
 async function list(req: Request, res: Response) {
-	const { success, query, error } = requestSafeParse({
-		querySchema: listProfessorsQuery,
-		query: req.query,
-	});
+	const { success, data: query, error } = listProfessorsQuery.safeParse(req.query);
 	if (!success) {
-		res.status(400).json(error);
+		res.status(400).json(ZodErrorResponse(error, ["query"]));
 		return;
 	}
-    prisma.professor.findMany({
-        where: {
-            classes: {
-                some: {
-                    id: query.classId,
-                }
-            }
-        },
-    }).then((professors) => {
-        const entities : z.infer<typeof professorEntity>[] = professors.map((professor) => buildProfessorEntity(professor));
-		res.json(entities)
-	})
+	const professors = await prisma.professor.findMany({ where: { classes: { some: { id: query.classId } } } });
+	const entities = professors.map((professor) => buildProfessorEntity(professor));
+	res.json(entities)
+
 }
 router.get('/professors', list)
 interface ListQueryParams {
-    classId?: number;
+	classId?: number;
 }
 function listPath({
-    classId
-} : ListQueryParams) {
+	classId
+}: ListQueryParams) {
 	return `/professors?` + [
 		classId ? "classId=" + classId : undefined
 	].filter(Boolean).join('&');
@@ -93,43 +82,39 @@ function listPath({
 
 authRegistry.addException('GET', '/professors/:id');
 registry.registerPath({
-    method: 'get',
-    path: '/professors/{id}',
-    tags: ['professor'],
-    request: {
-        params: z.object({
-            id: z.int(),
-        }),
-    },
-    responses: new ResponseBuilder()
-        .ok(professorEntity, "A professor by id")
-        .badRequest()
-        .notFound()
-        .internalServerError()
-        .build(),
+	method: 'get',
+	path: '/professors/{id}',
+	tags: ['professor'],
+	request: {
+		params: z.object({
+			id: z.int(),
+		}),
+	},
+	responses: new ResponseBuilder()
+		.ok(professorEntity, "A professor by id")
+		.badRequest()
+		.notFound()
+		.internalServerError()
+		.build(),
 });
 
 async function get(req: Request, res: Response) {
-	const { success, params, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-	});
+	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
 	if (!success) {
 		res.status(400).json(error);
 		return;
 	}
-    prisma.professor.findUnique({
-        where: {
-            id: params.id,
-        },
-    }).then((professor) => {
-        if (!professor) {
-            res.status(404).json({ error: "Professor not found" });
-            return;
-        }
-        const entity = buildProfessorEntity(professor);
-		res.json(entity)
+	const professor = await prisma.professor.findUnique({
+		where: {
+			id: id,
+		},
 	})
+	if (!professor) {
+		res.status(404).json({ error: "Professor not found" });
+		return;
+	}
+	const entity = buildProfessorEntity(professor);
+	res.json(entity)
 }
 router.get('/professors/:id', get)
 
@@ -152,11 +137,11 @@ registry.registerPath({
 
 async function create(req: Request, res: Response) {
 	const { success, data: body, error } = createProfessorBody.safeParse(req.body);
-	const errors = new ValidationError('Validation errors', []);
+	const errors = new ValidationError([]);
 	if (!success) {
-		errors.addErrors(ZodErrorResponse(['body'], error));
+		errors.addErrors(ZodErrorResponse(error, ['body']));
 	}
-	
+
 	if (errors.errors.length > 0 || !success) {
 		res.status(400).json(errors);
 		return;
@@ -166,8 +151,7 @@ async function create(req: Request, res: Response) {
 		data: body,
 	});
 
-	const entity = buildProfessorEntity(professor);
-	res.status(201).json(professorEntity.parse(entity));
+	res.status(201).json(buildProfessorEntity(professor));
 }
 router.post('/professors', create)
 
@@ -191,17 +175,16 @@ registry.registerPath({
 });
 
 async function patch(req: Request, res: Response) {
-	const { success, params, body, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-		bodySchema: patchProfessorBody,
-		body: req.body,
-	});
+	const { success, data, error } = z.object({
+		params: z.object({ id: z.coerce.number().int() }),
+		body: patchProfessorBody,
+	}).safeParse(req);
 
 	if (!success) {
 		res.status(400).json(error);
 		return;
 	}
+	const { params, body } = data;
 
 	const existing = await prisma.professor.findUnique({ where: { id: params.id } });
 	if (!existing) {
@@ -216,8 +199,7 @@ async function patch(req: Request, res: Response) {
 		},
 	});
 
-	const entity = buildProfessorEntity(professor);
-	res.json(professorEntity.parse(entity));
+	res.json(buildProfessorEntity(professor));
 }
 router.patch('/professors/:id', patch)
 
@@ -238,33 +220,28 @@ registry.registerPath({
 });
 
 async function deleteProfessor(req: Request, res: Response) {
-	const { success, params, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-	});
+	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
 	if (!success) {
 		res.status(400).json(error);
 		return;
 	}
-
-	const existing = await prisma.professor.findUnique({ where: { id: params.id } });
+	const existing = await prisma.professor.findUnique({ where: { id } });
 	if (!existing) {
 		res.status(404).json({ error: 'Professor not found' });
 		return;
 	}
-
-	await prisma.professor.delete({ where: { id: params.id } });
+	await prisma.professor.delete({ where: { id } });
 	res.status(204).send();
 }
 router.delete('/professors/:id', deleteProfessor)
 
 function entityPath(professorId: number) {
-    return `/professors/${professorId}`;
+	return `/professors/${professorId}`;
 }
 
 export default {
 	router,
-    registry,
+	registry,
 	authRegistry,
 	paths: {
 		list: listPath,

@@ -7,8 +7,9 @@ import prisma, { MyPrisma } from '../PrismaClient'
 import { AuthRegistry } from '../auth';
 import { resourcesPaths } from '../Controllers';
 import ResponseBuilder from '../openapi/ResponseBuilder';
-import { requestSafeParse, ValidationError, ZodErrorResponse } from '../Validation';
+import { ValidationError, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
+import { zodIds } from '../PrismaValidator';
 extendZodWithOpenApi(z);
 
 const router = Router()
@@ -20,7 +21,7 @@ type PrismaCoursePayload = MyPrisma.CourseGetPayload<{}>;
 
 function relatedPathsForCourse(courseId: number) {
 	return {
-		classes: resourcesPaths.class.list({courseId}),
+		classes: resourcesPaths.class.list({ courseId }),
 	}
 }
 
@@ -57,22 +58,22 @@ registry.registerPath({
 });
 async function list(req: Request, res: Response) {
 	prisma.course.findMany().then((courses) => {
-		const entities : z.infer<typeof courseEntity>[] = courses.map((course) => buildCourseEntity(course))
+		const entities: z.infer<typeof courseEntity>[] = courses.map((course) => buildCourseEntity(course))
 		res.json(z.array(courseEntity).parse(entities));
 	})
 }
 router.get('/courses', list)
-interface ListQueryParams{
+interface ListQueryParams {
 	instituteId?: number,
 }
 
 function listPath({
 	instituteId,
-} : ListQueryParams) {
+}: ListQueryParams) {
 	return `/courses?` + [
 		instituteId ? "instituteId=" + instituteId : undefined,
 	].filter(Boolean).join('&');
-} 
+}
 
 authRegistry.addException('GET', '/courses/:id');
 registry.registerPath({
@@ -92,26 +93,21 @@ registry.registerPath({
 		.build(),
 });
 async function get(req: Request, res: Response) {
-	const { success, params, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-	});
+	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
 	if (!success) {
-		res.status(400).json(error);
+		res.status(400).json(new ValidationError(ZodErrorResponse(error, ["params", "id"])));
 		return;
 	}
-	prisma.course.findUnique({
+	const course = await prisma.course.findUnique({
 		where: {
-			id: params.id,
+			id: id,
 		},
-	}).then((course) => {
-		if (!course) {
-			res.status(404).json({ error: "Course not found" });
-			return;
-		}
-		const entity = buildCourseEntity(course);
-		res.json(courseEntity.parse(entity))
 	})
+	if (!course) {
+		res.status(404).json({ error: "Course not found" });
+		return;
+	}
+	res.json(buildCourseEntity(course))
 }
 
 router.get('/courses/:id', get)
@@ -139,18 +135,18 @@ registry.registerPath({
 
 async function create(req: Request, res: Response) {
 	const { success, data: body, error } = createCourseBody.safeParse(req.body);
-	const errors = new ValidationError('Validation errors', []);
+	const errors = new ValidationError([]);
 	if (!success) {
-		errors.addErrors(ZodErrorResponse(['body'], error));
+		errors.addErrors(ZodErrorResponse(error, ['body']));
 	}
-	
+
 	if (body) {
 		const existing = await prisma.course.findUnique({ where: { code: body.code } });
 		if (existing) {
 			errors.addError(['body', 'code'], 'A course with this code already exists');
 		}
 	}
-	
+
 	if (errors.errors.length > 0 || !success) {
 		res.status(400).json(errors);
 		return;
@@ -161,7 +157,7 @@ async function create(req: Request, res: Response) {
 	});
 
 	const entity = buildCourseEntity(course);
-	res.status(201).json(courseEntity.parse(entity));
+	res.status(201).json(entity);
 }
 router.post('/courses', create)
 
@@ -185,31 +181,22 @@ registry.registerPath({
 });
 
 async function patch(req: Request, res: Response) {
-	const { success, params, body, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-		bodySchema: patchCourseBody,
-		body: req.body,
-	});
-	const validation = new ValidationError('Validation errors', error);
-
-	if (success && body?.code !== undefined) {
-		const existing = await prisma.course.findUnique({ where: { code: body.code } });
-		if (existing && existing.id !== params.id) {
+	const { success, data, error } = await z.object({
+		params: z.object({ id: z.coerce.number().int().pipe(zodIds.course.exists) }),
+		body: patchCourseBody,
+	}).safeParseAsync(req);
+	const validation = new ValidationError(ZodErrorResponse(error));
+	if (success) {
+		const existing = await prisma.course.findUnique({ where: { code: data.body.code } });
+		if (existing && existing.id !== data.params.id) {
 			validation.addError(['body', 'code'], 'A course with this code already exists');
 		}
 	}
-
 	if (!success || validation.errors.length > 0) {
 		res.status(400).json(validation);
 		return;
 	}
-
-	const existing = await prisma.course.findUnique({ where: { id: params.id } });
-	if (!existing) {
-		res.status(404).json({ error: 'Course not found' });
-		return;
-	}
+	const { params, body } = data;
 
 	const course = await prisma.course.update({
 		where: { id: params.id },
@@ -221,7 +208,7 @@ async function patch(req: Request, res: Response) {
 	});
 
 	const entity = buildCourseEntity(course);
-	res.json(courseEntity.parse(entity));
+	res.json(entity);
 }
 router.patch('/courses/:id', patch)
 
@@ -242,22 +229,17 @@ registry.registerPath({
 });
 
 async function deleteCourse(req: Request, res: Response) {
-	const { success, params, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-	});
+	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
 	if (!success) {
-		res.status(400).json(error);
+		res.status(400).json(new ValidationError(ZodErrorResponse(error, ["params", "id"])));
 		return;
 	}
-
-	const existing = await prisma.course.findUnique({ where: { id: params.id } });
+	const existing = await prisma.course.findUnique({ where: { id: id } });
 	if (!existing) {
 		res.status(404).json({ error: 'Course not found' });
 		return;
 	}
-
-	await prisma.course.delete({ where: { id: params.id } });
+	await prisma.course.delete({ where: { id: id } });
 	res.status(204).send();
 }
 router.delete('/courses/:id', deleteCourse)

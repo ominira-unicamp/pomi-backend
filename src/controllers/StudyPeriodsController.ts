@@ -7,7 +7,7 @@ import prisma from '../PrismaClient'
 import { AuthRegistry } from '../auth';
 import { resourcesPaths } from '../Controllers';
 import ResponseBuilder from '../openapi/ResponseBuilder';
-import { requestSafeParse, ValidationError, ValidationErrorField, ValidationErrorType, ZodErrorResponse } from '../Validation';
+import { ValidationError, ValidationErrorField, ValidationErrorType, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
 import { ParamsDictionary } from 'express-serve-static-core';
 
@@ -16,8 +16,6 @@ extendZodWithOpenApi(z);
 const router = Router()
 const authRegistry = new AuthRegistry();
 const registry = new OpenAPIRegistry()
-
-
 
 const relatedPathsForStudyPeriod = (studyPeriodId: number) => {
 	return {
@@ -29,6 +27,12 @@ const relatedPathsForStudyPeriod = (studyPeriodId: number) => {
 		}),
 	}
 }
+function buildStudyPeriodEntity(studyPeriod: z.infer<typeof studyPeriodBase>): z.infer<typeof studyPeriodEntity> {
+	return {
+		...studyPeriod,
+		_paths: relatedPathsForStudyPeriod(studyPeriod.id)
+	};
+}
 const studyPeriodBase = z.object({
 	id: z.number().int(),
 	code: z.string(),
@@ -36,7 +40,7 @@ const studyPeriodBase = z.object({
 }).strict();
 
 const studyPeriodEntity = studyPeriodBase.extend({
-	_paths: z.object({ 
+	_paths: z.object({
 		classes: z.string(),
 		classSchedules: z.string(),
 	})
@@ -82,10 +86,7 @@ registry.registerPath({
 		.build(),
 });
 async function get(req: Request, res: Response) {
-	const { success, params, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-	});
+	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
 	if (!success) {
 		res.status(400).json(error);
 		return;
@@ -93,19 +94,14 @@ async function get(req: Request, res: Response) {
 
 	prisma.studyPeriod.findUnique({
 		where: {
-			id: params.id,
+			id: id,
 		},
 	}).then((studyPeriod) => {
 		if (!studyPeriod) {
 			res.status(404).json({ error: "Study period not found" });
 			return;
 		}
-		const entity: z.infer<typeof studyPeriodEntity> = {
-			...studyPeriod,
-			_paths: relatedPathsForStudyPeriod(studyPeriod.id)
-		};
-
-		res.json(studyPeriodEntity.parse(entity));
+		res.json(buildStudyPeriodEntity(studyPeriod));
 	})
 }
 
@@ -129,9 +125,9 @@ registry.registerPath({
 
 async function create(req: Request, res: Response) {
 	const { success, data: body, error } = createStudyPeriodBody.safeParse(req.body);
-	const errors = new ValidationError('Validation errors', []);
+	const errors = new ValidationError([]);
 	if (!success)
-		errors.addErrors(ZodErrorResponse(["body"], error));
+		errors.addErrors(ZodErrorResponse(error, ["body"]));
 
 	if (body) {
 		const existing = await prisma.studyPeriod.findFirst({ where: { code: body.code } });
@@ -186,19 +182,17 @@ registry.registerPath({
 
 async function patch(req: Request, res: Response) {
 
-	const {params, body , success, error } = requestSafeParse({
-		paramsSchema: z.object({
+	const { success, data, error } = z.object({
+		params: z.object({
 			id: z.coerce.number().int(),
 		}).strict(),
-		params: req.params,
-		bodySchema: patchStudyPeriodBody,
-		body: req.body,
-	})
+		body: patchStudyPeriodBody,
+	}).safeParse(req)
 	if (!success) {
 		res.status(400).json(error);
 		return;
-	}	
-	const id = params.id;
+	}
+	const { params: { id }, body } = data;
 	const existing = await prisma.studyPeriod.findUnique({ where: { id } });
 	if (!existing) {
 		res.status(404).json({ error: "Study period not found" });
@@ -212,13 +206,7 @@ async function patch(req: Request, res: Response) {
 			...(body.startDate !== undefined && { startDate: body.startDate }),
 		},
 	});
-
-	const entity: z.infer<typeof studyPeriodEntity> = {
-		...studyPeriod,
-		_paths: relatedPathsForStudyPeriod(studyPeriod.id),
-	};
-
-	res.json(studyPeriodEntity.parse(entity));
+	res.json(buildStudyPeriodEntity(studyPeriod));
 }
 router.patch('/study-periods/:id', patch)
 
@@ -240,21 +228,17 @@ registry.registerPath({
 });
 
 async function remove(req: Request, res: Response) {
-	const { success, params, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-	});
+	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
 	if (!success) {
 		res.status(400).json(error);
 		return;
 	}
-	const existing = await prisma.studyPeriod.findUnique({ where: { id: params.id } });
+	const existing = await prisma.studyPeriod.findUnique({ where: { id: id } });
 	if (!existing) {
 		res.status(404).json({ error: "Study period not found" });
 		return;
 	}
-
-	await prisma.studyPeriod.delete({ where: { id: params.id } });
+	await prisma.studyPeriod.delete({ where: { id } });
 	res.status(204).send();
 }
 router.delete('/study-periods/:id', remove)

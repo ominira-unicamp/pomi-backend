@@ -7,8 +7,9 @@ import prisma, { selectIdCode, whereIdName, whereIdCode, MyPrisma } from '../Pri
 import { AuthRegistry } from '../auth';
 import { resourcesPaths } from '../Controllers';
 import ResponseBuilder from '../openapi/ResponseBuilder';
-import { requestSafeParse, ValidationError, ZodErrorResponse } from '../Validation';
+import { ValidationError, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
+import { zodIds } from '../PrismaValidator';
 extendZodWithOpenApi(z);
 
 const router = Router()
@@ -56,7 +57,7 @@ function relatedPathsForClassSchedule(
 	}
 }
 
-function buildClassScheduleEntity(classSchedule: PrismaClassSchedulePayload) : z.infer<typeof ClassScheduleEntity> {
+function buildClassScheduleEntity(classSchedule: PrismaClassSchedulePayload): z.infer<typeof ClassScheduleEntity> {
 	const { room, class: classObj, ...rest } = classSchedule
 	return {
 		...rest,
@@ -133,12 +134,10 @@ registry.registerPath({
 		.build(),
 });
 async function list(req: Request, res: Response) {
-	const { success, query, error } = requestSafeParse({
-		querySchema: getClassSchedules,
-		query: req.query,
-	});
+	
+	const { success, data: query, error } = getClassSchedules.safeParse(req.query);
 	if (!success) {
-		res.status(400).json(error);
+		res.status(400).json(new ValidationError(ZodErrorResponse(error, ['query'])));
 		return;
 	}
 	prisma.classSchedule.findMany({
@@ -194,27 +193,23 @@ registry.registerPath({
 		.build(),
 });
 async function get(req: Request, res: Response) {
-	const { success, params, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-	});
+	const { success, data: id, error } = z.number().int().safeParse(req.params.id);
 	if (!success) {
-		res.status(400).json(error);
+		res.status(400).json(new ValidationError(ZodErrorResponse(error, ['params', 'id'])));
 		return;
 	}
-	prisma.classSchedule.findUnique({
+	const classSchedule = await prisma.classSchedule.findUnique({
 		where: {
-			id: params.id,
+			id: id,
 		},
 		...prismaClassScheduleFieldSelection,
-	}).then((classSchedule) => {
-		if (!classSchedule) {
-			res.status(404).json({ error: "Class schedule not found" });
-			return;
-		}
-		const entity: z.infer<typeof ClassScheduleEntity> = buildClassScheduleEntity(classSchedule);
-		res.json(ClassScheduleEntity.parse(entity))
-	})
+	});
+	if (!classSchedule) {
+		res.status(404).json({ error: "Class schedule not found" });
+		return;
+	}
+	const entity: z.infer<typeof ClassScheduleEntity> = buildClassScheduleEntity(classSchedule);
+	res.json(entity)
 }
 router.get('/class-schedules/:id', get)
 
@@ -236,37 +231,20 @@ registry.registerPath({
 });
 
 async function create(req: Request, res: Response) {
-	const { success, data: body, error } = createClassScheduleBody.safeParse(req.body);
-	const errors = new ValidationError('Validation errors', []);
+	const { success, data: body, error } = createClassScheduleBody.and(z.object({
+		roomId: zodIds.room.exists,
+		classId: zodIds.class.exists
+	})).safeParse(req.body);
 	if (!success) {
-		errors.addErrors(ZodErrorResponse(['body'], error));
-	}
-	
-	if (body) {
-		const room = await prisma.room.findUnique({ where: { id: body.roomId } });
-		if (!room) {
-			errors.addError(['body', 'roomId'], 'Room not found');
-		}
-		
-		const classData = await prisma.class.findUnique({ where: { id: body.classId } });
-		if (!classData) {
-			errors.addError(['body', 'classId'], 'Class not found');
-		}
-	}
-	
-	if (errors.errors.length > 0 || !success) {
-		res.status(400).json(errors);
+		res.status(400).json(new ValidationError(ZodErrorResponse(error, ['body'])));
 		return;
 	}
-
 	const classSchedule = await prisma.classSchedule.create({
 		data: body,
 		...prismaClassScheduleFieldSelection,
 	});
-
 	const entity = buildClassScheduleEntity(classSchedule)
-
-	res.status(201).json(ClassScheduleEntity.parse(entity));
+	res.status(201).json(entity);
 }
 router.post('/class-schedules', create)
 
@@ -289,41 +267,21 @@ registry.registerPath({
 });
 
 async function patch(req: Request, res: Response) {
-	const { success, params, body, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-		bodySchema: patchClassScheduleBody,
-		body: req.body,
-	});
-	const validation = new ValidationError('Validation errors', error);
-
-	if (success && body?.roomId !== undefined) {
-		const room = await prisma.room.findUnique({ where: { id: body.roomId } });
-		if (!room) {
-			validation.addError(['body', 'roomId'], 'Room not found');
-		}
-	}
-
-	if (success && body?.classId !== undefined) {
-		const classData = await prisma.class.findUnique({ where: { id: body.classId } });
-		if (!classData) {
-			validation.addError(['body', 'classId'], 'Class not found');
-		}
-	}
-
-	if (!success || validation.errors.length > 0) {
-		res.status(400).json(validation);
+	const { success, data, error } = await z.object({
+		params: z.object({ id: z.coerce.number().int() }).strict(),
+		body: patchClassScheduleBody.and(z.object({
+			roomId: zodIds.room.exists.optional(),
+			classId: zodIds.class.exists.optional()
+		}))
+	}).safeParseAsync(req);
+	if (!success) {
+		res.status(400).json(new ValidationError(ZodErrorResponse(error, [])));
 		return;
 	}
-
-	const existing = await prisma.classSchedule.findUnique({ where: { id: params.id } });
-	if (!existing) {
-		res.status(404).json({ error: 'Class schedule not found' });
-		return;
-	}
+	const { params: { id }, body } = data;
 
 	const classSchedule = await prisma.classSchedule.update({
-		where: { id: params.id },
+		where: { id: id },
 		data: {
 			...(body.dayOfWeek !== undefined && { dayOfWeek: body.dayOfWeek }),
 			...(body.start !== undefined && { start: body.start }),
@@ -335,7 +293,7 @@ async function patch(req: Request, res: Response) {
 	});
 
 	const entity = buildClassScheduleEntity(classSchedule)
-	res.json(ClassScheduleEntity.parse(entity));
+	res.json(entity);
 }
 router.patch('/class-schedules/:id', patch)
 
@@ -356,22 +314,17 @@ registry.registerPath({
 });
 
 async function deleteClassSchedule(req: Request, res: Response) {
-	const { success, params, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-	});
+	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
 	if (!success) {
-		res.status(400).json(error);
+		res.status(400).json(new ValidationError(ZodErrorResponse(error, ['params', 'id'])));
 		return;
 	}
-
-	const existing = await prisma.classSchedule.findUnique({ where: { id: params.id } });
+	const existing = await prisma.classSchedule.findUnique({ where: { id: id } });
 	if (!existing) {
 		res.status(404).json({ error: 'Class schedule not found' });
 		return;
 	}
-
-	await prisma.classSchedule.delete({ where: { id: params.id } });
+	await prisma.classSchedule.delete({ where: { id: id } });
 	res.status(204).send();
 }
 router.delete('/class-schedules/:id', deleteClassSchedule)

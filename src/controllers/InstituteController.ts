@@ -7,8 +7,9 @@ import prisma, { MyPrisma } from '../PrismaClient'
 import { AuthRegistry } from '../auth';
 import { resourcesPaths } from '../Controllers';
 import ResponseBuilder from '../openapi/ResponseBuilder';
-import { requestSafeParse, ValidationError, ZodErrorResponse } from '../Validation';
+import { ValidationError, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
+import { zodIds } from '../PrismaValidator';
 
 extendZodWithOpenApi(z);
 
@@ -82,28 +83,19 @@ registry.registerPath({
 		.build(),
 });
 async function get(req: Request, res: Response) {
-	const { success, params, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-	});
+	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id)
 	if (!success) {
 		res.status(400).json(error);
 		return;
 	}
-
-	prisma.institute.findUnique({
-		where: {
-			id: params.id,
-		}
-	}).then((institute) => {
-		if (!institute) {
-			res.status(404).json({ error: "Institute not found" });
-			return;
-		}
-
-		const entity = buildInstituteEntity(institute);
-		res.json(entity)
-	})
+	const institute = await prisma.institute.findUnique({where: {id: id}})
+		
+	if (!institute) {
+		res.status(404).json({ error: "Institute not found" });
+		return;
+	}
+	const entity = buildInstituteEntity(institute);
+	res.json(entity)
 }
 router.get('/institutes/:id', get)
 
@@ -126,9 +118,9 @@ registry.registerPath({
 
 async function create(req: Request, res: Response) {
 	const { success, data: body, error } = createInstituteBody.safeParse(req.body);
-	const errors = new ValidationError('Validation errors', []);
+	const errors = new ValidationError([]);
 	if (!success) {
-		errors.addErrors(ZodErrorResponse(['body'], error));
+		errors.addErrors(ZodErrorResponse(error, ['body']));
 	}
 	
 	if (body) {
@@ -147,8 +139,7 @@ async function create(req: Request, res: Response) {
 		data: body,
 	});
 
-	const entity = buildInstituteEntity(institute);
-	res.status(201).json(instituteEntity.parse(entity));
+	res.status(201).json(buildInstituteEntity(institute));
 }
 router.post('/institutes', create)
 
@@ -172,17 +163,16 @@ registry.registerPath({
 });
 
 async function patch(req: Request, res: Response) {
-	const { success, params, body, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-		bodySchema: patchInstituteBody,
-		body: req.body,
-	});
-	const validation = new ValidationError('Validation errors', error);
+	const { success, data, error } = await z.object({
+		params: z.object({ id: z.coerce.number().int().pipe(zodIds.institute.exists) }),
+		body: patchInstituteBody,
+	}).safeParseAsync(req);
 
-	if (success && body?.code !== undefined) {
-		const existing = await prisma.institute.findUnique({ where: { code: body.code } });
-		if (existing && existing.id !== params.id) {
+	const validation = new ValidationError(ZodErrorResponse(error));
+
+	if (success) {
+		const existing = await prisma.institute.findUnique({ where: { code: data.body.code } });
+		if (existing && existing.id !== data.params.id) {
 			validation.addError(['body', 'code'], 'An institute with this code already exists');
 		}
 	}
@@ -191,7 +181,7 @@ async function patch(req: Request, res: Response) {
 		res.status(400).json(validation);
 		return;
 	}
-
+	const { params, body } = data;
 	const existing = await prisma.institute.findUnique({ where: { id: params.id } });
 	if (!existing) {
 		res.status(404).json({ error: 'Institute not found' });
@@ -205,8 +195,7 @@ async function patch(req: Request, res: Response) {
 		},
 	});
 
-	const entity = buildInstituteEntity(institute);
-	res.json(instituteEntity.parse(entity));
+	res.json(buildInstituteEntity(institute));
 }
 router.patch('/institutes/:id', patch)
 
@@ -227,22 +216,19 @@ registry.registerPath({
 });
 
 async function deleteInstitute(req: Request, res: Response) {
-	const { success, params, error } = requestSafeParse({
-		paramsSchema: z.object({ id: z.coerce.number().int() }).strict(),
-		params: req.params,
-	});
+	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
 	if (!success) {
-		res.status(400).json(error);
+		res.status(400).json(new ValidationError(ZodErrorResponse(error, ["params", "id"])));
 		return;
 	}
 
-	const existing = await prisma.institute.findUnique({ where: { id: params.id } });
+	const existing = await prisma.institute.findUnique({ where: { id } });
 	if (!existing) {
 		res.status(404).json({ error: 'Institute not found' });
 		return;
 	}
 
-	await prisma.institute.delete({ where: { id: params.id } });
+	await prisma.institute.delete({ where: { id: id } });
 	res.status(204).send();
 }
 router.delete('/institutes/:id', deleteInstitute)

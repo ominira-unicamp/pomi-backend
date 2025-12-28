@@ -6,9 +6,10 @@ import z, { ZodTuple } from 'zod';
 import prisma, { MyPrisma, selectIdCode, selectIdName, whereIdCode, whereIdName } from '../PrismaClient'
 import { resourcesPaths } from '../Controllers';
 import ResponseBuilder from '../openapi/ResponseBuilder';
-import { requestSafeParse, ValidationError, ZodErrorResponse } from '../Validation';
+import { ValidationError, ValidationErrorField, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
 import { AuthRegistry } from '../auth';
+import { zodIds } from '../PrismaValidator';
 extendZodWithOpenApi(z);
 
 
@@ -28,7 +29,7 @@ const prismaClassFieldSelection = {
 			}
 
 		},
-	}  
+	}
 } as const satisfies MyPrisma.ClassDefaultArgs;
 type PrismaClassPayload = MyPrisma.ClassGetPayload<typeof prismaClassFieldSelection>;
 
@@ -123,7 +124,7 @@ registry.registerPath({
 async function listAll(req: Request, res: Response) {
 	const { success, data: query, error } = listClassesQuery.safeParse(req.query);
 	if (!success) {
-		res.status(400).json(ZodErrorResponse(["query"], error));
+		res.status(400).json(ZodErrorResponse(error, ["query"]));
 		return
 	}
 	const classes = await prisma.class.findMany({
@@ -189,9 +190,9 @@ registry.registerPath({
 		.build(),
 });
 async function get(req: Request, res: Response) {
-	const {data: id, success, error} = z.coerce.number().int().safeParse(req.params.id);
+	const { data: id, success, error } = z.coerce.number().int().safeParse(req.params.id);
 	if (!success) {
-		res.status(400).json(ZodErrorResponse(["params","id"], error));
+		res.status(400).json(ZodErrorResponse(error, ["params", "id"]));
 		return;
 	}
 	prisma.class.findUnique({
@@ -204,7 +205,7 @@ async function get(req: Request, res: Response) {
 			res.status(404).json({ error: "Class not found" });
 			return;
 		}
-		res.json(classEntity.parse(buildClassEntity(classData)))
+		res.json(buildClassEntity(classData))
 	})
 }
 router.get('/classes/:id', get)
@@ -233,39 +234,15 @@ registry.registerPath({
 
 
 async function create(req: Request, res: Response) {
-	const { success, data: body, error } = createClassBody.safeParse(req.body);
-	const errors = new ValidationError('Validation errors', []);
-	if (!success) {
-		errors.addErrors(ZodErrorResponse(['body'], error));
-	}
-	if (body) {
-		const course = await prisma.course.findUnique({
-			where: { id: body.courseId }
-		});
 
-		if (!course) {
-			errors.addError(['body', 'courseId'], 'Course not found');
-		}
+	const { success, data: body, error } = await createClassBody.and(z.object({
+		courseId: zodIds.course.exists,
+		studyPeriodId: zodIds.studyPeriod.exists,
+		professorIds: zodIds.professor.existsMany,
+	})).safeParseAsync(req.body);
 
-		const studyPeriod = await prisma.studyPeriod.findUnique({
-			where: { id: body.studyPeriodId }
-		});
-		
-		if (!studyPeriod) {
-			errors.addError(['body', 'studyPeriodId'], 'Study period not found');
-		}
-	
-		if (body.professorIds.length > 0) {
-			const professors = await prisma.professor.findMany({
-				where: { id: { in: body.professorIds } }
-			});
-			if (professors.length !== body.professorIds.length) {
-				errors.addError(['body', 'professorIds'], 'One or more professors not found');
-			}
-		}
-	}	
 	if (!success) {
-		res.status(400).json(errors);
+		res.status(400).json(new ValidationError(ZodErrorResponse(error, ['body'])));
 		return;
 	}
 	const classData = await prisma.class.create({
@@ -280,7 +257,7 @@ async function create(req: Request, res: Response) {
 		},
 		...prismaClassFieldSelection,
 	});
-	res.status(201).json(classEntity.parse(buildClassEntity(classData)));
+	res.status(201).json(buildClassEntity(classData));
 }
 router.post('/classes', create)
 
@@ -306,45 +283,22 @@ registry.registerPath({
 
 async function patch(req: Request, res: Response) {
 
-	const {
-		success,
-		query,
-		params,
-		body,
-		error
-	} = requestSafeParse({
-		paramsSchema: z.object({
+	const reqSchema = z.object({
+		params: z.object({
 			id: z.coerce.number().int(),
 		}).strict(),
-		params: req.params,
-		bodySchema: patchClassBody,
-		body: req.body,
-	})
-	const validation = new ValidationError('Validation errors', error);
-
-	if (success && body?.courseId !== undefined) {
-		const course = await prisma.course.findUnique({where: { id: body.courseId }});
-		if (!course) 
-			validation.addError(['body', 'courseId'], 'Course not found');
-	}
-	if (success && body?.studyPeriodId !== undefined) {
-		const studyPeriod = await prisma.studyPeriod.findUnique({ where: { id: body.studyPeriodId } });
-		if (!studyPeriod)
-			validation.addError(['body', 'studyPeriodId'], 'Study period not found');
-	}
-	if (success && body?.professorIds && body.professorIds.length > 0) {
-		const professors = await prisma.professor.findMany({where: { id: { in: body.professorIds } }});
-		if (professors.length !== body.professorIds.length) {
-			validation.addError(['body', 'professorIds'], 'One or more professors not found');
-		}
-	}
-
+		body: patchClassBody.and(z.object({
+			courseId: zodIds.course.exists,
+			studyPeriodId: zodIds.studyPeriod.exists,
+			professorIds: zodIds.professor.existsMany,
+		})),
+	});
+	const {success, data, error} = await reqSchema.safeParseAsync(req);
 	if (!success) {
-		res.status(400).json(validation);
+		res.status(400).json(new ValidationError(ZodErrorResponse(error, [])));
 		return;
 	}
-	const id = params.id;
-
+	const { params: { id }, body } = data;
 	const existing = await prisma.class.findUnique({ where: { id } });
 	if (!existing) {
 		res.status(404).json({ error: 'Class not found' });
@@ -367,7 +321,7 @@ async function patch(req: Request, res: Response) {
 		...prismaClassFieldSelection,
 	});
 
-	res.json(classEntity.parse(buildClassEntity(classData)));
+	res.json(buildClassEntity(classData));
 }
 router.patch('/classes/:id', patch)
 
@@ -390,7 +344,7 @@ registry.registerPath({
 async function deleteClass(req: Request, res: Response) {
 	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
 	if (!success) {
-		res.status(400).json(ZodErrorResponse(['params', 'id'], error));
+		res.status(400).json(ZodErrorResponse(error, ['params', 'id']));
 		return;
 	}
 
