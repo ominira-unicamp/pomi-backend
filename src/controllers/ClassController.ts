@@ -10,6 +10,8 @@ import { ValidationError, ValidationErrorField, ZodErrorResponse } from '../Vali
 import RequestBuilder from '../openapi/RequestBuilder';
 import { AuthRegistry } from '../auth';
 import { zodIds } from '../PrismaValidator';
+import { defaultGetHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
+import { Prisma } from '@prisma/client';
 extendZodWithOpenApi(z);
 
 
@@ -173,42 +175,13 @@ function listPath({
 }
 
 authRegistry.addException('GET', '/classes/:id');
-registry.registerPath({
-	method: 'get',
-	path: '/classes/{id}',
-	tags: ['class'],
-	request: {
-		params: z.object({
-			id: z.int(),
-		}),
-	},
-	responses: new ResponseBuilder()
-		.ok(classEntity, "A class")
-		.notFound()
-		.badRequest()
-		.internalServerError()
-		.build(),
-});
-async function get(req: Request, res: Response) {
-	const { data: id, success, error } = z.coerce.number().int().safeParse(req.params.id);
-	if (!success) {
-		res.status(400).json(ZodErrorResponse(error, ["params", "id"]));
-		return;
-	}
-	prisma.class.findUnique({
-		where: {
-			id: id,
-		},
-		...prismaClassFieldSelection
-	}).then((classData) => {
-		if (!classData) {
-			res.status(404).json({ error: "Class not found" });
-			return;
-		}
-		res.json(buildClassEntity(classData))
-	})
-}
-router.get('/classes/:id', get)
+registry.registerPath(defaultOpenApiGetPath('/classes/{id}', 'class', classEntity, "A class"));
+router.get('/classes/:id', defaultGetHandler(
+	prisma.class,
+	prismaClassFieldSelection,
+	buildClassEntity,
+	"Class not found"
+))
 
 function entityPath(id: number) {
 	return `/classes/${id}`;

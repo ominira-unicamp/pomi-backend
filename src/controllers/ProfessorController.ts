@@ -7,6 +7,7 @@ import { z } from 'zod';
 import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ValidationError, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
+import { defaultGetHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
 
 extendZodWithOpenApi(z);
 
@@ -81,42 +82,13 @@ function listPath({
 }
 
 authRegistry.addException('GET', '/professors/:id');
-registry.registerPath({
-	method: 'get',
-	path: '/professors/{id}',
-	tags: ['professor'],
-	request: {
-		params: z.object({
-			id: z.int(),
-		}),
-	},
-	responses: new ResponseBuilder()
-		.ok(professorEntity, "A professor by id")
-		.badRequest()
-		.notFound()
-		.internalServerError()
-		.build(),
-});
-
-async function get(req: Request, res: Response) {
-	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
-	if (!success) {
-		res.status(400).json(error);
-		return;
-	}
-	const professor = await prisma.professor.findUnique({
-		where: {
-			id: id,
-		},
-	})
-	if (!professor) {
-		res.status(404).json({ error: "Professor not found" });
-		return;
-	}
-	const entity = buildProfessorEntity(professor);
-	res.json(entity)
-}
-router.get('/professors/:id', get)
+registry.registerPath(defaultOpenApiGetPath('/professors/{id}', 'professor', professorEntity, "A professor by id"));
+router.get('/professors/:id', defaultGetHandler(
+	prisma.professor,
+	{},
+	buildProfessorEntity,
+	"Professor not found"
+))
 
 
 const createProfessorBody = professorBase.omit({ id: true }).strict().openapi('CreateProfessorBody');

@@ -10,6 +10,7 @@ import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ValidationError, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
 import { zodIds } from '../PrismaValidator';
+import { defaultGetHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
 extendZodWithOpenApi(z);
 
 const router = Router()
@@ -176,42 +177,13 @@ function listPath({ instituteId, courseId, studyPeriodId, classId }: ListQueryPa
 }
 
 authRegistry.addException('GET', '/class-schedules/:id');
-registry.registerPath({
-	method: 'get',
-	path: '/class-schedules/{id}',
-	tags: ['class-schedule'],
-	request: {
-		params: z.object({
-			id: z.int(),
-		}),
-	},
-	responses: new ResponseBuilder()
-		.ok(ClassScheduleEntity, "A class schedule by id")
-		.badRequest()
-		.notFound()
-		.internalServerError()
-		.build(),
-});
-async function get(req: Request, res: Response) {
-	const { success, data: id, error } = z.number().int().safeParse(req.params.id);
-	if (!success) {
-		res.status(400).json(new ValidationError(ZodErrorResponse(error, ['params', 'id'])));
-		return;
-	}
-	const classSchedule = await prisma.classSchedule.findUnique({
-		where: {
-			id: id,
-		},
-		...prismaClassScheduleFieldSelection,
-	});
-	if (!classSchedule) {
-		res.status(404).json({ error: "Class schedule not found" });
-		return;
-	}
-	const entity: z.infer<typeof ClassScheduleEntity> = buildClassScheduleEntity(classSchedule);
-	res.json(entity)
-}
-router.get('/class-schedules/:id', get)
+registry.registerPath(defaultOpenApiGetPath('/class-schedules/{id}', 'class-schedule', ClassScheduleEntity, "A class schedule by id"));
+router.get('/class-schedules/:id', defaultGetHandler(
+	prisma.classSchedule,
+	prismaClassScheduleFieldSelection,
+	buildClassScheduleEntity,
+	"Class schedule not found"
+))
 
 
 const createClassScheduleBody = classScheduleBase.openapi('CreateClassScheduleBody');

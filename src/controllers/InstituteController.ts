@@ -10,6 +10,7 @@ import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ValidationError, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
 import { zodIds } from '../PrismaValidator';
+import { defaultGetHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
 
 extendZodWithOpenApi(z);
 
@@ -66,38 +67,13 @@ async function list(req: Request, res: Response) {
 router.get('/institutes', list)
 
 authRegistry.addException('GET', '/institutes/:id');
-registry.registerPath({
-	method: 'get',
-	path: '/institutes/{id}',
-	tags: ['institute'],
-	request: {
-		params: z.object({
-			id: z.int(),
-		}),
-	},
-	responses: new ResponseBuilder()
-		.ok(instituteEntity, "An institute by id")
-		.badRequest()
-		.notFound()
-		.internalServerError()
-		.build(),
-});
-async function get(req: Request, res: Response) {
-	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id)
-	if (!success) {
-		res.status(400).json(error);
-		return;
-	}
-	const institute = await prisma.institute.findUnique({where: {id: id}})
-		
-	if (!institute) {
-		res.status(404).json({ error: "Institute not found" });
-		return;
-	}
-	const entity = buildInstituteEntity(institute);
-	res.json(entity)
-}
-router.get('/institutes/:id', get)
+registry.registerPath(defaultOpenApiGetPath('/institutes/{id}', 'institute', instituteEntity, "An institute by id"));
+router.get('/institutes/:id', defaultGetHandler(
+	prisma.institute,
+	{},
+	buildInstituteEntity,
+	"Institute not found"
+))
 
 
 const createInstituteBody = instituteBase.omit({ id: true }).strict().openapi('CreateInstituteBody');

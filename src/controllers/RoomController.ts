@@ -7,6 +7,7 @@ import { z } from 'zod';
 import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ValidationError, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
+import { defaultGetHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
 
 extendZodWithOpenApi(z);
 
@@ -60,43 +61,13 @@ router.get('/rooms', list)
 
 
 authRegistry.addException('GET', '/rooms/:id');
-registry.registerPath({
-    method: 'get',
-    path: '/rooms/{id}',
-    tags: ['room'],
-    request: {
-        params: z.object({
-            id: z.int(),
-        }),
-    },
-    responses: new ResponseBuilder()
-        .ok(roomEntity, "A room by id")
-        .badRequest()
-        .notFound()
-        .internalServerError()
-        .build(),
-});
-
-async function get(req: Request, res: Response) {
-	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
-	if (!success) {
-		res.status(400).json(error);
-		return;
-	}
-    prisma.room.findUnique({
-		where: {
-			id: id,
-		},
-	}).then((room) => {
-		if (!room) {
-			res.status(404).json({ error: "Room not found" });
-			return;
-		}
-		const entity = buildRoomEntity(room);
-		res.json(entity)
-	})
-}
-router.get('/rooms/:id', get)
+registry.registerPath(defaultOpenApiGetPath('/rooms/{id}', 'room', roomEntity, "A room by id"));
+router.get('/rooms/:id', defaultGetHandler(
+	prisma.room,
+	{},
+	buildRoomEntity,
+	"Room not found"
+))
 
 
 const createRoomBody = roomBase.omit({ id: true }).strict().openapi('CreateRoomBody');

@@ -10,6 +10,7 @@ import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ValidationError, ValidationErrorField, ValidationErrorType, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
 import { ParamsDictionary } from 'express-serve-static-core';
+import { defaultGetHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
 
 extendZodWithOpenApi(z);
 
@@ -69,43 +70,18 @@ async function list(req: Request, res: Response) {
 router.get('/study-periods', list)
 
 authRegistry.addException('GET', '/study-periods/:id');
-registry.registerPath({
-	method: 'get',
-	path: '/study-periods/{id}',
-	tags: ['studyPeriod'],
-	request: {
-		params: z.object({
-			id: z.coerce.number().int(),
-		}).strict(),
-	},
-	responses: new ResponseBuilder()
-		.ok(studyPeriodEntity, "A study period by id")
-		.badRequest()
-		.notFound()
-		.internalServerError()
-		.build(),
-});
-async function get(req: Request, res: Response) {
-	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
-	if (!success) {
-		res.status(400).json(error);
-		return;
-	}
-
-	prisma.studyPeriod.findUnique({
-		where: {
-			id: id,
-		},
-	}).then((studyPeriod) => {
-		if (!studyPeriod) {
-			res.status(404).json({ error: "Study period not found" });
-			return;
-		}
-		res.json(buildStudyPeriodEntity(studyPeriod));
-	})
-}
-
-router.get('/study-periods/:id', get)
+registry.registerPath(defaultOpenApiGetPath(
+	'/study-periods/{id}',
+	'studyPeriod',
+	studyPeriodEntity,
+	"A study period by id"
+));
+router.get('/study-periods/:id', defaultGetHandler(
+	prisma.studyPeriod,
+	{},
+	buildStudyPeriodEntity,
+	"Study period not found"
+))
 
 const createStudyPeriodBody = studyPeriodBase.omit({ id: true }).openapi('CreateStudyPeriodBody');
 

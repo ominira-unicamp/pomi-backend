@@ -20,7 +20,7 @@ registry.registerPath({
 	path: '/login',
 	tags: ['auth'],
 	request: new RequestBuilder().build(),
-	responses: new ResponseBuilder().build()
+	responses: new ResponseBuilder().ok(loginResponse, "Successful login response").build()
 })
 async function login(req: Request, res: Response) {
 	const token = await generateToken({ userId: 1 })

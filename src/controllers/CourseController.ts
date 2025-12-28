@@ -9,6 +9,7 @@ import { resourcesPaths } from '../Controllers';
 import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ValidationError, ZodErrorResponse } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
+import { defaultGetHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
 import { zodIds } from '../PrismaValidator';
 extendZodWithOpenApi(z);
 
@@ -76,41 +77,13 @@ function listPath({
 }
 
 authRegistry.addException('GET', '/courses/:id');
-registry.registerPath({
-	method: 'get',
-	path: '/courses/{id}',
-	tags: ['course'],
-	request: {
-		params: z.object({
-			id: z.int(),
-		}),
-	},
-	responses: new ResponseBuilder()
-		.ok(courseEntity, "A course by id")
-		.badRequest()
-		.notFound()
-		.internalServerError()
-		.build(),
-});
-async function get(req: Request, res: Response) {
-	const { success, data: id, error } = z.coerce.number().int().safeParse(req.params.id);
-	if (!success) {
-		res.status(400).json(new ValidationError(ZodErrorResponse(error, ["params", "id"])));
-		return;
-	}
-	const course = await prisma.course.findUnique({
-		where: {
-			id: id,
-		},
-	})
-	if (!course) {
-		res.status(404).json({ error: "Course not found" });
-		return;
-	}
-	res.json(buildCourseEntity(course))
-}
-
-router.get('/courses/:id', get)
+registry.registerPath(defaultOpenApiGetPath('/courses/{id}', 'course', courseEntity, "A course by id"));
+router.get('/courses/:id', defaultGetHandler(
+	prisma.course,
+	{},
+	buildCourseEntity,
+	"Course not found"
+))
 
 function entityPath(courseId: number) {
 	return `/courses/${courseId}`;
