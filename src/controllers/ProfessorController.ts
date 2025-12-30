@@ -7,7 +7,8 @@ import { z } from 'zod';
 import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ValidationError, ZodToApiError } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
-import { defaultGetHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
+import { defaultGetHandler, defaultListHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
+import { buildPaginationResponse, getPaginatedSchema, paginationQuerySchema, PaginationQueryType, prismaPaginationParamsFromQuery } from '../pagination';
 
 extendZodWithOpenApi(z);
 
@@ -39,9 +40,11 @@ const professorEntity = professorBase.extend({
 	})
 }).strict().openapi('ProfessorEntity');
 
-const listProfessorsQuery = z.object({
+const listProfessorsQuery =  paginationQuerySchema.extend({
 	classId: z.coerce.number().int().optional(),
 }).openapi('ListProfessorsQuery');
+
+const PageProfessorsSchema = getPaginatedSchema(professorEntity).openapi('PageProfessors');
 
 authRegistry.addException('GET', '/professors');
 registry.registerPath({
@@ -52,34 +55,35 @@ registry.registerPath({
 		query: listProfessorsQuery,
 	},
 	responses: new ResponseBuilder()
-		.ok(z.array(professorEntity), "A list of professors")
+		.ok(PageProfessorsSchema, "A list of professors")
 		.badRequest()
 		.internalServerError()
 		.build(),
 });
 
-async function list(req: Request, res: Response) {
-	const { success, data: query, error } = listProfessorsQuery.safeParse(req.query);
-	if (!success) {
-		res.status(400).json(ZodToApiError(error, ["query"]));
-		return;
-	}
-	const professors = await prisma.professor.findMany({ 
-		where: query.classId ? { classes: { some: { id: query.classId } } } : {} 
-	});
-	const entities = professors.map((professor) => buildProfessorEntity(professor));
-	res.json(entities)
 
-}
+const list = defaultListHandler(
+	prisma.professor,
+	listProfessorsQuery,
+	(query) => (query.classId ? { classes: { some: { id: query.classId } } } : {}),
+	listPath,
+	{},
+	buildProfessorEntity, 
+);
+
 router.get('/professors', list)
 interface ListQueryParams {
 	classId?: number;
 }
 function listPath({
-	classId
-}: ListQueryParams) {
+	classId,
+	page,
+	pageSize
+}: ListQueryParams & Partial<PaginationQueryType>) {
 	return `/professors?` + [
-		classId ? "classId=" + classId : undefined
+		classId ? "classId=" + classId : undefined,
+		page ? "page=" + page : undefined,
+		pageSize ? "pageSize=" + pageSize : undefined,
 	].filter(Boolean).join('&');
 }
 

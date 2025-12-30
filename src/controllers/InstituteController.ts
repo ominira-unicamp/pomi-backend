@@ -57,7 +57,7 @@ registry.registerPath({
 		.ok(z.array(instituteEntity), "A list of institutes")
 		.internalServerError()
 		.build(),
-});
+});z
 async function list(req: Request, res: Response) {
 	prisma.institute.findMany().then((institutes) => {
 		const entities = institutes.map(institute => buildInstituteEntity(institute));

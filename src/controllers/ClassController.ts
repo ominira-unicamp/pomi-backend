@@ -10,8 +10,9 @@ import { ValidationError, ValidationErrorField, ZodToApiError } from '../Validat
 import RequestBuilder from '../openapi/RequestBuilder';
 import { AuthRegistry } from '../auth';
 import { zodIds } from '../PrismaValidator';
-import { defaultGetHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
+import { defaultGetHandler, defaultListHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
 import { Prisma } from '@prisma/client';
+import { paginationQuerySchema, PaginationQueryType } from '../pagination';
 extendZodWithOpenApi(z);
 
 
@@ -95,7 +96,7 @@ const classEntity = classBaseSchema.extend({
 
 
 
-const listClassesQuery = z.object({
+const listClassesQuery = paginationQuerySchema.extend({
 	instituteId: z.coerce.number().int().optional(),
 	instituteCode: z.string().optional(),
 	courseId: z.coerce.number().int().optional(),
@@ -105,6 +106,7 @@ const listClassesQuery = z.object({
 	professorId: z.coerce.number().int().optional(),
 	professorName: z.string().optional(),
 }).openapi('GetClassesQuery');
+
 
 authRegistry.addException('GET', '/classes');
 registry.registerPath({
@@ -123,33 +125,27 @@ registry.registerPath({
 	},
 });
 
-async function listAll(req: Request, res: Response) {
-	const { success, data: query, error } = listClassesQuery.safeParse(req.query);
-	if (!success) {
-		res.status(400).json(ZodToApiError(error, ["query"]));
-		return
-	}
-	const classes = await prisma.class.findMany({
-		where: {
-			course: {
-				...whereIdCode(query.courseId, query.courseCode),
-				institute: whereIdCode(query.instituteId, query.instituteCode),
-			},
-			studyPeriod: whereIdCode(query.studyPeriodId, query.studyPeriodCode),
-			professors: {
-				some: whereIdName(query.professorId, query.professorName)
-			},
+
+const list = defaultListHandler(
+	prisma.class,
+	listClassesQuery,
+	(query) => ({
+		course: {
+			...whereIdCode(query.courseId, query.courseCode),
+			institute: whereIdCode(query.instituteId, query.instituteCode),
 		},
-		...prismaClassFieldSelection,
-	});
+		studyPeriod: whereIdCode(query.studyPeriodId, query.studyPeriodCode),
+		professors: {
+			some: whereIdName(query.professorId, query.professorName)
+		},
+	}),
+	listPath,
+	prismaClassFieldSelection,
+	buildClassEntity, 
+);
 
 
-	const entities: z.infer<typeof classEntity>[] = classes.map(c => buildClassEntity(c));
-	res.json(z.array(classEntity).parse(entities));
-}
-router.get('/classes', listAll)
-
-
+router.get('/classes', list)
 
 
 type ListQueryParams = {
@@ -157,20 +153,17 @@ type ListQueryParams = {
 	courseId?: number | undefined,
 	studyPeriodId?: number | undefined,
 	professorId?: number | undefined
-}
+} & Partial<PaginationQueryType>;
 
 
-function listPath({
-	instituteId,
-	courseId,
-	studyPeriodId: studyPeriodId,
-	professorId
-}: ListQueryParams) {
+function listPath(query: ListQueryParams  ) {
 	return `/classes?` + [
-		instituteId ? "instituteId=" + instituteId : undefined,
-		courseId ? "courseId=" + courseId : undefined,
-		studyPeriodId ? "studyPeriodId=" + studyPeriodId : undefined,
-		professorId ? "professorId=" + professorId : undefined,
+		query.instituteId ? "instituteId=" + query.instituteId : undefined,
+		query.courseId ? "courseId=" + query.courseId : undefined,
+		query.studyPeriodId ? "studyPeriodId=" + query.studyPeriodId : undefined,
+		query.professorId ? "professorId=" + query.professorId : undefined,
+		query.page ? "page=" + query.page : undefined,
+		query.pageSize ? "pageSize=" + query.pageSize : undefined,
 	].filter(Boolean).join('&');
 }
 

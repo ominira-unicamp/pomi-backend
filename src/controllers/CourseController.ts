@@ -9,27 +9,41 @@ import { resourcesPaths } from '../Controllers';
 import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ValidationError, ZodToApiError } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
-import { defaultGetHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
+import { defaultGetHandler, defaultListHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
 import { zodIds } from '../PrismaValidator';
+import { getPaginatedSchema, paginationQuerySchema, PaginationQueryType } from '../pagination';
 extendZodWithOpenApi(z);
 
 const router = Router()
 const authRegistry = new AuthRegistry();
 const registry = new OpenAPIRegistry();
 
-type PrismaCoursePayload = MyPrisma.CourseGetPayload<{}>;
 
+const prismaCourseFieldSelection = {
+	include: {
+		institute: {
+			select: {
+				code: true,
+			}
+		}
+	}
+} satisfies MyPrisma.CourseDefaultArgs;
 
-function relatedPathsForCourse(courseId: number) {
+type PrismaCoursePayload = MyPrisma.CourseGetPayload<typeof prismaCourseFieldSelection>;
+
+function relatedPathsForCourse(courseId: number, instituteId: number) {
 	return {
 		classes: resourcesPaths.class.list({ courseId }),
+		institute: resourcesPaths.institute.entity(instituteId),
 	}
 }
 
 function buildCourseEntity(course: PrismaCoursePayload): z.infer<typeof courseEntity> {
+	const { institute, ...rest } = course;
 	return {
-		...course,
-		_paths: relatedPathsForCourse(course.id)
+		...rest,
+		instituteCode: institute.code,
+		_paths: relatedPathsForCourse(course.id, course.instituteId)
 	};
 }
 
@@ -42,37 +56,58 @@ const courseBase = z.object({
 });
 
 const courseEntity = courseBase.extend({
+	instituteCode: z.string().min(1),
 	_paths: z.object({
 		classes: z.string(),
 	}).strict()
 }).strict().openapi('CourseEntity');
+
+
+const listCourseQuery = paginationQuerySchema.extend({
+	instituteId: z.coerce.number().int().optional(),
+	instituteCode : z.string().min(1).optional(),
+}).openapi('ListCoursesQuery');
+
+const PageCoursesSchema = getPaginatedSchema(courseEntity).openapi('PageCourses');
 
 authRegistry.addException('GET', '/courses');
 registry.registerPath({
 	method: 'get',
 	path: '/courses',
 	tags: ['course'],
+	request: new RequestBuilder()
+		.query(listCourseQuery)
+		.build(),
 	responses: new ResponseBuilder()
-		.ok(z.array(courseEntity), "A list of courses")
+		.ok(PageCoursesSchema, "A list of courses")
 		.internalServerError()
 		.build(),
 });
-async function list(req: Request, res: Response) {
-	prisma.course.findMany().then((courses) => {
-		const entities: z.infer<typeof courseEntity>[] = courses.map((course) => buildCourseEntity(course))
-		res.json(z.array(courseEntity).parse(entities));
-	})
-}
-router.get('/courses', list)
-interface ListQueryParams {
-	instituteId?: number,
-}
 
-function listPath({
-	instituteId,
-}: ListQueryParams) {
+const list = defaultListHandler(
+	prisma.course,
+	listCourseQuery, 
+	(query) => ({
+		institute: {
+			...(query.instituteId ? { id: query.instituteId } : {}),
+			...(query.instituteCode ? { code: query.instituteCode } : {}),
+		}
+	}),
+	listPath,
+	prismaCourseFieldSelection,
+	buildCourseEntity,
+);
+
+router.get('/courses', list)
+type ListQueryParams = {
+	instituteId?: number,
+} & Partial<PaginationQueryType>;
+
+function listPath(query: ListQueryParams) {
 	return `/courses?` + [
-		instituteId ? "instituteId=" + instituteId : undefined,
+		query.instituteId ? "instituteId=" + query.instituteId : undefined,
+		query.page ? "page=" + query.page : undefined,
+		query.pageSize ? "pageSize=" + query.pageSize : undefined,
 	].filter(Boolean).join('&');
 }
 
@@ -80,7 +115,7 @@ authRegistry.addException('GET', '/courses/:id');
 registry.registerPath(defaultOpenApiGetPath('/courses/{id}', 'course', courseEntity, "A course by id"));
 router.get('/courses/:id', defaultGetHandler(
 	prisma.course,
-	{},
+	prismaCourseFieldSelection,
 	buildCourseEntity,
 	"Course not found"
 ))
@@ -114,7 +149,9 @@ async function create(req: Request, res: Response) {
 	}
 
 	if (body) {
-		const existing = await prisma.course.findUnique({ where: { code: body.code } });
+		const existing = await prisma.course.findUnique({
+			where: { code: body.code }
+		});
 		if (existing) {
 			errors.addError({
 				code: "ALREADY_EXISTS",
@@ -130,6 +167,7 @@ async function create(req: Request, res: Response) {
 	}
 
 	const course = await prisma.course.create({
+		...prismaCourseFieldSelection,
 		data: body,
 	});
 
@@ -180,6 +218,7 @@ async function patch(req: Request, res: Response) {
 	const { params, body } = data;
 
 	const course = await prisma.course.update({
+		...prismaCourseFieldSelection,
 		where: { id: params.id },
 		data: {
 			...(body.code !== undefined && { code: body.code }),

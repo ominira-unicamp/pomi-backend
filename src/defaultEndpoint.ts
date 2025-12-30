@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ZodToApiError } from "./Validation";
 import ResponseBuilder from "./openapi/ResponseBuilder";
 import { RouteConfig } from "@asteasolutions/zod-to-openapi";
+import { buildPaginationResponse, PaginatedResult, PaginatedSchemaType, paginationQuerySchema, PaginationQueryType, prismaPaginationParamsFromQuery } from "./pagination";
 function defaultOpenApiGetPath(
 	path: string,
 	tag: string,
@@ -29,7 +30,7 @@ function defaultOpenApiGetPath(
 }
 
 function defaultGetHandler<
-	T extends { findUnique:  (a: any) => any}
+	T extends { findUnique: (a: any) => any }
 >(
 	delegate: T,
 	prismaClassFieldSelection: Partial<MyPrisma.Args<T, 'findUnique'>>,
@@ -59,7 +60,47 @@ function defaultGetHandler<
 }
 
 
+function defaultListHandler<
+	T extends { findMany: (a: { where: any }) => any; count: (a: {where: any}) => any },
+	D extends z.ZodType,
+	Q extends z.ZodType<PaginationQueryType>,
+> (
+	delegate: T,
+	querySchema: Q,
+	whereClauseBuilder: (query: z.infer<Q>) => NonNullable<Parameters<T['findMany']>[0]>['where'],
+	listPath: (query : z.infer<Q>) => string,
+	prismaClassFieldSelection: Partial<MyPrisma.Args<T, 'findUnique'>>,
+	buildClassEntity: (data: any) => any
+) {
+	return async function defaultListHandler(req: Request, res: Response) {
+		const { success, data: query, error } = querySchema.safeParse(req.query);
+		if (!success) {
+			res.status(400).json(ZodToApiError(error, ["query"]));
+			return;
+		}
+		const where = whereClauseBuilder(query);
+		const total = await delegate.count({ where });
+		const entitiesData = await delegate.findMany({
+			...prismaPaginationParamsFromQuery(query),
+			...prismaClassFieldSelection, 
+			where,
+		});
+		const entities = entitiesData.map((entity : any) => buildClassEntity(entity));
+
+		const response = buildPaginationResponse(entities, total, query, (page) => {
+			return listPath({
+				... query,
+				page,
+			});
+		});
+		res.json(response);
+
+	}
+}
+
+
 export {
 	defaultOpenApiGetPath,
-	defaultGetHandler
+	defaultGetHandler,
+	defaultListHandler
 };

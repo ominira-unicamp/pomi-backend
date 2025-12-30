@@ -10,7 +10,8 @@ import ResponseBuilder from '../openapi/ResponseBuilder';
 import { ValidationError, ZodToApiError } from '../Validation';
 import RequestBuilder from '../openapi/RequestBuilder';
 import { zodIds } from '../PrismaValidator';
-import { defaultGetHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
+import { defaultGetHandler, defaultListHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
+import { getPaginatedSchema, paginationQuerySchema, PaginationQueryType } from '../pagination';
 extendZodWithOpenApi(z);
 
 const router = Router()
@@ -107,7 +108,7 @@ const ClassScheduleEntity = classScheduleBase.extend({
 	}).strict(),
 }).strict().openapi('ClassScheduleEntity');
 
-const getClassSchedules = z.object({
+const getClassSchedules = paginationQuerySchema.extend({
 	studyPeriodId: z.coerce.number().int().optional(),
 	studyPeriodCode: z.string().optional(),
 	instituteId: z.coerce.number().int().optional(),
@@ -120,6 +121,7 @@ const getClassSchedules = z.object({
 	dayOfWeek: daysOfWeekEnum.optional(),
 }).openapi('GetClassSchedulesQuery');
 
+const ClassSchedulePageSchema = getPaginatedSchema(ClassScheduleEntity).openapi('PageClassSchedules');
 authRegistry.addException('GET', '/class-schedules');
 registry.registerPath({
 	method: 'get',
@@ -129,51 +131,48 @@ registry.registerPath({
 		query: getClassSchedules,
 	},
 	responses: new ResponseBuilder()
-		.ok(z.array(ClassScheduleEntity), "A list of class schedules")
+		.ok(ClassSchedulePageSchema, "A list of class schedules")
 		.badRequest()
 		.internalServerError()
 		.build(),
 });
-async function list(req: Request, res: Response) {
-	
-	const { success, data: query, error } = getClassSchedules.safeParse(req.query);
-	if (!success) {
-		res.status(400).json(new ValidationError(ZodToApiError(error, ['query'])));
-		return;
-	}
-	prisma.classSchedule.findMany({
-		where: {
-			dayOfWeek: query.dayOfWeek,
-			room: whereIdCode(query.roomId, query.roomCode),
-			class: {
-				...whereIdCode(query.classId, undefined),
-				course: {
-					...whereIdCode(query.courseId, query.courseCode),
-					institute: whereIdCode(query.instituteId, query.instituteCode),
-				},
-				studyPeriod: whereIdCode(query.studyPeriodId, query.studyPeriodCode),
+
+const list = defaultListHandler(
+	prisma.classSchedule,
+	getClassSchedules,
+	(query) => ({
+		dayOfWeek: query.dayOfWeek,
+		room: whereIdCode(query.roomId, query.roomCode),
+		class: {
+			...whereIdCode(query.classId, undefined),
+			course: {
+				...whereIdCode(query.courseId, query.courseCode),
+				institute: whereIdCode(query.instituteId, query.instituteCode),
 			},
+			studyPeriod: whereIdCode(query.studyPeriodId, query.studyPeriodCode),
 		},
-		...prismaClassScheduleFieldSelection,
-	}).then((classSchedules) => {
-		const entities: z.infer<typeof ClassScheduleEntity>[] = classSchedules.map((classSchedule) => buildClassScheduleEntity(classSchedule));
-		res.json(z.array(ClassScheduleEntity).parse(entities));
-	})
-}
+	}),
+	listPath,
+	prismaClassScheduleFieldSelection,
+	buildClassScheduleEntity, 
+);
+
 router.get('/class-schedules', list)
-interface ListQueryParams {
+type ListQueryParams = {
 	instituteId?: number,
 	courseId?: number,
 	studyPeriodId?: number,
 	classId?: number,
-}
+} & Partial<PaginationQueryType>;
 
-function listPath({ instituteId, courseId, studyPeriodId, classId }: ListQueryParams) {
+function listPath({ instituteId, courseId, studyPeriodId, classId , page, pageSize}: ListQueryParams) {
 	return `/class-schedules?` + [
 		instituteId ? "instituteId=" + instituteId : undefined,
 		courseId ? "courseId=" + courseId : undefined,
 		studyPeriodId ? "studyPeriodId=" + studyPeriodId : undefined,
 		classId ? "classId=" + classId : undefined,
+		page ? "page=" + page : undefined,
+		pageSize ? "pageSize=" + pageSize : undefined,
 	].filter(Boolean).join('&');
 }
 
