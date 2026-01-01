@@ -13,6 +13,13 @@ datasource db {
   provider = "postgresql"
 }
 
+enum YearPeriods {
+  SUMMER
+  FIRST_SEMESTER
+  WINTER
+  SECOND_SEMESTER
+}
+
 model User {
   id    Int    @id @default(autoincrement())
   email String @unique
@@ -37,15 +44,18 @@ model Prefixes {
 }
 
 model Course {
-  id             Int                     @id @default(autoincrement())
-  code           String                  @unique
-  name           String
-  credits        Int
-  institute      Institute               @relation(fields: [instituteId], references: [id])
-  instituteId    Int
+  id          Int       @id @default(autoincrement())
+  code        String    @unique
+  name        String
+  credits     Int
+  institute   Institute @relation(fields: [instituteId], references: [id])
+  instituteId Int
+
   classes        Class[]
   programCourses ProgramModalityCourse[]
   studentCourses StudentCourse[]
+
+  curriculumCourses CurriculumCourse[]
 }
 
 // ----------------------- Programs Catalog Models ----------------------- //
@@ -102,10 +112,11 @@ model ProgramModalityCourse {
 // ----------------------- Timetable Booklet Models ----------------------- //
 
 model StudyPeriod {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique
-  startDate DateTime
-  classes   Class[]
+  id              Int              @id @default(autoincrement())
+  code            String           @unique
+  startDate       DateTime
+  classes         Class[]
+  periodPlannings PeriodPlanning[]
 }
 
 model Professor {
@@ -127,9 +138,11 @@ model Class {
   studyPeriodId  Int
   course         Course          @relation(fields: [courseId], references: [id])
   courseId       Int
+  reservations   Int[]
+
   professors     Professor[]
   classSchedules ClassSchedule[]
-  reservations   Int[]
+  periodPlannings PeriodPlanning[]
 }
 
 //  Sim é um Enum para dias das semanas, não é melhor coisa, mas quis assim. 
@@ -166,13 +179,16 @@ model Student {
   id         Int             @id @default(autoincrement())
   ra         String          @unique
   name       String
+  program    Program?         @relation(fields: [programId], references: [id])
+  programId  Int?
+  modality   Modality?        @relation(fields: [modalityId], references: [id])
+  modalityId Int?
+  catalog    Catalog?         @relation(fields: [catalogId], references: [id])
+  catalogId  Int?
+
   courses    StudentCourse[]
-  program    Program         @relation(fields: [programId], references: [id])
-  programId  Int
-  modality   Modality        @relation(fields: [modalityId], references: [id])
-  modalityId Int
-  catalog    Catalog         @relation(fields: [catalogId], references: [id])
-  catalogId  Int
+  periodPlannings           PeriodPlanning[]
+  curriculums Curriculum[]
 }
 
 model StudentCourse {
@@ -184,4 +200,30 @@ model StudentCourse {
   status    StudentCourseStatus
 
   @@unique([studentId, courseId])
+}
+
+model Curriculum {
+  id        Int     @id @default(autoincrement())
+  student   Student @relation(fields: [studentId], references: [id])
+  studentId Int
+  CurriculumCourses CurriculumCourse[]
+}
+
+model CurriculumCourse {
+  curriculum   Curriculum @relation(fields: [curriculumId], references: [id])
+  curriculumId Int
+  course                     Course                   @relation(fields: [courseId], references: [id])
+  courseId                   Int
+  semester                   Int?
+  @@id([curriculumId, courseId])
+}
+
+model PeriodPlanning {
+  id            Int         @id @default(autoincrement())
+  studyPeriod   StudyPeriod @relation(fields: [studyPeriodId], references: [id])
+  studyPeriodId Int
+  student       Student     @relation(fields: [studentId], references: [id])
+  studentId     Int
+  
+  classes       Class[]
 }

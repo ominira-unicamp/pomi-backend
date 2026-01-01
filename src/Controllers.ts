@@ -8,64 +8,53 @@ import studyPeriods from './controllers/StudyPeriodsController'
 import classSchedule from './controllers/ClassScheduleController'
 import room from './controllers/RoomController'
 
+import studentController from './controllers/StudentControllers/studentController'
+import CurriculumController from './controllers/StudentControllers/CurriculumController'
+import CurriculumCourseController from './controllers/StudentControllers/CurriculumCourseController'
 
 import { Router } from 'express'
 import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi'
 import { AuthRegistry } from './auth'
 
+type Controler = {
+	router?: Router,
+	registry?: OpenAPIRegistry,
+	authRegistry?: AuthRegistry,
+}
+const controllers: Controler[] = [
+	auth,
+	professor,
+	institute,
+	course,
+	classController,
+	classSchedule,
+	room,
+	studyPeriods,
+	studentController,
+	CurriculumController,
+	CurriculumCourseController
+] 
 
-const paths = {
+const router = Router().use(controllers.filter(c => c.router).map(c => c.router!));
+const registry = new OpenAPIRegistry(controllers.filter(c => c.registry).map(c => c.registry!).flat());
+const authRegistry = new AuthRegistry(controllers.filter(c => c.authRegistry).map(c => c.authRegistry!));
+export default {
+	router: router,
+	registry: registry,
+	authRegistry: authRegistry,	
+	all: controllers,	
+}
+
+export const resourcesPaths = {
 	auth: auth.paths,
 	class: classController.paths,
 	classSchedule: classSchedule.paths,
 	course: course.paths,
-	institute: institute.paths,	
+	institute: institute.paths,
 	professor: professor.paths,
 	room: room.paths,
 	studyPeriod: studyPeriods.paths,
-}
-
-export default {
-	router: Router().use(
-		auth.router,
-		professor.router,
-		institute.router,
-		course.router,
-		classController.router,
-		classSchedule.router,
-		studyPeriods.router,
-		room.router,
-	),
-	registry: new OpenAPIRegistry([
-		auth.registry,
-		professor.registry,
-		institute.registry,
-		course.registry,
-		classController.registry,
-		classSchedule.registry,
-		studyPeriods.registry,
-		room.registry
-	]),
-	authRegistry: new AuthRegistry([
-		auth.authRegistry,
-		classController.authRegistry,
-		professor.authRegistry,
-		institute.authRegistry,
-		course.authRegistry,
-		classSchedule.authRegistry,
-		studyPeriods.authRegistry,
-		room.authRegistry,
-	]),
-	resourcesPaths: paths,
-	all: {
-		auth,
-		professor,
-		institute,
-		course,
-		classController,
-		classSchedule,
-		room
-	}
-	
-}
-export const resourcesPaths = paths;
+	student: studentController.paths,
+	curriculum: CurriculumController.paths,
+	curriculumCourse: CurriculumCourseController.paths,
+};
