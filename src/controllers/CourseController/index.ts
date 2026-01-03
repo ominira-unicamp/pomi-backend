@@ -13,9 +13,6 @@ import IO from './interface';
 import { buildHandler } from '../../BuildHandler';
 import registry from './openapi';
 
-const router = Router()
-const authRegistry = new AuthRegistry();
-
 
 const list = defaultListHandler(
 	prisma.course,
@@ -65,15 +62,17 @@ async function createFn({ body }: z.infer<typeof IO.create.input>): Promise<z.in
 
 async function patchFn(input: z.infer<typeof IO.patch.input>): Promise<z.infer<typeof IO.patch.output>> {
 	const { path: { id }, body } = input;
-	const existing = await prisma.course.findUnique({ where: { code: body.code } });
-	if (existing && existing.id !== id) {
-		return {
-			400: new ValidationError([{
-				code: "ALREADY_EXISTS",
-				path: ['body', 'code'],
-				message: 'A course with this code already exists'
-			}])
-		};
+	if (body.code !== undefined) {
+		const existing = await prisma.course.findUnique({ where: { code: body.code } });
+		if (existing && existing.id !== id) {
+			return {
+				400: new ValidationError([{
+					code: "ALREADY_EXISTS",
+					path: ['body', 'code'],
+					message: 'A course with this code already exists'
+				}])
+			};
+		}
 	}
 
 	const course = await prisma.course.update({
@@ -96,20 +95,26 @@ async function deleteFn(input: z.infer<typeof IO.remove.input>): Promise<z.infer
 	const existing = await prisma.course.findUnique({ where: { id: id } });
 	if (!existing) {
 		return {
-			404: { error: 'Course not found' }
+			404: { description: 'Course not found' }
 		}
 	}
 	await prisma.course.delete({ where: { id: id } });
 	return { 204: null };
 }
 
+const router = Router()
+const authRegistry = new AuthRegistry();
+
 router.get('/courses/:id', get)
-router.get('/courses', list)
-router.post('/courses', buildHandler(IO.create.input, IO.create.output, createFn))
-router.patch('/courses/:id', buildHandler(IO.patch.input, IO.patch.output, patchFn))
-router.delete('/courses/:id', buildHandler(IO.remove.input, IO.remove.output, deleteFn))
 
 authRegistry.addException('GET', '/courses');
+router.get('/courses', list)
+
+router.post('/courses', buildHandler(IO.create.input, IO.create.output, createFn))
+
+router.patch('/courses/:id', buildHandler(IO.patch.input, IO.patch.output, patchFn))
+
+router.delete('/courses/:id', buildHandler(IO.remove.input, IO.remove.output, deleteFn))
 
 
 function entityPath(courseId: number) {
@@ -139,5 +144,4 @@ export default {
 		entity: entityPath,
 	},
 	entity: courseEntity
-
 }

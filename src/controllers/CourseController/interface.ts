@@ -2,9 +2,8 @@ import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import z from 'zod';
 import { getPaginatedSchema, paginationQuerySchema, PaginationQueryType } from '../../pagination';
 import courseEntity from './entity';
+import { OutputBuilder } from '../../BuildHandler';
 extendZodWithOpenApi(z);
- 
-
 
 const courseBase = z.object({
 	id: z.number().int(),
@@ -14,11 +13,9 @@ const courseBase = z.object({
 	instituteId: z.number().int(),
 });
 
-
-
 const listCourseQuery = paginationQuerySchema.extend({
 	instituteId: z.coerce.number().int().optional(),
-	instituteCode : z.string().min(1).optional(),
+	instituteCode: z.string().min(1).optional(),
 }).openapi('ListCoursesQuery');
 
 const PageCoursesSchema = getPaginatedSchema(courseEntity.schema).openapi('PageCourses');
@@ -29,40 +26,41 @@ const get = {
 			id: z.coerce.number().int(),
 		}).strict(),
 	}),
-	output: z.object({
-		200: courseEntity.schema.optional(),
-		400: z.any(),
-	}),
+	output: new OutputBuilder()
+		.ok(courseEntity.schema, "Course retrieved successfully")
+		.notFound()
+		.build(),
 }
 const list = {
-	input : z.object({
+	input: z.object({
 		query: listCourseQuery,
 	}),
-	output: z.object({ 200: PageCoursesSchema }),
-} 
+	output: new OutputBuilder()
+		.ok(PageCoursesSchema, "List of courses retrieved successfully")
+		.build(),
+}
 
 const create = {
 	input: z.object({
 		body: courseBase.omit({ id: true }).strict().openapi('CreateCourseBody'),
 	}),
-	output: z.object({
-		201: courseEntity.schema.optional(),
-		400: z.any().optional(),
-	}),
+	output: new OutputBuilder()
+		.created(courseEntity.schema, "Course created successfully")
+		.badRequest()
+		.build(),
 }
 
 const patch = {
 	input: z.object({
 		path: z.object({
-			id: z.coerce.number().int(),
+			id: z.string().pipe(z.coerce.number()).pipe(z.number()),
 		}).strict(),
 		body: courseBase.omit({ id: true }).partial().strict().openapi('PatchCourseBody')
 	}),
-	output: z.object({
-		200: courseEntity.schema.optional(),
-		400: z.any().optional(),
-	}),
-
+	output: new OutputBuilder()
+		.ok(courseEntity.schema, "Course patched successfully")
+		.notFound()
+		.build(),
 }
 
 const remove = {
@@ -71,10 +69,10 @@ const remove = {
 			id: z.coerce.number().int(),
 		}).strict(),
 	}),
-	output: z.object({
-		204: z.any().optional(),
-		404: z.any().optional(),
-	}),
+	output: new OutputBuilder()
+		.ok(z.null(), "Course deleted successfully")
+		.notFound()
+		.build(),
 }
 
 
