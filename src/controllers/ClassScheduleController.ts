@@ -3,15 +3,15 @@ import type { Request, Response } from "express";
 import { extendZodWithOpenApi, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import z from 'zod';
 
-import prisma, { selectIdCode, whereIdName, whereIdCode, MyPrisma } from '../PrismaClient'
-import { AuthRegistry } from '../auth';
-import { resourcesPaths } from '../Controllers';
-import ResponseBuilder from '../openapi/ResponseBuilder';
-import { ValidationError, ZodToApiError } from '../Validation';
-import RequestBuilder from '../openapi/RequestBuilder';
-import { zodIds } from '../PrismaValidator';
-import { defaultGetHandler, defaultListHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
-import { getPaginatedSchema, paginationQuerySchema, PaginationQueryType } from '../pagination';
+import prisma, { selectIdCode, whereIdName, whereIdCode, MyPrisma } from '../PrismaClient.js'
+import { AuthRegistry } from '../auth.js';
+import { resourcesPaths } from '../Controllers.js';
+import ResponseBuilder from '../openapi/ResponseBuilder.js';
+import { ValidationError, ZodToApiError } from '../Validation.js';
+import RequestBuilder from '../openapi/RequestBuilder.js';
+import { zodIds } from '../PrismaValidator.js';
+import { defaultGetHandler, defaultListHandler, defaultOpenApiGetPath } from '../defaultEndpoint.js';
+import { getPaginatedSchema, paginationQuerySchema, PaginationQueryType } from '../pagination.js';
 extendZodWithOpenApi(z);
 
 const router = Router()

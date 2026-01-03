@@ -1,13 +1,13 @@
 import { Router } from 'express'
 import type { Request, Response } from "express";
-import prisma, { MyPrisma } from '../PrismaClient'
-import { AuthRegistry } from '../auth';
+import prisma, { MyPrisma } from '../PrismaClient.js'
+import { AuthRegistry } from '../auth.js';
 import { OpenAPIRegistry, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
-import ResponseBuilder from '../openapi/ResponseBuilder';
-import { ValidationError, ZodToApiError } from '../Validation';
-import RequestBuilder from '../openapi/RequestBuilder';
-import { defaultGetHandler, defaultOpenApiGetPath } from '../defaultEndpoint';
+import ResponseBuilder from '../openapi/ResponseBuilder.js';
+import { ValidationError, ZodToApiError } from '../Validation.js';
+import RequestBuilder from '../openapi/RequestBuilder.js';
+import { defaultGetHandler, defaultOpenApiGetPath } from '../defaultEndpoint.js';
 
 extendZodWithOpenApi(z);
 

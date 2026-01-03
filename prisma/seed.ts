@@ -1,4 +1,4 @@
-import { PrismaClient, DayOfWeek } from './generated/client'
+import { PrismaClient, DayOfWeek } from './generated/client.js'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { readFileSync } from 'fs'
 import { join } from 'path'

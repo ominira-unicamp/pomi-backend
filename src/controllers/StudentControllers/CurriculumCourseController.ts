@@ -3,11 +3,11 @@ import type { Request, Response } from "express";
 import { extendZodWithOpenApi, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import z from 'zod';
 
-import prisma, { MyPrisma } from '../../PrismaClient'
-import { AuthRegistry } from '../../auth';
-import ResponseBuilder from '../../openapi/ResponseBuilder';
-import { ValidationError, ZodToApiError } from '../../Validation';
-import RequestBuilder from '../../openapi/RequestBuilder';
+import prisma, { MyPrisma } from '../../PrismaClient.js'
+import { AuthRegistry } from '../../auth.js';
+import ResponseBuilder from '../../openapi/ResponseBuilder.js';
+import { ValidationError, ZodToApiError } from '../../Validation.js';
+import RequestBuilder from '../../openapi/RequestBuilder.js';
 
 extendZodWithOpenApi(z);
 
