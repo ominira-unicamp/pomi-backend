@@ -11,7 +11,6 @@ import RequestBuilder from '../openapi/RequestBuilder.js';
 import { AuthRegistry } from '../auth.js';
 import { zodIds } from '../PrismaValidator.js';
 import { defaultGetHandler, defaultListHandler, defaultOpenApiGetPath } from '../defaultEndpoint.js';
-import { Prisma } from '@prisma/client';
 import { paginationQuerySchema, PaginationQueryType } from '../pagination.js';
 extendZodWithOpenApi(z);
 
