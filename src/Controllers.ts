@@ -2,7 +2,7 @@ import auth from './controllers/AuthController.js'
 
 import professor from './controllers/ProfessorController.js'
 import institute from './controllers/InstituteController.js'
-import course from './controllers/CourseController.js'
+import course from './controllers/CourseController/CourseController.js'
 import classController from './controllers/ClassController.js'
 import studyPeriods from './controllers/StudyPeriodsController.js'
 import classSchedule from './controllers/ClassScheduleController.js'

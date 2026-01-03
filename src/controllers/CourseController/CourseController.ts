@@ -2,16 +2,16 @@ import { Router } from 'express'
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import z from 'zod';
 
-import prisma from '../../PrismaClient'
-import { AuthRegistry } from '../../auth';
-import { ValidationError } from '../../Validation';
-import { defaultGetHandler, defaultListHandler } from '../../defaultEndpoint';
-import { PaginationQueryType } from '../../pagination';
+import prisma from '../../PrismaClient.js'
+import { AuthRegistry } from '../../auth.js';
+import { ValidationError } from '../../Validation.js';
+import { defaultGetHandler, defaultListHandler } from '../../defaultEndpoint.js';
+import { PaginationQueryType } from '../../pagination.js';
 extendZodWithOpenApi(z);
-import courseEntity from './entity';
-import IO from './interface';
-import { buildHandler } from '../../BuildHandler';
-import registry from './openapi';
+import courseEntity from './Entity.js';
+import IO from './Interface.js';
+import { buildHandler } from '../../BuildHandler.js';
+import registry from './Openapi.js';
 
 
 const list = defaultListHandler(

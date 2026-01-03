@@ -1,10 +1,10 @@
 import { extendZodWithOpenApi, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import z from 'zod';
 extendZodWithOpenApi(z);
-import IO from './interface';
-import { defaultOpenApiGetPath } from '../../defaultEndpoint';
-import courseEntity from './entity';
-import { openApiArgsFromIO } from '../../BuildHandler';
+import IO from './Interface.js';
+import { defaultOpenApiGetPath } from '../../defaultEndpoint.js';
+import courseEntity from './Entity.js';
+import { openApiArgsFromIO } from '../../BuildHandler.js';
 const registry = new OpenAPIRegistry();
 
 registry.registerPath({

@@ -1,8 +1,8 @@
 import z, { ZodObject, ZodType } from "zod";
 import type { Request, Response } from "express";
-import { ValidationError, ValidationErrorSchema, ZodToApiError } from "./Validation";
-import RequestBuilder from "./openapi/RequestBuilder";
-import ResponseBuilder from "./openapi/ResponseBuilder";
+import { ValidationError, ValidationErrorSchema, ZodToApiError } from "./Validation.js";
+import RequestBuilder from "./openapi/RequestBuilder.js";
+import ResponseBuilder from "./openapi/ResponseBuilder.js";
 
 export type InputSchemaTypes<PT extends z.ZodType, Q extends z.ZodType, B extends z.ZodType> = z.ZodObject<{
 	path?: PT,

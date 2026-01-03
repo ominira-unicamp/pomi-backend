@@ -1,8 +1,8 @@
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import z from 'zod';
 
-import { MyPrisma } from '../../PrismaClient'
-import { resourcesPaths } from '../../Controllers'; 
+import { MyPrisma } from '../../PrismaClient.js'
+import { resourcesPaths } from '../../Controllers.js'; 
 extendZodWithOpenApi(z);
 
 
