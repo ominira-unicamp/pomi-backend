@@ -1,6 +1,6 @@
 import { PrismaPg } from '@prisma/adapter-pg'
-import { PrismaClient,  Prisma as MyPrisma } from '../prisma/generated/client'
-import * as models from '../prisma/generated/zod/schemas/models/index'
+import { PrismaClient,  Prisma as MyPrisma } from '../prisma/generated/client.js'
+import * as models from '../prisma/generated/zod/schemas/models/index.js'
 const pool = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
 const prisma = new PrismaClient({ adapter: pool })
 

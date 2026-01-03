@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import prisma, { MyPrisma } from "./PrismaClient";
+import prisma, { MyPrisma } from "./PrismaClient.js";
 import { z } from "zod";
-import { ZodToApiError } from "./Validation";
-import ResponseBuilder from "./openapi/ResponseBuilder";
+import { ZodToApiError } from "./Validation.js";
+import ResponseBuilder from "./openapi/ResponseBuilder.js";
 import { RouteConfig } from "@asteasolutions/zod-to-openapi";
-import { buildPaginationResponse, PaginatedResult, PaginatedSchemaType, paginationQuerySchema, PaginationQueryType, prismaPaginationParamsFromQuery } from "./pagination";
+import { buildPaginationResponse, PaginatedResult, PaginatedSchemaType, paginationQuerySchema, PaginationQueryType, prismaPaginationParamsFromQuery } from "./pagination.js";
 function defaultOpenApiGetPath(
 	path: string,
 	tag: string,

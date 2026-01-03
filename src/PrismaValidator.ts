@@ -1,5 +1,5 @@
 import z from "zod";
-import prisma from "./PrismaClient";
+import prisma from "./PrismaClient.js";
 async function verifyExists(prismaDelegate: DelageteType, id: number) {
 	const entity = await prismaDelegate.findUnique({
 		where: {

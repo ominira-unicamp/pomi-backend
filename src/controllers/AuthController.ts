@@ -1,11 +1,9 @@
 import z from "zod";
 import { Request, response, Response, Router } from "express";
-import prisma from "../PrismaClient";
-import * as jose from "jose";
-import { AuthRegistry, generateToken } from "../auth";
+import { AuthRegistry, generateToken } from "../auth.js";
 import { extendZodWithOpenApi, OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
-import RequestBuilder from "../openapi/RequestBuilder";
-import ResponseBuilder from "../openapi/ResponseBuilder";
+import RequestBuilder from "../openapi/RequestBuilder.js";
+import ResponseBuilder from "../openapi/ResponseBuilder.js";
 extendZodWithOpenApi(z);
 const router = Router()
 const registry = new OpenAPIRegistry();
