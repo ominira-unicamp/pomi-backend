@@ -39,8 +39,8 @@ Bom dia, boa tarde, boa noite, bem vindo ao backend do pranejador da ominira, qu
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/ominira-unicamp/planejador-ominira-backend.git
-cd planejador-ominira-backend
+git clone https://github.com/ominira-unicamp/pomi-backend.git
+cd pomi-backend
 ```
 
 ### 2. Instale as dependências
@@ -53,28 +53,11 @@ npm install
 
 ### Variáveis de Ambiente
 
-Crie um arquivo `.env` na raiz do projeto:
+Crie um arquivo `.env`, ou `.docker.env` caso utilize o docker, na raiz do projeto conforme o `.env.template`.
 
-```env
-# Banco de Dados
-DATABASE_URL="postgresql://postgres:senha@localhost:5432/pomi?schema=public"
-
-# Servidor
-PORT=3000
-NODE_ENV=development
-
-# CORS
-CORS_ORIGIN=*
-
-# Opcional, desabilita autenticação (para desenvolvimento)
-DISABLED_AUTH=true
-
-# JWT (para autenticação)
-JWT_SECRET=sua_chave_secreta_aqui
-```
- 
 ## Executando o Projeto
 
+Para iniciar o ambiente de desenvolvimento em um ambiente com docker:
 
 ```bash
 # Inicie o banco de dados PostgreSQL localmente ou via Docker
@@ -89,6 +72,7 @@ npx prisma generate
 # Inicie o servidor em modo desenvolvimento
 npm run dev
 ```
+
 ### Seed 
 
 Para fazer seed de informações academicas ao banco de dados é nescessario possuir um arquivo seed em `./prisma/seed.json` 
@@ -118,9 +102,13 @@ pomi-backend/
 │   ├── controllers/      # Controllers da API
 │   ├── Middlewares/      # Middlewares Express
 │   └── openapi/          # Builders para OpenAPI
+├── .env
 ├── docker-compose.yaml
 ├── package.json
+├── prisma.config.ts
 └── tsconfig.json
 ```
 
- 
+## LICENÇA
+
+O projeto está licenciado pelos termos da AGPL v3.0, para informações completas ver [licença](https://github.com/ominira-unicamp/pomi-backend/blob/main/LICENSE).

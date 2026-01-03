@@ -1,20 +1,20 @@
-import auth from './controllers/AuthController'
+import auth from './controllers/AuthController.js'
 
-import professor from './controllers/ProfessorController'
-import institute from './controllers/InstituteController'
-import course from './controllers/CourseController'
-import classController from './controllers/ClassController'
-import studyPeriods from './controllers/StudyPeriodsController'
-import classSchedule from './controllers/ClassScheduleController'
-import room from './controllers/RoomController'
+import professor from './controllers/ProfessorController.js'
+import institute from './controllers/InstituteController.js'
+import course from './controllers/CourseController.js'
+import classController from './controllers/ClassController.js'
+import studyPeriods from './controllers/StudyPeriodsController.js'
+import classSchedule from './controllers/ClassScheduleController.js'
+import room from './controllers/RoomController.js'
 
-import studentController from './controllers/StudentControllers/studentController'
-import CurriculumController from './controllers/StudentControllers/CurriculumController'
-import CurriculumCourseController from './controllers/StudentControllers/CurriculumCourseController'
+import studentController from './controllers/StudentControllers/studentController.js'
+import CurriculumController from './controllers/StudentControllers/CurriculumController.js'
+import CurriculumCourseController from './controllers/StudentControllers/CurriculumCourseController.js'
 
 import { Router } from 'express'
 import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi'
-import { AuthRegistry } from './auth'
+import { AuthRegistry } from './auth.js'
 
 type Controler = {
 	router?: Router,

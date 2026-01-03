@@ -1,7 +1,7 @@
 import { extendZodWithOpenApi, ResponseConfig, ZodContentObject, ZodMediaTypeObject } from "@asteasolutions/zod-to-openapi";
-import { ReferenceObject, SchemaObject } from "@asteasolutions/zod-to-openapi/dist/types";
+import { ReferenceObject, SchemaObject } from "@asteasolutions/zod-to-openapi/dist/types.js";
 import z, { ZodType } from "zod";
-import { ValidationErrorSchema } from "../Validation";
+import { ValidationErrorSchema } from "../Validation.js";
 extendZodWithOpenApi(z)
 
 interface BadRequestErrors {

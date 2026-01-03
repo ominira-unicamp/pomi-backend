@@ -2,7 +2,7 @@ import { OpenApiGeneratorV3, OpenAPIRegistry } from "@asteasolutions/zod-to-open
 import { apiReference } from '@scalar/express-api-reference'
 import { Router } from "express";
 import type { Request, Response } from "express";
-import Controlellers from "./Controllers";
+import Controlellers from "./Controllers.js";
 
 function convertExpressToOpenAPI(path: string): string {
   return path.replace(/\/:([\w-]+)/g, '/{$1}');

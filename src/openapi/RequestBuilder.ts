@@ -1,6 +1,6 @@
 import { RouteConfig, ZodRequestBody } from "@asteasolutions/zod-to-openapi";
-import { RouteParameter } from "@asteasolutions/zod-to-openapi/dist/openapi-registry";
-import { ReferenceObject, SchemaObject } from "@asteasolutions/zod-to-openapi/dist/types";
+import { RouteParameter } from "@asteasolutions/zod-to-openapi/dist/openapi-registry.js";
+import { ReferenceObject, SchemaObject } from "@asteasolutions/zod-to-openapi/dist/types.js";
 import { ZodType } from "zod";
 type RequestConfig = NonNullable<RouteConfig['request']>;
 
