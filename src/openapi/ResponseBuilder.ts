@@ -70,6 +70,17 @@ class ResponseBuilder {
 	build(): Record<number, ResponseConfig | ReferenceObject> {
 		return this.response;
 	}
+	statusCode(statusCode: number, schema: ZodType<unknown> | SchemaObject | ReferenceObject, description: string): ResponseBuilder {
+		this.response[statusCode] = {
+			description: description,
+			content: {
+				'application/json': {
+					schema: schema,
+				},
+			},
+		};
+		return this;
+	}
 }
 
 export default ResponseBuilder
