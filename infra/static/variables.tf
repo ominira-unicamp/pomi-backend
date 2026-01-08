@@ -1,9 +1,16 @@
 variable "project_id" {
   type = string
   description = "Google Cloud project ID"
+}
+variable "org_id" {
+  type = string
+  description = "Google Cloud organization ID"
   sensitive = true
 }
-
+variable repository_owner_id {
+  type = number
+  description = "GitHub repository owner ID"
+}
 variable region {
   type    = string
   description = "Google Cloud region to deploy resources"
