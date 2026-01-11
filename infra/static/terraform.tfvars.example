@@ -7,5 +7,5 @@ db_instance_name = "pomi-db"
 db_name         = "pomi"
 db_user         = "pomi_user"
 db_password     = "sua-senha-segura-aqui"
-jwt_secret      = "seu-jwt-secret-aqui"
+jwt_secret      = "seu-jwt-secret-aqui" # Secret should be at least 256-bit long for current algorithm. See RFC 8725.
 container_image = "gcr.io/seu-projeto-gcp/pomi-backend:latest"
