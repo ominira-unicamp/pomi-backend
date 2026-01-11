@@ -11,6 +11,10 @@ generator zod {
   config   = "./config-zod.json"
 }
 
+generator dbml {
+  provider = "prisma-dbml-generator"
+}
+
 datasource db {
   provider = "postgresql"
 }
@@ -43,6 +47,9 @@ model Prefixes {
   prefix      String    @unique
   institute   Institute @relation(fields: [instituteId], references: [id])
   instituteId Int
+
+  courseRequirements CourseRequirement[]
+  courses Course[]
 }
 
 model Course {
@@ -52,12 +59,13 @@ model Course {
   credits     Int
   institute   Institute @relation(fields: [instituteId], references: [id])
   instituteId Int
+  prefix       Prefixes?   @relation(fields: [prefixId], references: [id])
+  prefixId     Int?
 
-  classes        Class[]
-  programCourses ProgramModalityCourse[]
-  studentCourses StudentCourse[]
-
-  curriculumCourses CurriculumCourse[]
+  classes            Class[]
+  studentCourses     StudentCourse[]
+  curriculumCourses  CurriculumCourse[]
+  courseRequirements CourseRequirement[]
 }
 
 // ----------------------- Programs Catalog Models ----------------------- //
@@ -77,18 +85,17 @@ model Program {
   institute       Institute        @relation(fields: [instituteId], references: [id])
   instituteId     Int
   catalogPrograms CatalogProgram[]
-
-  programCourses ProgramModalityCourse[]
-  students       Student[]
+  students         Student[]
+  courseBlockSets  CourseBlockSet[]
 }
 
 model Modality {
   id   Int    @id @default(autoincrement())
   code String
   name String
-
-  programCourses ProgramModalityCourse[]
   students       Student[]
+
+  courseBlockSets CourseBlockSet[]
 }
 
 model CatalogProgram {
@@ -99,16 +106,60 @@ model CatalogProgram {
   programId Int
 }
 
-model ProgramModalityCourse {
-  id         Int      @id @default(autoincrement())
-  program    Program  @relation(fields: [programId], references: [id])
-  programId  Int
-  modality   Modality @relation(fields: [modalityId], references: [id])
-  modalityId Int
-  course     Course   @relation(fields: [courseId], references: [id])
-  courseId   Int
 
-  @@unique([programId, modalityId, courseId])
+// ----------------------- Course Requirements Models ----------------------- //
+
+enum CourseBlockSetType {
+  base
+  modality
+  language
+}
+
+enum CourseBlockType {
+  mandatory
+  elective
+}
+
+enum CourseRequirementType {
+  any
+  prefix
+  specific
+}
+
+model CourseBlockSet {
+  id        Int                @id @default(autoincrement())
+  
+  program   Program            @relation(fields: [programId], references: [id])
+  programId Int
+  type      CourseBlockSetType
+
+  title     String?   
+  modality  Modality?          @relation(fields: [modalityId], references: [id])
+  modalityId Int?
+
+  courseBlocks CourseBlock[]
+}
+
+model CourseBlock {
+  id                 Int            @id @default(autoincrement())
+  type               CourseBlockType
+  title              String
+  credits            Int?
+  courseBlockSet     CourseBlockSet @relation(fields: [courseBlockSetId], references: [id])
+  courseBlockSetId   Int
+
+  courseRequirements CourseRequirement[]
+}
+
+model CourseRequirement {
+  id             Int                   @id @default(autoincrement())
+  courseBlock    CourseBlock           @relation(fields: [courseBlockId], references: [id])
+  courseBlockId  Int
+  type           CourseRequirementType
+  course         Course?               @relation(fields: [courseId], references: [id])
+  courseId       Int?
+  prefix          Prefixes?              @relation(fields: [prefixId], references: [id])
+  prefixId        Int?
 }
 
 // ----------------------- Timetable Booklet Models ----------------------- //
