@@ -33,3 +33,20 @@ jobs:
             exit 1
           fi
           echo "✅ All migrations are applied"
+
+      - name: Check for schema changes without migration
+        run: |
+          npx prisma migrate diff \
+            --from-schema ./prisma/schema.prisma \
+            --to-config-datasource \
+            --exit-code
+          
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 2 ]; then
+            echo "❌ Schema changes detected without corresponding migration!"
+            exit 1
+          elif [ $EXIT_CODE -eq 1 ]; then
+            echo "❌ Error checking schema differences!"
+            exit 1
+          fi
+          echo "✅ No pending schema changes"
