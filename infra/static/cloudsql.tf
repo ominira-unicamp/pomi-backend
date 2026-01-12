@@ -2,7 +2,7 @@
 resource "google_sql_database_instance" "instance" {
   name                = var.db_instance_name
   database_version    = "POSTGRES_15"
-  deletion_protection = false
+  deletion_protection = true
 
   settings {
     tier = "db-g1-small"
@@ -38,7 +38,6 @@ resource "google_sql_database_instance" "instance" {
   }
   depends_on = [
     google_project_service.cloud_sql,
-    google_compute_global_address.sql_static_ip
   ]
 }
 
