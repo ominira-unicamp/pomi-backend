@@ -9,7 +9,8 @@
         "start": "node dist/src/index.js",
         "prisma:generate": "npx prisma generate",
         "prisma:deploy": "npx prisma migrate deploy",
-        "prisma:seed": "npx prisma db seed"
+        "prisma:seed": "npx prisma db seed",
+        "prepare": "husky install"
     },
     "dependencies": {
         "@asteasolutions/zod-to-openapi": "^8.2.0",
@@ -33,6 +34,8 @@
         "eslint": "^9.39.2",
         "eslint-config-prettier": "^10.1.8",
         "globals": "^17.0.0",
+        "husky": "^9.1.7",
+        "lint-staged": "^16.2.7",
         "prettier": "3.8.0",
         "prettier-plugin-organize-imports": "^4.3.0",
         "prisma": "^7.2.0",
@@ -46,5 +49,8 @@
         "hono": "^4.11.4",
         "@prisma/generator-helper": "^7.2.0",
         "@prisma/internals": "^7.2.0"
+    },
+    "lint-staged": {
+        "*.{ts,js}": ["eslint --cache", "prettier --write"]
     }
 }
