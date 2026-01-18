@@ -1,11 +1,11 @@
-import "dotenv/config";
-import express, { Router } from "express";
-import helmet from "helmet";
 import cors from "cors";
-import openapi from "./OpenApi.js";
+import "dotenv/config";
+import express from "express";
+import helmet from "helmet";
 import Controlellers from "./Controllers.js";
 import errorHandler from "./Middlewares/erroHandler.js";
 import jsonErrorHandler from "./Middlewares/jsonErrorHandler.js";
+import openapi from "./OpenApi.js";
 const app = express();
 const corsOrigin = process.env.CORS_ORIGIN || "*";
 app.use(

@@ -1,5 +1,5 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import z, { ZodType } from "zod";
+import z from "zod";
 extendZodWithOpenApi(z);
 type ValidationErrorField = {
     path: PropertyKey[];
@@ -80,8 +80,8 @@ class ApiError implements ValidationErrorType {
 }
 
 export {
-    ZodToApiError as ZodToApiError,
+    ApiError as ValidationError,
     ValidationErrorSchema,
-    ApiError as ValidationError
+    ZodToApiError as ZodToApiError
 };
 export type { ErrorCode, ValidationErrorField, ValidationErrorType };

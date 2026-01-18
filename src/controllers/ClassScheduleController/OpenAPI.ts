@@ -3,10 +3,10 @@ import {
     OpenAPIRegistry
 } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
-import { defaultOpenApiGetPath } from "../../defaultEndpoint.js";
 import { openApiArgsFromIO } from "../../BuildHandler.js";
-import IO from "./Interface.js";
+import { defaultOpenApiGetPath } from "../../defaultEndpoint.js";
 import classScheduleEntity from "./Entity.js";
+import IO from "./Interface.js";
 
 extendZodWithOpenApi(z);
 

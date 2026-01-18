@@ -1,12 +1,8 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
-import {
-    getPaginatedSchema,
-    paginationQuerySchema,
-    PaginationQueryType
-} from "../../pagination.js";
-import courseEntity from "./Entity.js";
 import { OutputBuilder } from "../../BuildHandler.js";
+import { getPaginatedSchema, paginationQuerySchema } from "../../pagination.js";
+import courseEntity from "./Entity.js";
 extendZodWithOpenApi(z);
 
 const courseBase = z.object({

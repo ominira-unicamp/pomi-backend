@@ -1,12 +1,12 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 import { OutputBuilder } from "../../BuildHandler.js";
-import classEntity from "./Entity.js";
 import {
     getPaginatedSchema,
     paginationQuerySchema,
     PaginationQueryType
 } from "../../pagination.js";
+import classEntity from "./Entity.js";
 
 extendZodWithOpenApi(z);
 

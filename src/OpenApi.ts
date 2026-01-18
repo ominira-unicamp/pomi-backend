@@ -1,10 +1,7 @@
-import {
-    OpenApiGeneratorV3,
-    OpenAPIRegistry
-} from "@asteasolutions/zod-to-openapi";
+import { OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
 import { apiReference } from "@scalar/express-api-reference";
-import { Router } from "express";
 import type { Request, Response } from "express";
+import { Router } from "express";
 import Controlellers from "./Controllers.js";
 
 function convertExpressToOpenAPI(path: string): string {

@@ -1,9 +1,4 @@
-import type {
-    ErrorRequestHandler,
-    NextFunction,
-    Request,
-    Response
-} from "express";
+import type { NextFunction, Request, Response } from "express";
 
 function errorHandler(
     err: any,

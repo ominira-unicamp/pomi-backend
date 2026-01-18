@@ -1,8 +1,8 @@
-import { PrismaClient, DayOfWeek } from "./generated/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
+import dotenv from "dotenv";
 import { readFileSync } from "fs";
 import { join } from "path";
-import dotenv from "dotenv";
+import { DayOfWeek, PrismaClient } from "./generated/client.js";
 
 dotenv.config();
 const pool = new PrismaPg({ connectionString: process.env.DATABASE_URL! });

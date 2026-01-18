@@ -1,19 +1,19 @@
 import auth from "./controllers/AuthController/AuthController.js";
 
-import professor from "./controllers/ProfessorController/ProfessorController.js";
-import institute from "./controllers/InstituteController/InstituteController.js";
-import course from "./controllers/CourseController/CourseController.js";
 import classController from "./controllers/ClassController/ClassController.js";
-import studyPeriods from "./controllers/StudyPeriodsController/StudyPeriodsController.js";
 import classSchedule from "./controllers/ClassScheduleController/ClassScheduleController.js";
+import course from "./controllers/CourseController/CourseController.js";
+import institute from "./controllers/InstituteController/InstituteController.js";
+import professor from "./controllers/ProfessorController/ProfessorController.js";
 import room from "./controllers/RoomController/RoomController.js";
+import studyPeriods from "./controllers/StudyPeriodsController/StudyPeriodsController.js";
 
-import studentController from "./controllers/StudentControllers/StudentController/StudentController.js";
 import CurriculumController from "./controllers/StudentControllers/CurriculumController/CurriculumController.js";
 import CurriculumCourseController from "./controllers/StudentControllers/CurriculumCourseController/CurriculumCourseController.js";
+import studentController from "./controllers/StudentControllers/StudentController/StudentController.js";
 
-import { Router } from "express";
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
+import { Router } from "express";
 import { AuthRegistry } from "./auth.js";
 
 type Controler = {

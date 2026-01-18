@@ -3,11 +3,11 @@ import {
     OpenAPIRegistry
 } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
-extendZodWithOpenApi(z);
-import IO from "./Interface.js";
+import { openApiArgsFromIO } from "../../BuildHandler.js";
 import { defaultOpenApiGetPath } from "../../defaultEndpoint.js";
 import courseEntity from "./Entity.js";
-import { openApiArgsFromIO } from "../../BuildHandler.js";
+import IO from "./Interface.js";
+extendZodWithOpenApi(z);
 const registry = new OpenAPIRegistry();
 
 registry.registerPath({

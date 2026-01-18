@@ -1,8 +1,6 @@
 import {
     extendZodWithOpenApi,
-    ResponseConfig,
-    ZodContentObject,
-    ZodMediaTypeObject
+    ResponseConfig
 } from "@asteasolutions/zod-to-openapi";
 import {
     ReferenceObject,

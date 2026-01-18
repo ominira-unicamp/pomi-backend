@@ -1,29 +1,14 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { Router } from "express";
-import {
-    extendZodWithOpenApi,
-    OpenAPIRegistry
-} from "@asteasolutions/zod-to-openapi";
-import z, { success, ZodAny, ZodType } from "zod";
+import z from "zod";
 
-import prisma from "../../PrismaClient.js";
 import { AuthRegistry } from "../../auth.js";
-import { resourcesPaths } from "../../Controllers.js";
-import ResponseBuilder from "../../openapi/ResponseBuilder.js";
-import {
-    ValidationError,
-    ValidationErrorField,
-    ValidationErrorType,
-    ZodToApiError
-} from "../../Validation.js";
-import RequestBuilder from "../../openapi/RequestBuilder.js";
-import { ParamsDictionary } from "express-serve-static-core";
-import {
-    defaultGetHandler,
-    defaultOpenApiGetPath
-} from "../../defaultEndpoint.js";
+import { buildHandler } from "../../BuildHandler.js";
+import { defaultGetHandler } from "../../defaultEndpoint.js";
+import prisma from "../../PrismaClient.js";
+import { ValidationError } from "../../Validation.js";
 import studyPeriodEntity from "./Entity.js";
 import IO from "./Interface.js";
-import { buildHandler } from "../../BuildHandler.js";
 import registry from "./OpenAPI.js";
 
 extendZodWithOpenApi(z);

@@ -1,12 +1,7 @@
-import z from "zod";
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { Router } from "express";
+import z from "zod";
 import { AuthRegistry, generateToken } from "../../auth.js";
-import {
-    extendZodWithOpenApi,
-    OpenAPIRegistry
-} from "@asteasolutions/zod-to-openapi";
-import RequestBuilder from "../../openapi/RequestBuilder.js";
-import ResponseBuilder from "../../openapi/ResponseBuilder.js";
 import { buildHandler } from "../../BuildHandler.js";
 import IO from "./Interface.js";
 import registry from "./OpenAPI.js";

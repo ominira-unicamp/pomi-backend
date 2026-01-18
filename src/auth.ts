@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from "express";
+import { NextFunction, Request, Response } from "express";
 import * as jose from "jose";
-import { match, pathToRegexp, compile, parse, stringify } from "path-to-regexp";
+import { match } from "path-to-regexp";
 
 const disabled = process.env.DISABLED_AUTH === "true";
 const isProduction = process.env.NODE_ENV === "production";
@@ -90,4 +90,4 @@ class AuthRegistry {
     }
 }
 
-export { generateToken, AuthRegistry };
+export { AuthRegistry, generateToken };

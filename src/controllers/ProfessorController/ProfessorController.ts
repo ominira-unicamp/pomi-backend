@@ -1,17 +1,16 @@
-import { Router } from "express";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { Router } from "express";
 import z from "zod";
 
+import { buildHandler } from "../../BuildHandler.js";
 import prisma from "../../PrismaClient.js";
 import { AuthRegistry } from "../../auth.js";
-import { ValidationError } from "../../Validation.js";
 import {
     defaultGetHandler,
     defaultListHandler
 } from "../../defaultEndpoint.js";
 import professorEntity from "./Entity.js";
 import IO, { ListQueryParams } from "./Interface.js";
-import { buildHandler } from "../../BuildHandler.js";
 import registry from "./OpenAPI.js";
 
 extendZodWithOpenApi(z);

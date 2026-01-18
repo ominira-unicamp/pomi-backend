@@ -1,7 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
-    PrismaClient,
-    Prisma as MyPrisma
+    Prisma as MyPrisma,
+    PrismaClient
 } from "../prisma/generated/client.js";
 import * as models from "../prisma/generated/zod/schemas/models/index.js";
 const pool = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -62,10 +62,10 @@ const selectIdCode = {
 
 export default prisma;
 export {
-    MyPrisma,
     models,
-    whereIdCode,
-    whereIdName,
+    MyPrisma,
     selectIdCode,
-    selectIdName
+    selectIdName,
+    whereIdCode,
+    whereIdName
 };

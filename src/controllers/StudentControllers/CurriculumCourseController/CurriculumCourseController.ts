@@ -1,15 +1,15 @@
-import { Router } from "express";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { Router } from "express";
 import z from "zod";
 
+import { buildHandler } from "../../../BuildHandler.js";
 import prisma from "../../../PrismaClient.js";
+import { zodIds } from "../../../PrismaValidator.js";
+import { ValidationError, ZodToApiError } from "../../../Validation.js";
 import { AuthRegistry } from "../../../auth.js";
 import curriculumCourseEntity from "./Entity.js";
 import IO from "./Interface.js";
-import { buildHandler } from "../../../BuildHandler.js";
 import registry from "./OpenAPI.js";
-import { zodIds } from "../../../PrismaValidator.js";
-import { ValidationError, ZodToApiError } from "../../../Validation.js";
 
 extendZodWithOpenApi(z);
 
