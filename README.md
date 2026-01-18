@@ -9,10 +9,9 @@ Bom dia, boa tarde, boa noite, bem vindo ao backend do pranejador da ominira, qu
 - [Instalação](#instalação)
 - [Configuração](#configuração)
 - [Executando o Projeto](#executando-o-projeto)
-- [Estrutura do Projeto](#estrutura-do-projeto) 
+- [Estrutura do Projeto](#estrutura-do-projeto)
 
 ## Sobre o Projeto
-
 
 ## Tecnologias
 
@@ -73,9 +72,9 @@ npx prisma generate
 npm run dev
 ```
 
-### Seed 
+### Seed
 
-Para fazer seed de informações academicas ao banco de dados é nescessario possuir um arquivo seed em `./prisma/seed.json` 
+Para fazer seed de informações academicas ao banco de dados é nescessario possuir um arquivo seed em `./prisma/seed.json`
 
 ### Acessando a Documentação
 
@@ -91,7 +90,7 @@ pomi-backend/
 ├── prisma/
 │   ├── schema.prisma     # Schema do banco de dados
 │   ├── migrations/       # Migrations do Prisma
-│   ├── seed.ts           # Script de seed 
+│   ├── seed.ts           # Script de seed
 │   └── generated/        # Arquivos gerados (client, zod schemas)
 ├── src/
 │   ├── index.ts          # Entry point da aplicação
