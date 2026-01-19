@@ -19,6 +19,10 @@ Controlellers.authRegistry.addException('GET', '/openapi.json');
 Controlellers.authRegistry.addException('GET', '/docs');
 
 app.use(helmet({
+  crossOriginResourcePolicy: {
+    policy: "cross-origin",
+    
+  },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],

@@ -35,6 +35,28 @@ type ExceptionType = {
 	method: Methods,
 	path: string
 }
+
+async function tryGetUser(req: Request): Promise<{ id: number } | undefined> {
+	const authHeader = req.headers.authorization;
+	if (!authHeader || !authHeader.startsWith('Bearer ')) {
+		return undefined;
+	}
+	try {
+		const { payload } = await jose.jwtVerify(authHeader.substring(7), secret);
+		let userId: number | undefined;
+		if (payload && typeof payload.sub !== 'undefined') {
+			userId = parseInt(String(payload.sub));
+		} else if ((payload as any)?.userId) {
+			userId = Number((payload as any).userId);
+		}
+		if (!userId || Number.isNaN(userId)) {
+			return undefined;
+		}
+		return { id: userId };
+	} catch (error) {
+		return undefined;
+	}
+}
 class AuthRegistry {
 	exceptions : ExceptionType[] = [];
 	constructor(authRegistries: AuthRegistry[] = []) {
@@ -59,23 +81,17 @@ class AuthRegistry {
 	}
 	middleware() {
 		return async (req: Request, res: Response, next: NextFunction) => {
-			if (disabled) {
+			req.user = await tryGetUser(req);
+
+			if (disabled) 
 				return next();
-			}
-			const authHeader = req.headers.authorization;
-			if (this.checkException(req.method as Methods, req.path)) {
+		
+			if (this.checkException(req.method as Methods, req.path)) 
 				return next();
-			}
-			if (!authHeader || !authHeader.startsWith('Bearer ')) {
+
+			if (!req.user) 
 				return res.status(401).json({ error: 'Unauthorized' });
-			}
-			try {
-				const { payload } = await jose.jwtVerify(authHeader.substring(7), secret);
-				(req as any).user = payload;
-				next();
-			} catch (error) {
-				return res.status(401).json({ error: 'Unauthorized' });
-			}
+			next();
 		}
 	}
 }

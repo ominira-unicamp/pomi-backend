@@ -4,6 +4,7 @@ declare global {
 	namespace Express {
 		interface Request {
 			prisma: PrismaClient;
+			user?: { id: number };
 		}
 	}
 }

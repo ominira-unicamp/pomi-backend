@@ -1,6 +1,7 @@
 import z from "zod";
 import { Router } from "express";
 import { AuthRegistry, generateToken } from "../../auth.js";
+import { createRemoteJWKSet, jwtVerify, JWTVerifyOptions } from 'jose';
 import { extendZodWithOpenApi, OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import RequestBuilder from "../../openapi/RequestBuilder.js";
 import ResponseBuilder from "../../openapi/ResponseBuilder.js";
@@ -15,12 +16,34 @@ const authRegistry = new AuthRegistry();
 
 authRegistry.addException('POST', '/login');
 
-async function loginFn(ctx : Context, input: z.infer<typeof IO.login.input>): Promise<z.infer<typeof IO.login.output>> {
-	const token = await generateToken({ userId: 1 })
-	return { 200: { accessToken: token } };
-}
+authRegistry.addException('POST', '/auth/google');
 
-router.post('/login', buildHandler(IO.login.input, IO.login.output, loginFn));
+async function googleFn(ctx : Context, input: z.infer<typeof IO.google.input>): Promise<z.infer<typeof IO.google.output>> {
+	const token = input.body.credential;
+	const jwks = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
+	try {
+		const verifyOptions: JWTVerifyOptions = {};
+		if (process.env.GOOGLE_CLIENT_ID)
+			verifyOptions.audience = process.env.GOOGLE_CLIENT_ID;
+		const { payload } = await jwtVerify(token, jwks, verifyOptions);
+
+		const email = payload.email as string | undefined;
+		const name = (payload.name as string | undefined) || (email ? email.split('@')[0] : 'GoogleUser');
+		
+		if (!email) return { 401: 'Invalid token: no email' };
+		const prisma = ctx.prisma;
+		let user = await prisma.user.findUnique({ where: { email } });
+		if (!user) {
+			user = await prisma.user.create({ data: { email, name } });
+		}
+		const accessToken = await generateToken({ userId: user.id });
+		return { 200: { accessToken } };
+	} catch (err) {
+		return { 401: 'Invalid token' };
+	}
+}
+ 
+router.post('/auth/google', buildHandler(IO.google.input, IO.google.output, googleFn));
 
 export default {
 	router,
@@ -28,6 +51,6 @@ export default {
 	authRegistry,
 	paths: {
 		login: () => '/login',
+		google: () => '/auth/google',
 	},
-	login: loginFn
 };

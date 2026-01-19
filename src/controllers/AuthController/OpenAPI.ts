@@ -14,4 +14,11 @@ registry.registerPath({
 	...openApiArgsFromIO(IO.login)
 });
 
+registry.registerPath({
+	method: 'post',
+	path: '/auth/google',
+	tags: ['auth'],
+	...openApiArgsFromIO(IO.google)
+});
+
 export default registry

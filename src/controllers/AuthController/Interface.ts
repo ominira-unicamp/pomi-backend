@@ -15,6 +15,16 @@ const login = {
 		.build()
 }
 
+const google = {
+	input: z.object({
+		body: z.object({ credential: z.string().describe("Google ID token") })
+	}),
+	output: new OutputBuilder()
+		.ok(loginResponse, "Successful login response")
+		.build()
+}
+
 export default {
-	login
+	login,
+	google
 }
