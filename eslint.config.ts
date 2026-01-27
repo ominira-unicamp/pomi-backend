@@ -1,8 +1,8 @@
 import js from "@eslint/js";
+import eslintConfigPrettier from "eslint-config-prettier/flat";
+import { defineConfig } from "eslint/config";
 import globals from "globals";
 import tseslint from "typescript-eslint";
-import { defineConfig } from "eslint/config";
-import eslintConfigPrettier from "eslint-config-prettier/flat";
 
 export default defineConfig([
     {
@@ -26,7 +26,16 @@ export default defineConfig([
     tseslint.configs.recommended,
     {
         rules: {
-            "no-unassigned-vars": "warn"
+            "no-unassigned-vars": "warn",
+            "no-unused-vars": "off",
+            "@typescript-eslint/no-unused-vars": [
+                "error",
+                {
+                    argsIgnorePattern: "^_",
+                    varsIgnorePattern: "^_",
+                    caughtErrorsIgnorePattern: "^_"
+                }
+            ]
         }
     },
     eslintConfigPrettier
