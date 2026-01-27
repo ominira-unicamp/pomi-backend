@@ -160,14 +160,10 @@ export class OutputBuilder<
         >;
     }
     unauthorized(): OutputBuilder<A & { 401: z.ZodOptional<z.ZodString> }> {
-        this.response[401] = z
-            .string()
-            .length(0)
-            .optional()
-            .openapi({
-                description: "Unauthorized - authentication required",
-                type: "string"
-            });
+        this.response[401] = z.string().length(0).optional().openapi({
+            description: "Unauthorized - authentication required",
+            type: "string"
+        });
 
         return this as unknown as OutputBuilder<
             A & { 401: z.ZodOptional<z.ZodString> }
