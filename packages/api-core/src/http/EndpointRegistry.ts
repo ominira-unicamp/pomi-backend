@@ -4,7 +4,11 @@ import { Router } from "express";
 
 import { openApiFromEndpoint } from "../openapi/EndpointOpenApi.js";
 import { pathSegmentToExpressPath } from "../PathSegment.js";
-import type { EndpointContract, EndpointRegistry } from "./EndpointContract.js";
+import {
+    assertQueryFeatureConsistency,
+    type EndpointContract,
+    type EndpointRegistry
+} from "./EndpointContract.js";
 import { buildEndpointHandler, type EndpointAction } from "./RequestHandler.js";
 
 export type EndpointActions<
@@ -33,6 +37,7 @@ export function createEndpointRegistries<
     const openApiRegistry = new OpenAPIRegistry();
 
     for (const [name, contract] of Object.entries(options.contracts)) {
+        assertQueryFeatureConsistency(contract);
         const action = options.actions[name];
         if (!action) throw new Error(`Missing action for endpoint ${name}`);
         const path = pathSegmentToExpressPath(contract.meta.path);

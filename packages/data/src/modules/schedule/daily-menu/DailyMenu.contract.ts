@@ -69,7 +69,11 @@ const get = {
 const listQuery = z.object({ filter: dailyMenuFilter.optional() }).strict();
 
 const list = {
-    meta: { ...specsBuilder.list(), authorization: policies.public },
+    meta: {
+        ...specsBuilder.list(),
+        authorization: policies.public,
+        queryFeatures: { filter: true }
+    },
     request: z.object({ query: listQuery }),
     response: new OutputBuilder()
         .ok(z.array(schema), "List of daily menus retrieved successfully")

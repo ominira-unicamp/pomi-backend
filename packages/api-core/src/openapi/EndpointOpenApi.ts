@@ -3,6 +3,10 @@ import type z from "zod";
 
 import type { EndpointContract } from "../http/EndpointContract.js";
 import { pathSegmentToOpenApiPath } from "../PathSegment.js";
+import {
+    operationIdFromEndpoint,
+    summaryFromOperationId
+} from "./OperationMetadata.js";
 import RequestBuilder from "./RequestBuilder.js";
 import ResponseBuilder from "./ResponseBuilder.js";
 
@@ -66,10 +70,26 @@ export function openApiFromEndpoint(
     if (!statuses.has(400)) responses.badRequest();
     if (!statuses.has(500)) responses.internalServerError();
 
+    const operationId =
+        contract.meta.operationId ??
+        operationIdFromEndpoint(
+            contract.meta.method,
+            contract.meta.path,
+            contract.meta.tags
+        );
+
     return {
         method: contract.meta.method,
         path: pathSegmentToOpenApiPath(contract.meta.path),
         tags: contract.meta.tags,
+        operationId,
+        summary: contract.meta.summary ?? summaryFromOperationId(operationId),
+        ...(contract.meta.description
+            ? { description: contract.meta.description }
+            : {}),
+        ...(contract.meta.deprecated !== undefined
+            ? { deprecated: contract.meta.deprecated }
+            : {}),
         request: request.build(),
         responses: responses.build()
     };

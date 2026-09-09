@@ -49,6 +49,10 @@ export type EndpointResponsesSchema = z.ZodDiscriminatedUnion<
 
 export type EndpointContract<Authorization = unknown> = {
     meta: {
+        operationId?: string;
+        summary?: string;
+        description?: string;
+        deprecated?: boolean;
         method: HttpMethod;
         path: PathSegment[];
         tags: string[];
@@ -60,6 +64,34 @@ export type EndpointContract<Authorization = unknown> = {
     request: EndpointRequestSchema;
     response: EndpointResponsesSchema;
 };
+
+export function assertQueryFeatureConsistency(
+    contract: EndpointContract<unknown>
+) {
+    const querySchema = contract.request.shape.query;
+    const hasFilterSchema =
+        querySchema instanceof z.ZodObject &&
+        Object.hasOwn(querySchema.shape, "filter");
+    const filterEnabled = contract.meta.queryFeatures?.filter === true;
+
+    if (hasFilterSchema === filterEnabled) return;
+
+    const operation = `${contract.meta.method.toUpperCase()} ${contract.meta.path
+        .map((segment) =>
+            segment.type === "literal" ? segment.value : `:${segment.name}`
+        )
+        .join("/")}`;
+    const expected = hasFilterSchema
+        ? "queryFeatures.filter=true"
+        : "nenhum schema de filter na query";
+    const actual = hasFilterSchema
+        ? "um schema de filter na query"
+        : "queryFeatures.filter=true";
+
+    throw new Error(
+        `Inconsistent filter capability for ${operation}: expected ${expected}, found ${actual}`
+    );
+}
 
 export type EndpointRegistry<Authorization = unknown> = Record<
     string,

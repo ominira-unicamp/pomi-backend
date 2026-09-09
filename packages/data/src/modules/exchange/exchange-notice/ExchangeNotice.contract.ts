@@ -83,7 +83,11 @@ const listQuery = z
     .strict();
 
 const list = {
-    meta: { ...specsBuilder.list(), authorization: policies.public },
+    meta: {
+        ...specsBuilder.list(),
+        authorization: policies.public,
+        queryFeatures: { filter: true }
+    },
     request: z.object({ query: listQuery }),
     response: new OutputBuilder()
         .ok(z.array(schema), "List of exchange notices retrieved successfully")

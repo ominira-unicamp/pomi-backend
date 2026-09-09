@@ -55,7 +55,11 @@ const get = {
 } satisfies IO;
 
 const list = {
-    meta: { ...specsBuilder.list(), authorization: policies.public },
+    meta: {
+        ...specsBuilder.list(),
+        authorization: policies.public,
+        queryFeatures: { filter: true }
+    },
     request: z.object({
         query: z.object({ filter: calendarTagFilter.optional() }).strict()
     }),

@@ -11,6 +11,37 @@ export const queryFilterOperators = [
     "in"
 ] as const;
 
+export const queryFilterOperatorMetadata = {
+    eq: {
+        valueCardinality: "single",
+        description: "Igual a"
+    },
+    ne: {
+        valueCardinality: "single",
+        description: "Diferente de"
+    },
+    gt: {
+        valueCardinality: "single",
+        description: "Maior que"
+    },
+    gte: {
+        valueCardinality: "single",
+        description: "Maior ou igual a"
+    },
+    lt: {
+        valueCardinality: "single",
+        description: "Menor que"
+    },
+    lte: {
+        valueCardinality: "single",
+        description: "Menor ou igual a"
+    },
+    in: {
+        valueCardinality: "oneOrMore",
+        description: "Contido em uma lista"
+    }
+} as const;
+
 export type QueryFilterOperator = (typeof queryFilterOperators)[number];
 
 export type QueryFilterExpression = {

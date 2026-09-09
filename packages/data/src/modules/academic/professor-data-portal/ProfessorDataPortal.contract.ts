@@ -156,7 +156,11 @@ const positionFilter = resourceFilterSchema(
 );
 
 const profileList = {
-    meta: { ...profileSpecs.list(), authorization: policies.public },
+    meta: {
+        ...profileSpecs.list(),
+        authorization: policies.public,
+        queryFeatures: { filter: true }
+    },
     request: z.object({
         query: paginationQuerySchema
             .extend({
@@ -185,11 +189,13 @@ const simpleList = (
     path: string,
     tag: string,
     schema: z.ZodTypeAny,
-    query = z.object({})
+    query = z.object({}),
+    queryFeatures?: { filter?: boolean }
 ) => ({
     meta: {
         ...new SpecBuilder([pathSeg.literal(path)], [tag], "id").list(),
-        authorization: policies.public
+        authorization: policies.public,
+        ...(queryFeatures ? { queryFeatures } : {})
     },
     request: z.object({ query }),
     response: new OutputBuilder()
@@ -222,7 +228,8 @@ const keywordList = {
             ["keywords"],
             "id"
         ).list(),
-        authorization: policies.public
+        authorization: policies.public,
+        queryFeatures: { filter: true }
     },
     request: z.object({
         query: paginationQuerySchema
@@ -244,7 +251,8 @@ const coauthorList = {
             ["coauthors"],
             "id"
         ).list(),
-        authorization: policies.public
+        authorization: policies.public,
+        queryFeatures: { filter: true }
     },
     request: z.object({
         query: paginationQuerySchema
@@ -266,7 +274,8 @@ export default {
             "professor-positions",
             "professor-positions",
             position,
-            z.object({ filter: positionFilter.optional() }).strict()
+            z.object({ filter: positionFilter.optional() }).strict(),
+            { filter: true }
         ),
         get: simpleGet("professor-positions", "professor-positions", position)
     },
@@ -275,7 +284,8 @@ export default {
             "departments",
             "departments",
             department,
-            z.object({ filter: departmentFilter.optional() }).strict()
+            z.object({ filter: departmentFilter.optional() }).strict(),
+            { filter: true }
         ),
         get: simpleGet("departments", "departments", department)
     },

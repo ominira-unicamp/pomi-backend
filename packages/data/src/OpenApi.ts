@@ -4,6 +4,10 @@ import type { Request, Response } from "express";
 import { Router } from "express";
 
 import { dataControllers } from "#/Controllers.js";
+import {
+    operationIdFromOpenApiPath,
+    queryFilterOperatorMetadata
+} from "@pomi/api-core";
 
 function expressPath(path: string) {
     return path.replace(/\/:([\w-]+)/g, "/{$1}");
@@ -20,6 +24,17 @@ function isPublicRoute(
             expressPath(rule.path) === definition.route.path
     );
 }
+
+const operationMethods = new Set([
+    "get",
+    "put",
+    "post",
+    "patch",
+    "delete",
+    "options",
+    "head",
+    "trace"
+]);
 
 export function generateDataOpenApiDocument(audience: "public" | "all") {
     const definitions =
@@ -42,21 +57,54 @@ export function generateDataOpenApiDocument(audience: "public" | "all") {
         scheme: "bearer",
         description: "POMI Data administration service token"
     };
-    if (audience === "all") {
-        for (const item of Object.values(document.paths)) {
-            for (const [method, operation] of Object.entries(item ?? {})) {
-                if (
-                    !operation ||
-                    typeof operation !== "object" ||
-                    !("responses" in operation)
-                )
-                    continue;
-                if (["post", "patch", "put", "delete"].includes(method)) {
-                    operation.security ??= [{ DataAdminToken: [] }];
-                }
+    const tags = new Set<string>();
+    const operationIds = new Map<string, string>();
+    for (const [path, item] of Object.entries(document.paths)) {
+        for (const [method, value] of Object.entries(item ?? {})) {
+            if (!operationMethods.has(method)) continue;
+            if (!value || typeof value !== "object" || !("responses" in value))
+                continue;
+            const operation = value as Record<string, unknown>;
+            const operationTags = Array.isArray(operation.tags)
+                ? operation.tags.filter(
+                      (tag): tag is string => typeof tag === "string"
+                  )
+                : [];
+            operationTags.forEach((tag) => tags.add(tag));
+            const operationId =
+                typeof operation.operationId === "string"
+                    ? operation.operationId
+                    : operationIdFromOpenApiPath(
+                          method as "get" | "put" | "post" | "patch" | "delete",
+                          path,
+                          operationTags
+                      );
+            const previousPath = operationIds.get(operationId);
+            if (previousPath && previousPath !== `${method} ${path}`) {
+                throw new Error(
+                    `Duplicate OpenAPI operationId "${operationId}" for ${previousPath} and ${method} ${path}`
+                );
             }
+            operationIds.set(operationId, `${method} ${path}`);
+            operation.operationId = operationId;
+            operation.summary ??= operationId;
+
+            const policy = dataControllers.authRegistry.rules.find(
+                (rule) =>
+                    rule.method.toLowerCase() === method &&
+                    expressPath(rule.path) === path
+            )?.policy.kind;
+            operation.security =
+                policy === "public" || audience === "public"
+                    ? []
+                    : [{ DataAdminToken: [] }];
         }
     }
+    document.tags = [...tags].map((name) => ({ name }));
+    document["x-pomi-filter-operators"] = {
+        version: 1,
+        operators: queryFilterOperatorMetadata
+    };
     return document;
 }
 

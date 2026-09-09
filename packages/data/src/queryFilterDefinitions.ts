@@ -18,6 +18,20 @@ export type FilterDefinition = {
     openApi: SchemaObject;
 };
 
+export type PomiFilterMetadata = {
+    version: 1;
+    fields: Array<{
+        path: string[];
+        schema: SchemaObject;
+        operators: readonly QueryFilterOperator[];
+    }>;
+    constraints: {
+        maxExpressions: number;
+        maxDepth: number;
+        maxParameters: number;
+    };
+};
+
 const equalityOperators = ["eq", "in"] as const;
 const codeOperators = ["eq", "ne", "in"] as const;
 const comparisonOperators = [
@@ -182,6 +196,24 @@ export function resourceFilterOpenApiSchema(
     return root;
 }
 
+export function resourceFilterOpenApiMetadata(
+    definitions: Record<string, FilterDefinition>
+): PomiFilterMetadata {
+    return {
+        version: 1,
+        fields: Object.entries(definitions).map(([path, definition]) => ({
+            path: path.split("."),
+            schema: definition.openApi,
+            operators: definition.operators
+        })),
+        constraints: {
+            maxExpressions: 20,
+            maxDepth: 3,
+            maxParameters: 100
+        }
+    };
+}
+
 const operatorSuggestions: Record<string, string> = {
     ge: "gte",
     le: "lte"
@@ -343,9 +375,10 @@ export function resourceFilterSchema(
             description,
             example,
             param: {
-                explode: true,
-                schema: resourceFilterOpenApiSchema(definitions),
-                style: "deepObject"
+                "explode": true,
+                "schema": resourceFilterOpenApiSchema(definitions),
+                "style": "deepObject",
+                "x-pomi-filters": resourceFilterOpenApiMetadata(definitions)
             }
         });
 }

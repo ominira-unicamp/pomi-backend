@@ -87,7 +87,8 @@ const professorSummaries = {
             pathSeg.literal("evaluation-summaries")
         ],
         tags: ["evaluation-summaries"],
-        authorization: policies.public
+        authorization: policies.public,
+        queryFeatures: { filter: true }
     },
     request: z.object({
         query: paginationQuerySchema.extend({
@@ -113,7 +114,8 @@ const courseSummaries = {
             pathSeg.literal("evaluation-summaries")
         ],
         tags: ["evaluation-summaries"],
-        authorization: policies.public
+        authorization: policies.public,
+        queryFeatures: { filter: true }
     },
     request: z.object({
         query: paginationQuerySchema.extend({
@@ -136,7 +138,8 @@ const pair = {
         method: "get" as const,
         path: [pathSeg.literal("evaluation-summaries")],
         tags: ["evaluation-summaries"],
-        authorization: policies.public
+        authorization: policies.public,
+        queryFeatures: { filter: true }
     },
     request: z.object({
         query: z.object({ filter: pairFilter }).strict()

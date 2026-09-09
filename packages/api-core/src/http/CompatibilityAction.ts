@@ -17,6 +17,10 @@ import { sendProblem } from "./problemResponse.js";
 
 export type CompatibilityContract = {
     meta: {
+        operationId?: string;
+        summary?: string;
+        description?: string;
+        deprecated?: boolean;
         method: HttpMethod;
         path: PathSegment[];
         tags: string[];

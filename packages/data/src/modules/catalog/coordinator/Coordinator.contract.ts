@@ -64,7 +64,11 @@ const listQuery = z
 export type ListQueryParams = z.infer<typeof listQuery>;
 
 const list = {
-    meta: { ...specsBuilder.list(), authorization: policies.public },
+    meta: {
+        ...specsBuilder.list(),
+        authorization: policies.public,
+        queryFeatures: { filter: true }
+    },
     request: z.object({ query: listQuery.strict() }),
     response: new OutputBuilder()
         .ok(
