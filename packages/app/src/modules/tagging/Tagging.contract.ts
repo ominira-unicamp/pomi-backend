@@ -1,11 +1,14 @@
 import { policies } from "#/Authorization.js";
-import { type IO, OutputBuilder } from "#/Contract.js";
+import { OutputBuilder, type IO } from "#/Contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    filterDefinition,
     getPaginatedSchema,
     pathSeg,
     ReferenceNotFoundProblemSchema,
-    UniqueConstraintConflictProblemSchema
+    resourceFilterSchema,
+    UniqueConstraintConflictProblemSchema,
+    type Filter
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -49,6 +52,18 @@ const coursePath = z.object({ courseId: id }).strict();
 const categories = [pathSeg.literal("categories")];
 const tags = [pathSeg.literal("tags")];
 
+const tagFilter = resourceFilterSchema(
+    {
+        categoryId: filterDefinition.id({ positive: true }),
+        parentTagId: filterDefinition.id({ positive: true }),
+        courseId: filterDefinition.id({ positive: true })
+    },
+    "tags",
+    "Structured tag filters. Use filter[categoryId]=1 or filter[courseId]=2.",
+    { categoryId: 1 }
+);
+export type TagFilter = Filter;
+
 const listCategories = {
     meta: {
         method: "get" as const,
@@ -79,16 +94,14 @@ const listTags = {
         method: "get" as const,
         path: tags,
         tags: ["tags"],
-        authorization: policies.public
+        authorization: policies.public,
+        queryFeatures: { filter: true }
     },
     request: z.object({
         query: z
-            .object({
-                categoryId: id.optional(),
-                parentTagId: id.optional(),
-                courseId: id.optional()
-            })
+            .object({ filter: tagFilter.optional() })
             .strict()
+            .openapi("ListTagsQuery")
     }),
     response: new OutputBuilder().ok(z.array(tag), "Tags recuperadas").build()
 } satisfies IO;

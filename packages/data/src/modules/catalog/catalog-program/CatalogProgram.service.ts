@@ -7,10 +7,12 @@ import catalogProgramEntity from "#/modules/catalog/catalog-program/CatalogProgr
 import { catalogProgramNotFoundProblem } from "#/modules/catalog/catalog-program/CatalogProgram.problems.js";
 import {
     compileFilterWhere,
+    err,
+    ok,
     prismaWhereFor,
-    type FilterWhereBuilder
-} from "#/queryFilterWhere.js";
-import { err, ok, type Result } from "@pomi/api-core";
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 

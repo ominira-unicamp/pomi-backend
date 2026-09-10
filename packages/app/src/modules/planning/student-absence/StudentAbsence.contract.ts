@@ -1,13 +1,16 @@
 import { policies, StudentCapabilities } from "#/Authorization.js";
-import { type IO, OutputBuilder } from "#/Contract.js";
+import { OutputBuilder, type IO } from "#/Contract.js";
 import { InvalidStudentAbsenceProblem } from "#/modules/planning/student-absence/StudentAbsence.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    filterDefinition,
     pathSeg,
     ReferenceNotFoundProblemSchema,
+    resourceFilterSchema,
     ResourceNotFoundProblemSchema,
     SpecBuilder,
-    UniqueConstraintConflictProblemSchema
+    UniqueConstraintConflictProblemSchema,
+    type Filter
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -83,23 +86,29 @@ const entityPath = studentPath.extend({
     id: z.string().pipe(z.coerce.number()).pipe(z.number().int())
 });
 
+const absenceFilter = resourceFilterSchema(
+    { courseAttemptId: filterDefinition.id() },
+    "student absences",
+    "Structured absence filters. Use filter[courseAttemptId]=42.",
+    { courseAttemptId: 42 }
+);
+export type StudentAbsenceFilter = Filter;
+
 const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.HISTORY_READ
-        )
+        ),
+        queryFeatures: { filter: true }
     },
     request: z.object({
         path: studentPath,
-        query: z.object({
-            courseAttemptId: z
-                .string()
-                .pipe(z.coerce.number())
-                .pipe(z.number().int())
-                .optional()
-        })
+        query: z
+            .object({ filter: absenceFilter.optional() })
+            .strict()
+            .openapi("ListStudentAbsencesQuery")
     }),
     response: new OutputBuilder()
         .ok(z.array(absenceEntity), "Faltas recuperadas com sucesso")

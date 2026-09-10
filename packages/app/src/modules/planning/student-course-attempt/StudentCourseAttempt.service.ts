@@ -7,8 +7,21 @@ import {
     studentCourseReferenceNotFoundProblem,
     type StudentCourseAttemptProblem
 } from "#/modules/planning/student-course-attempt/StudentCourseAttempt.problems.js";
-import { err, ok, type Result } from "@pomi/api-core";
-import { type CourseEvaluationMode, type PrismaClient } from "@pomi/db";
+import {
+    compileFilterWhere,
+    err,
+    ok,
+    prismaWhereFor,
+    scalarFilter,
+    type FilterExpression,
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
+import {
+    type CourseEvaluationMode,
+    type MyPrisma,
+    type PrismaClient
+} from "@pomi/db";
 import z from "zod";
 
 type Attempt = z.infer<typeof IO.schema>;
@@ -23,6 +36,35 @@ type AttemptInput = Pick<
     | "evaluationMode"
     | "status"
     | "grade"
+>;
+
+const attemptWhere = prismaWhereFor<MyPrisma.StudentCourseAttemptWhereInput>();
+const attemptFilterWhere = {
+    status: attemptWhere.enumAt("status"),
+    courseId: attemptWhere.numberAt("courseId"),
+    studyPeriodId: (expression: FilterExpression) => ({
+        OR: [
+            {
+                studyPeriodId: scalarFilter(
+                    expression.operator,
+                    expression.values,
+                    Number
+                )
+            },
+            {
+                class: {
+                    studyPeriodId: scalarFilter(
+                        expression.operator,
+                        expression.values,
+                        Number
+                    )
+                }
+            }
+        ]
+    })
+} satisfies Record<
+    string,
+    FilterWhereBuilder<MyPrisma.StudentCourseAttemptWhereInput>
 >;
 
 export type StudentCourseAttemptService = {
@@ -274,25 +316,14 @@ export function createStudentCourseAttemptService({
 }): StudentCourseAttemptService {
     return {
         async list(studentId, input) {
+            const filterWhere = compileFilterWhere(
+                input.filter,
+                attemptFilterWhere,
+                "student course attempts"
+            );
             const attempts = await prisma.studentCourseAttempt.findMany({
                 ...attemptEntity.prismaSelection,
-                where: {
-                    studentId,
-                    ...(input.status ? { status: input.status } : {}),
-                    ...(input.courseId ? { courseId: input.courseId } : {}),
-                    ...(input.studyPeriodId
-                        ? {
-                              OR: [
-                                  { studyPeriodId: input.studyPeriodId },
-                                  {
-                                      class: {
-                                          studyPeriodId: input.studyPeriodId
-                                      }
-                                  }
-                              ]
-                          }
-                        : {})
-                },
+                where: { AND: [{ studentId }, ...filterWhere] },
                 orderBy: [{ createdAt: "desc" }]
             });
             return attempts.map(attemptEntity.build);

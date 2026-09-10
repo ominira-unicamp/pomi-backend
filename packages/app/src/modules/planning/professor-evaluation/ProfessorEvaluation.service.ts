@@ -6,8 +6,15 @@ import {
     type ProfessorEvaluationProblem
 } from "#/modules/planning/professor-evaluation/ProfessorEvaluation.problems.js";
 import { isEligibleProfessorEvaluationAttempt } from "#/modules/planning/professor-evaluation/ProfessorEvaluation.rules.js";
-import { err, ok, type Result } from "@pomi/api-core";
-import type { PrismaClient } from "@pomi/db";
+import {
+    compileFilterWhere,
+    err,
+    ok,
+    prismaWhereFor,
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
+import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 
 type Evaluation = z.infer<typeof IO.schema>;
@@ -21,6 +28,15 @@ type PendingEvaluation = {
     course: { id: number; code: string; name: string };
     professor: { id: number; name: string };
 };
+
+const pendingWhere = prismaWhereFor<MyPrisma.StudentCourseAttemptWhereInput>();
+const pendingFilterWhere = {
+    year: pendingWhere.numberAt("class.studyPeriod.year"),
+    yearPeriod: pendingWhere.enumAt("class.studyPeriod.yearPeriod")
+} satisfies Record<
+    string,
+    FilterWhereBuilder<MyPrisma.StudentCourseAttemptWhereInput>
+>;
 
 export type ProfessorEvaluationService = {
     get(
@@ -142,28 +158,32 @@ export function createProfessorEvaluationService({
             return ok(buildProfessorEvaluationEntity(evaluation));
         },
         async listPending(studentId, input) {
+            const filterWhere = compileFilterWhere(
+                input.filter,
+                pendingFilterWhere,
+                "pending professor evaluations"
+            );
             const attempts = await prisma.studentCourseAttempt.findMany({
                 where: {
-                    studentId,
-                    status: {
-                        in: [
-                            "DROPPED",
-                            "APPROVED",
-                            "FAILED_BY_GRADE",
-                            "APPROVED_BY_ATTENDANCE",
-                            "APPROVED_BY_PROFICIENCY",
-                            "FAILED_BY_ATTENDANCE",
-                            "SUFFICIENT",
-                            "INSUFFICIENT"
-                        ]
-                    },
-                    classId: { not: null },
-                    class: {
-                        studyPeriod: {
-                            year: input.year,
-                            yearPeriod: input.yearPeriod
-                        }
-                    }
+                    AND: [
+                        {
+                            studentId,
+                            status: {
+                                in: [
+                                    "DROPPED",
+                                    "APPROVED",
+                                    "FAILED_BY_GRADE",
+                                    "APPROVED_BY_ATTENDANCE",
+                                    "APPROVED_BY_PROFICIENCY",
+                                    "FAILED_BY_ATTENDANCE",
+                                    "SUFFICIENT",
+                                    "INSUFFICIENT"
+                                ]
+                            },
+                            classId: { not: null }
+                        },
+                        ...filterWhere
+                    ]
                 },
                 select: {
                     id: true,

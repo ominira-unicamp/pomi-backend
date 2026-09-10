@@ -1,16 +1,20 @@
 import type {
     CategoryEntity,
-    TagEntity
+    TagEntity,
+    TagFilter
 } from "#/modules/tagging/Tagging.contract.js";
 import {
+    compileFilterWhere,
     err,
     ok,
+    prismaWhereFor,
     ReferenceNotFoundProblem,
     ResourceNotFoundProblem,
     UniqueConstraintConflictProblem,
+    type FilterWhereBuilder,
     type Result
 } from "@pomi/api-core";
-import type { PrismaClient } from "@pomi/db";
+import type { MyPrisma, PrismaClient } from "@pomi/db";
 
 type ConflictProblem = ReturnType<
     typeof UniqueConstraintConflictProblem.create
@@ -23,6 +27,12 @@ type RelatedCourse = {
     name: string;
     credits: number;
 };
+const tagWhere = prismaWhereFor<MyPrisma.TagWhereInput>();
+const tagFilterWhere = {
+    categoryId: tagWhere.numberAt("categoryId"),
+    parentTagId: tagWhere.numberAt("parentTagId"),
+    courseId: tagWhere.numberAt("courseTags.some.courseId")
+} satisfies Record<string, FilterWhereBuilder<MyPrisma.TagWhereInput>>;
 const category = (value: { id: number; name: string }): CategoryEntity => value;
 const tag = (value: {
     id: number;
@@ -42,11 +52,7 @@ export type TaggingService = {
     getCategory(
         id: number
     ): Promise<Result<CategoryEntity, ReturnType<typeof resourceNotFound>>>;
-    listTags(query: {
-        categoryId?: number;
-        parentTagId?: number;
-        courseId?: number;
-    }): Promise<TagEntity[]>;
+    listTags(query: { filter?: TagFilter }): Promise<TagEntity[]>;
     getTag(
         id: number
     ): Promise<Result<TagEntity, ReturnType<typeof resourceNotFound>>>;
@@ -154,18 +160,13 @@ export function createTaggingService({
                 : err(resourceNotFound("Category not found"));
         },
         async listTags(query) {
+            const filterWhere = compileFilterWhere(
+                query.filter,
+                tagFilterWhere,
+                "tags"
+            );
             return await prisma.tag.findMany({
-                where: {
-                    ...(query.categoryId
-                        ? { categoryId: query.categoryId }
-                        : {}),
-                    ...(query.parentTagId
-                        ? { parentTagId: query.parentTagId }
-                        : {}),
-                    ...(query.courseId
-                        ? { courseTags: { some: { courseId: query.courseId } } }
-                        : {})
-                },
+                where: { AND: filterWhere },
                 orderBy: { name: "asc" }
             });
         },

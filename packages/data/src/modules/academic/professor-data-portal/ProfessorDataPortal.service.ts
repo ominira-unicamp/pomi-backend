@@ -1,10 +1,13 @@
 import IO from "#/modules/academic/professor-data-portal/ProfessorDataPortal.contract.js";
 import {
     compileFilterWhere,
+    err,
+    ok,
     prismaWhereFor,
-    type FilterWhereBuilder
-} from "#/queryFilterWhere.js";
-import { err, ok, ResourceNotFoundProblem, type Result } from "@pomi/api-core";
+    ResourceNotFoundProblem,
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
 import type { Department, Prisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 

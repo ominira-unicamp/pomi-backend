@@ -1,12 +1,13 @@
 import { OutputBuilder, type IO } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     filterDefinition,
+    pathSeg,
     resourceFilterSchema,
+    SpecBuilder,
     type Filter
-} from "#/queryFilterDefinitions.js";
-import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { pathSeg, SpecBuilder } from "@pomi/api-core";
+} from "@pomi/api-core";
 import z from "zod";
 
 extendZodWithOpenApi(z);

@@ -6,10 +6,13 @@ import IO from "#/modules/schedule/calendar-event/CalendarEvent.contract.js";
 import calendarEventEntity from "#/modules/schedule/calendar-event/CalendarEvent.entity.js";
 import {
     compileFilterWhere,
+    err,
+    ok,
     prismaWhereFor,
-    type FilterWhereBuilder
-} from "#/queryFilterWhere.js";
-import { err, ok, ResourceNotFoundProblem, type Result } from "@pomi/api-core";
+    ResourceNotFoundProblem,
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 type Event = z.infer<typeof IO.schema>;

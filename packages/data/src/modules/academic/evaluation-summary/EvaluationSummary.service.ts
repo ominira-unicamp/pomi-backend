@@ -1,5 +1,5 @@
 import IO from "#/modules/academic/evaluation-summary/EvaluationSummary.contract.js";
-import type { Filter } from "#/queryFilterDefinitions.js";
+import type { Filter } from "@pomi/api-core";
 import { err, ok, ResourceNotFoundProblem, type Result } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import z from "zod";

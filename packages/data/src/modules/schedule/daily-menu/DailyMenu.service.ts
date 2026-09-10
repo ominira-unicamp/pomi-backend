@@ -6,10 +6,13 @@ import IO from "#/modules/schedule/daily-menu/DailyMenu.contract.js";
 import dailyMenuEntity from "#/modules/schedule/daily-menu/DailyMenu.entity.js";
 import {
     compileFilterWhere,
+    err,
+    ok,
     prismaWhereFor,
-    type FilterWhereBuilder
-} from "#/queryFilterWhere.js";
-import { err, ok, ResourceNotFoundProblem, type Result } from "@pomi/api-core";
+    ResourceNotFoundProblem,
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 

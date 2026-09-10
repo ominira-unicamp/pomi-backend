@@ -1,13 +1,16 @@
 import { policies, StudentCapabilities } from "#/Authorization.js";
-import { type IO, OutputBuilder } from "#/Contract.js";
+import { OutputBuilder, type IO } from "#/Contract.js";
 import { InvalidStudentCourseAttemptProblem } from "#/modules/planning/student-course-attempt/StudentCourseAttempt.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    filterDefinition,
     pathSeg,
     ReferenceNotFoundProblemSchema,
+    resourceFilterSchema,
     ResourceNotFoundProblemSchema,
     SpecBuilder,
-    UniqueConstraintConflictProblemSchema
+    UniqueConstraintConflictProblemSchema,
+    type Filter
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -115,6 +118,28 @@ const attemptBody = z
     })
     .strict();
 
+const attemptFilter = resourceFilterSchema(
+    {
+        status: filterDefinition.enum([
+            "ENROLLED",
+            "DROPPED",
+            "APPROVED",
+            "FAILED_BY_GRADE",
+            "APPROVED_BY_ATTENDANCE",
+            "APPROVED_BY_PROFICIENCY",
+            "FAILED_BY_ATTENDANCE",
+            "SUFFICIENT",
+            "INSUFFICIENT"
+        ]),
+        courseId: filterDefinition.id(),
+        studyPeriodId: filterDefinition.id()
+    },
+    "student course attempts",
+    "Structured course attempt filters. Use filter[status]=APPROVED or filter[courseId]=42.",
+    { status: "APPROVED" }
+);
+export type StudentCourseAttemptFilter = Filter;
+
 const get = {
     meta: {
         ...specsBuilder.get(),
@@ -145,25 +170,17 @@ const list = {
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.HISTORY_READ
-        )
+        ),
+        queryFeatures: { filter: true }
     },
     request: z.object({
         path: z.object({
             sid: z.string().pipe(z.coerce.number()).pipe(z.number())
         }),
-        query: z.object({
-            status: statusSchema.optional(),
-            courseId: z
-                .string()
-                .pipe(z.coerce.number())
-                .pipe(z.number())
-                .optional(),
-            studyPeriodId: z
-                .string()
-                .pipe(z.coerce.number())
-                .pipe(z.number())
-                .optional()
-        })
+        query: z
+            .object({ filter: attemptFilter.optional() })
+            .strict()
+            .openapi("ListStudentCourseAttemptsQuery")
     }),
     response: new OutputBuilder()
         .ok(

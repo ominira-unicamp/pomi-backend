@@ -6,10 +6,12 @@ import {
 import { classScheduleNotFoundProblem } from "#/modules/schedule/class-schedule/ClassSchedule.problems.js";
 import {
     compileFilterWhere,
+    err,
+    ok,
     prismaWhereFor,
-    type FilterWhereBuilder
-} from "#/queryFilterWhere.js";
-import { err, ok, type Result } from "@pomi/api-core";
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
 import { MyPrisma, selectIdCode, type PrismaClient } from "@pomi/db";
 import z from "zod";
 

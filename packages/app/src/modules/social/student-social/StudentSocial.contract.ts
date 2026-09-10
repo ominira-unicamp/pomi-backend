@@ -1,10 +1,13 @@
 import { policies, StudentCapabilities } from "#/Authorization.js";
-import { type IO, OutputBuilder } from "#/Contract.js";
+import { OutputBuilder, type IO } from "#/Contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    filterDefinition,
     pathSeg,
+    resourceFilterSchema,
     ResourceNotFoundProblemSchema,
-    UniqueConstraintConflictProblemSchema
+    UniqueConstraintConflictProblemSchema,
+    type Filter
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -119,6 +122,17 @@ const friendshipsPath = [
 const read = policies.studentAccess("sid", StudentCapabilities.SOCIAL_READ);
 const write = policies.studentAccess("sid", StudentCapabilities.SOCIAL_WRITE);
 
+const friendshipFilter = resourceFilterSchema(
+    {
+        status: filterDefinition.enum(["PENDING", "ACCEPTED"]),
+        direction: filterDefinition.enum(["INCOMING", "OUTGOING"], ["eq"])
+    },
+    "student friendships",
+    "Structured friendship filters. Use filter[status]=PENDING or filter[direction]=INCOMING.",
+    { status: "PENDING" }
+);
+export type StudentFriendshipFilter = Filter;
+
 const getProfile = {
     meta: {
         method: "get" as const,
@@ -200,14 +214,15 @@ const listFriendships = {
         method: "get" as const,
         path: friendshipsPath,
         tags: ["student-social"],
-        authorization: read
+        authorization: read,
+        queryFeatures: { filter: true }
     },
     request: z.object({
         path: sidPath,
-        query: z.object({
-            status: z.enum(["PENDING", "ACCEPTED"]).optional(),
-            direction: z.enum(["INCOMING", "OUTGOING"]).optional()
-        })
+        query: z
+            .object({ filter: friendshipFilter.optional() })
+            .strict()
+            .openapi("ListStudentFriendshipsQuery")
     }),
     response: new OutputBuilder()
         .ok(z.array(friendship), "Amizades recuperadas")

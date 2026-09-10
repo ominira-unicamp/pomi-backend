@@ -1,9 +1,9 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     filterDefinition,
     resourceFilterSchema,
     type Filter
-} from "#/queryFilterDefinitions.js";
-import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+} from "@pomi/api-core";
 import z from "zod";
 
 import { ValidationError } from "@pomi/api-core";

@@ -2,7 +2,15 @@ import periodPlanningEntity, {
     prismaPeriodPlanningFieldSelection
 } from "#/modules/planning/period-plan/PeriodPlan.entity.js";
 import IO from "#/modules/planning/shared-period-plan/SharedPeriodPlan.contract.js";
-import { err, ok, ResourceNotFoundProblem, type Result } from "@pomi/api-core";
+import {
+    compileFilterWhere,
+    err,
+    ok,
+    prismaWhereFor,
+    ResourceNotFoundProblem,
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 
@@ -10,6 +18,20 @@ type SharedPeriodPlan = z.infer<typeof IO.schema>;
 type PublicQuery = z.infer<typeof IO.listPublic.request>["query"];
 type StudentQuery = z.infer<typeof IO.listForStudent.request>["query"];
 type NotFound = ReturnType<typeof ResourceNotFoundProblem.create>;
+
+const periodPlanningWhere = prismaWhereFor<MyPrisma.PeriodPlanningWhereInput>();
+const publicFilterWhere = {
+    studyPeriodId: periodPlanningWhere.numberAt("studyPeriodId")
+} satisfies Record<
+    string,
+    FilterWhereBuilder<MyPrisma.PeriodPlanningWhereInput>
+>;
+const studentFilterWhere = {
+    ownerPublicId: periodPlanningWhere.stringAt("student.publicId")
+} satisfies Record<
+    string,
+    FilterWhereBuilder<MyPrisma.PeriodPlanningWhereInput>
+>;
 
 const selection = {
     ...prismaPeriodPlanningFieldSelection,
@@ -57,12 +79,9 @@ function buildShared(row: NonNullable<Selected>): SharedPeriodPlan {
     };
 }
 
-function publicWhere(query: PublicQuery) {
-    return {
+function publicWhere(query: PublicQuery): MyPrisma.PeriodPlanningWhereInput {
+    const baseWhere: MyPrisma.PeriodPlanningWhereInput = {
         visibility: "PUBLIC" as const,
-        ...(query.studyPeriodId === undefined
-            ? {}
-            : { studyPeriodId: query.studyPeriodId }),
         ...(query.query
             ? {
                   OR: [
@@ -85,6 +104,14 @@ function publicWhere(query: PublicQuery) {
               }
             : {})
     };
+    const filterWhere = compileFilterWhere(
+        query.filter,
+        publicFilterWhere,
+        "shared period plannings"
+    );
+    return filterWhere.length
+        ? { AND: [baseWhere, ...filterWhere] }
+        : baseWhere;
 }
 
 export type SharedPeriodPlanService = {
@@ -121,7 +148,10 @@ export function createSharedPeriodPlanService({
             { studentBId: viewerId, status: "ACCEPTED" as const }
         ]
     });
-    const sharedWhere = (studentId: number, ownerPublicId?: string) => {
+    const sharedWhere = (
+        studentId: number,
+        filter: StudentQuery["filter"]
+    ): MyPrisma.PeriodPlanningWhereInput => {
         const visibility = {
             OR: [
                 { visibility: "PUBLIC" as const },
@@ -135,8 +165,13 @@ export function createSharedPeriodPlanService({
                 }
             ]
         };
-        return ownerPublicId
-            ? { AND: [{ student: { publicId: ownerPublicId } }, visibility] }
+        const filterWhere = compileFilterWhere(
+            filter,
+            studentFilterWhere,
+            "student shared period plannings"
+        );
+        return filterWhere.length
+            ? { AND: [visibility, ...filterWhere] }
             : visibility;
     };
     return {
@@ -167,7 +202,7 @@ export function createSharedPeriodPlanService({
             return row ? ok(buildShared(row)) : err(notFound());
         },
         async listForStudent(studentId, input) {
-            const where = sharedWhere(studentId, input.ownerPublicId);
+            const where = sharedWhere(studentId, input.filter);
             const [rows, total] = await Promise.all([
                 prisma.periodPlanning.findMany({
                     ...selection,
@@ -188,7 +223,7 @@ export function createSharedPeriodPlanService({
         async getForStudent(studentId, shareId) {
             const row = await prisma.periodPlanning.findFirst({
                 ...selection,
-                where: { shareId, ...sharedWhere(studentId) }
+                where: { shareId, ...sharedWhere(studentId, undefined) }
             });
             return row ? ok(buildShared(row)) : err(notFound());
         }

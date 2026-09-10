@@ -4,7 +4,7 @@ import {
     compileFilterWhere,
     prismaWhereFor,
     type FilterWhereBuilder
-} from "#/queryFilterWhere.js";
+} from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
 
 const calendarWhere = prismaWhereFor<MyPrisma.CalendarEventWhereInput>();

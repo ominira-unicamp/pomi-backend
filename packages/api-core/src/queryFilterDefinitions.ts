@@ -1,10 +1,10 @@
 import type { SchemaObject } from "@asteasolutions/zod-to-openapi/dist/types.js";
+import z from "zod";
 import {
     queryFilterSchema,
     type QueryFilterExpression,
     type QueryFilterOperator
-} from "@pomi/api-core";
-import z from "zod";
+} from "./queryFilter.js";
 
 export type FilterValue = string | number;
 export type FilterExpression = Omit<QueryFilterExpression, "values"> & {
@@ -47,15 +47,8 @@ const comparisonOperators = [
 type ScalarOptions = {
     operators?: readonly QueryFilterOperator[];
 };
-
-type IntegerOptions = ScalarOptions & {
-    minimum?: number;
-};
-
-type IdOptions = ScalarOptions & {
-    positive?: boolean;
-};
-
+type IntegerOptions = ScalarOptions & { minimum?: number };
+type IdOptions = ScalarOptions & { positive?: boolean };
 type CodeOptions = ScalarOptions & {
     nonEmpty?: boolean;
     uppercase?: boolean;
@@ -85,6 +78,12 @@ export const filterDefinition = {
         return filterDefinition.integer({
             minimum: positive ? 1 : undefined,
             operators
+        });
+    },
+    uuid({ operators = equalityOperators }: ScalarOptions = {}) {
+        return definition(z.string().uuid(), operators, {
+            format: "uuid",
+            type: "string"
         });
     },
     code({
@@ -171,12 +170,10 @@ export function resourceFilterOpenApiSchema(
     definitions: Record<string, FilterDefinition>
 ): SchemaObject {
     const root = objectSchema();
-
     for (const [path, definition] of Object.entries(definitions)) {
         const segments = path.split(".");
         const field = segments.pop();
         if (!field) continue;
-
         let current = root;
         for (const segment of segments) {
             const existing = current.properties[segment];
@@ -184,15 +181,12 @@ export function resourceFilterOpenApiSchema(
                 current = existing as ObjectSchema;
                 continue;
             }
-
             const nested = objectSchema();
             current.properties[segment] = nested;
             current = nested;
         }
-
         current.properties[field] = filterOpenApiField(definition);
     }
-
     return root;
 }
 
@@ -251,18 +245,17 @@ function filterExpectedDescription(definition: FilterDefinition) {
     if (expected.format === "date-time") {
         return "uma data ou data-hora no formato ISO 8601";
     }
+    if (expected.format === "uuid") {
+        return "um UUID válido";
+    }
     if (expected.type === "integer" && expected.minimum !== undefined) {
         return `um número inteiro maior ou igual a ${expected.minimum}`;
     }
-    if (expected.type === "integer") {
-        return "um número inteiro";
-    }
+    if (expected.type === "integer") return "um número inteiro";
     if (expected.type === "string" && expected.minLength !== undefined) {
         return "um texto não vazio";
     }
-    if (expected.type === "string") {
-        return "um texto";
-    }
+    if (expected.type === "string") return "um texto";
     return "um valor válido";
 }
 
@@ -363,7 +356,6 @@ export function resourceFilterSchema(
                     }
                     values.push(parsed.data);
                 }
-
                 result.push({ ...filter, values });
             }
 

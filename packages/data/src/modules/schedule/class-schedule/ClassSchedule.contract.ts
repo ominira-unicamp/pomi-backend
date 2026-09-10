@@ -1,18 +1,16 @@
 import { type IO, OutputBuilder } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     equalityOperators,
     type Filter,
     filterDefinition,
     type FilterValue,
-    resourceFilterSchema
-} from "#/queryFilterDefinitions.js";
-import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import {
     getPaginatedSchema,
     paginationQuerySchema,
     PaginationQueryType,
     pathSeg,
+    resourceFilterSchema,
     ResourceNotFoundProblemSchema,
     serializeQueryParams,
     SpecBuilder

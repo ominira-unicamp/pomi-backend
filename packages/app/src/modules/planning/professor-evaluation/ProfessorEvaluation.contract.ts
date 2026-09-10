@@ -1,8 +1,14 @@
 import { policies, StudentCapabilities } from "#/Authorization.js";
-import { type IO, OutputBuilder } from "#/Contract.js";
+import { OutputBuilder, type IO } from "#/Contract.js";
 import { InvalidProfessorEvaluationProblem } from "#/modules/planning/professor-evaluation/ProfessorEvaluation.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { pathSeg, ReferenceNotFoundProblemSchema } from "@pomi/api-core";
+import {
+    filterDefinition,
+    pathSeg,
+    ReferenceNotFoundProblemSchema,
+    resourceFilterSchema,
+    type Filter
+} from "@pomi/api-core";
 import z from "zod";
 
 extendZodWithOpenApi(z);
@@ -81,6 +87,41 @@ const invalidEvaluationResponse = z.discriminatedUnion("type", [
     InvalidProfessorEvaluationProblem.schema
 ]);
 
+const pendingFilter = resourceFilterSchema(
+    {
+        year: filterDefinition.integer({ operators: ["eq"] }),
+        yearPeriod: filterDefinition.enum(
+            ["FIRST_SEMESTER", "SECOND_SEMESTER"],
+            ["eq"]
+        )
+    },
+    "pending professor evaluations",
+    "Pending evaluation filters. Use filter[year]=2026&filter[yearPeriod]=FIRST_SEMESTER.",
+    { year: 2026, yearPeriod: "FIRST_SEMESTER" }
+).superRefine((filter: Filter, context) => {
+    const paths = new Set(
+        filter.map((expression) => expression.path.join("."))
+    );
+    if (!paths.has("year"))
+        context.addIssue({
+            code: "custom",
+            path: ["year"],
+            message: "O filtro deve informar o ano do período letivo."
+        });
+    if (!paths.has("yearPeriod"))
+        context.addIssue({
+            code: "custom",
+            path: ["yearPeriod"],
+            message: "O filtro deve informar o semestre do período letivo."
+        });
+    if (filter.length !== 2)
+        context.addIssue({
+            code: "custom",
+            path: [],
+            message: "O filtro deve informar apenas year e yearPeriod."
+        });
+});
+
 const get = {
     meta: {
         method: "get" as const,
@@ -123,16 +164,17 @@ const listPending = {
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.HISTORY_READ
-        )
+        ),
+        queryFeatures: { filter: true }
     },
     request: z.object({
         path: z.object({
             sid: z.string().pipe(z.coerce.number()).pipe(z.number().int())
         }),
-        query: z.object({
-            year: z.string().pipe(z.coerce.number()).pipe(z.number().int()),
-            yearPeriod: z.enum(["FIRST_SEMESTER", "SECOND_SEMESTER"])
-        })
+        query: z
+            .object({ filter: pendingFilter })
+            .strict()
+            .openapi("ListPendingProfessorEvaluationsQuery")
     }),
     response: new OutputBuilder()
         .ok(z.array(pendingEvaluation), "Avaliações pendentes recuperadas")

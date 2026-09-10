@@ -3,8 +3,16 @@ import {
     socialConflictProblem,
     socialNotFoundProblem
 } from "#/modules/social/student-social/StudentSocial.problems.js";
-import { err, ok, type Result } from "@pomi/api-core";
-import type { PrismaClient } from "@pomi/db";
+import {
+    compileFilterWhere,
+    err,
+    ok,
+    prismaWhereFor,
+    type FilterExpression,
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
+import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 
 type Person = z.infer<typeof IO.schemas.person>;
@@ -13,6 +21,29 @@ type Friendship = z.infer<typeof IO.schemas.friendship>;
 type ProfileBody = z.infer<typeof IO.updateProfile.request>["body"];
 type PeopleQuery = z.infer<typeof IO.listPeople.request>["query"];
 type FriendshipQuery = z.infer<typeof IO.listFriendships.request>["query"];
+
+const friendshipWhere = prismaWhereFor<MyPrisma.StudentFriendshipWhereInput>();
+const friendshipFilterWhere = {
+    status: friendshipWhere.enumAt("status")
+} satisfies Record<
+    string,
+    FilterWhereBuilder<MyPrisma.StudentFriendshipWhereInput>
+>;
+
+function directionWhere(
+    expression: FilterExpression,
+    studentId: number
+): MyPrisma.StudentFriendshipWhereInput {
+    const direction = String(expression.values[0]);
+    return {
+        AND: [
+            { status: "PENDING" },
+            direction === "INCOMING"
+                ? { requestedById: { not: studentId } }
+                : { requestedById: studentId }
+        ]
+    };
+}
 
 const personSelection = {
     id: true,
@@ -414,22 +445,31 @@ export function createStudentSocialService({
             );
         },
         async listFriendships(studentId, input) {
+            const filter = input.filter ?? [];
+            const filterWhere = compileFilterWhere(
+                filter.filter(
+                    (expression) => expression.path.join(".") !== "direction"
+                ),
+                friendshipFilterWhere,
+                "student friendships"
+            );
+            const directionFilters = filter
+                .filter(
+                    (expression) => expression.path.join(".") === "direction"
+                )
+                .map((expression) => directionWhere(expression, studentId));
             const rows = await prisma.studentFriendship.findMany({
                 where: {
-                    OR: [{ studentAId: studentId }, { studentBId: studentId }],
-                    status: input.status,
-                    ...(input.direction === "INCOMING"
-                        ? {
-                              requestedById: { not: studentId },
-                              status: "PENDING" as const
-                          }
-                        : {}),
-                    ...(input.direction === "OUTGOING"
-                        ? {
-                              requestedById: studentId,
-                              status: "PENDING" as const
-                          }
-                        : {})
+                    AND: [
+                        {
+                            OR: [
+                                { studentAId: studentId },
+                                { studentBId: studentId }
+                            ]
+                        },
+                        ...filterWhere,
+                        ...directionFilters
+                    ]
                 },
                 ...friendshipSelection,
                 orderBy: { updatedAt: "desc" }

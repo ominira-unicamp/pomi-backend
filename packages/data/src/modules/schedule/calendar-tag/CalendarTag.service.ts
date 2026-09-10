@@ -6,10 +6,13 @@ import IO from "#/modules/schedule/calendar-tag/CalendarTag.contract.js";
 import calendarTagEntity from "#/modules/schedule/calendar-tag/CalendarTag.entity.js";
 import {
     compileFilterWhere,
+    err,
+    ok,
     prismaWhereFor,
-    type FilterWhereBuilder
-} from "#/queryFilterWhere.js";
-import { err, ok, ResourceNotFoundProblem, type Result } from "@pomi/api-core";
+    ResourceNotFoundProblem,
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 type Tag = z.infer<typeof IO.schema>;

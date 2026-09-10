@@ -1,11 +1,14 @@
 import { policies, StudentCapabilities } from "#/Authorization.js";
-import { type IO, OutputBuilder } from "#/Contract.js";
+import { OutputBuilder, type IO } from "#/Contract.js";
 import { periodPlanningClass } from "#/modules/planning/period-plan/PeriodPlan.contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    filterDefinition,
     pathSeg,
+    resourceFilterSchema,
     ResourceNotFoundProblemSchema,
-    SpecBuilder
+    SpecBuilder,
+    type Filter
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -44,24 +47,36 @@ const studentPath = [
     pathSeg.param("sid"),
     pathSeg.literal("shared-period-plannings")
 ];
-const publicQuery = z.object({
-    page: z
-        .string()
-        .pipe(z.coerce.number())
-        .pipe(z.number().int().min(1))
-        .default(1),
-    pageSize: z
-        .string()
-        .pipe(z.coerce.number())
-        .pipe(z.number().int().min(1).max(50))
-        .default(20),
-    studyPeriodId: z
-        .string()
-        .pipe(z.coerce.number())
-        .pipe(z.number().int())
-        .optional(),
-    query: z.string().trim().min(1).optional()
-});
+const publicFilter = resourceFilterSchema(
+    { studyPeriodId: filterDefinition.id() },
+    "shared period plannings",
+    "Structured shared planning filters. Use filter[studyPeriodId]=42.",
+    { studyPeriodId: 42 }
+);
+const studentFilter = resourceFilterSchema(
+    { ownerPublicId: filterDefinition.uuid() },
+    "student shared period plannings",
+    "Structured shared planning filters. Use filter[ownerPublicId]=UUID.",
+    { ownerPublicId: "a375fdb0-45d9-4a79-8415-89fcb64157b6" }
+);
+export type SharedPeriodPlanningFilter = Filter;
+const publicQuery = z
+    .object({
+        page: z
+            .string()
+            .pipe(z.coerce.number())
+            .pipe(z.number().int().min(1))
+            .default(1),
+        pageSize: z
+            .string()
+            .pipe(z.coerce.number())
+            .pipe(z.number().int().min(1).max(50))
+            .default(20),
+        query: z.string().trim().min(1).optional(),
+        filter: publicFilter.optional()
+    })
+    .strict()
+    .openapi("ListPublicSharedPeriodPlanningsQuery");
 const sidPath = z.object({
     sid: z.string().pipe(z.coerce.number()).pipe(z.number().int())
 });
@@ -72,7 +87,8 @@ const listPublic = {
         method: "get" as const,
         path: publicPath,
         tags: ["shared-period-plannings"],
-        authorization: policies.public
+        authorization: policies.public,
+        queryFeatures: { filter: true }
     },
     request: z.object({ query: publicQuery }),
     response: new OutputBuilder()
@@ -116,23 +132,27 @@ const listForStudent = {
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.PLANNING_READ
-        )
+        ),
+        queryFeatures: { filter: true }
     },
     request: z.object({
         path: sidPath,
-        query: z.object({
-            page: z
-                .string()
-                .pipe(z.coerce.number())
-                .pipe(z.number().int().min(1))
-                .default(1),
-            pageSize: z
-                .string()
-                .pipe(z.coerce.number())
-                .pipe(z.number().int().min(1).max(50))
-                .default(20),
-            ownerPublicId: z.string().uuid().optional()
-        })
+        query: z
+            .object({
+                page: z
+                    .string()
+                    .pipe(z.coerce.number())
+                    .pipe(z.number().int().min(1))
+                    .default(1),
+                pageSize: z
+                    .string()
+                    .pipe(z.coerce.number())
+                    .pipe(z.number().int().min(1).max(50))
+                    .default(20),
+                filter: studentFilter.optional()
+            })
+            .strict()
+            .openapi("ListStudentSharedPeriodPlanningsQuery")
     }),
     response: new OutputBuilder()
         .ok(

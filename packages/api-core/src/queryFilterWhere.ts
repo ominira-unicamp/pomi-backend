@@ -1,10 +1,9 @@
-import { type QueryFilterOperator } from "@pomi/api-core";
-
+import { type QueryFilterOperator } from "./queryFilter.js";
 import type {
     Filter,
     FilterExpression,
     FilterValue
-} from "#/queryFilterDefinitions.js";
+} from "./queryFilterDefinitions.js";
 
 export type ScalarWhereFilter<T> = {
     equals?: T;

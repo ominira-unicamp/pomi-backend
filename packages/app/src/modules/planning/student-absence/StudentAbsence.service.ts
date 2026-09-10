@@ -7,8 +7,15 @@ import {
     studentAbsenceReferenceNotFoundProblem,
     type StudentAbsenceProblem
 } from "#/modules/planning/student-absence/StudentAbsence.problems.js";
-import { err, ok, type Result } from "@pomi/api-core";
-import type { PrismaClient } from "@pomi/db";
+import {
+    compileFilterWhere,
+    err,
+    ok,
+    prismaWhereFor,
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
+import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 
 type Absence = z.infer<typeof IO.schema>;
@@ -17,6 +24,14 @@ type ListInput = z.infer<typeof IO.list.request>["query"];
 type CreateProblem = Exclude<
     StudentAbsenceProblem,
     ReturnType<typeof studentAbsenceNotFoundProblem>
+>;
+
+const absenceWhere = prismaWhereFor<MyPrisma.StudentAbsenceWhereInput>();
+const absenceFilterWhere = {
+    courseAttemptId: absenceWhere.numberAt("studentCourseAttempt.id")
+} satisfies Record<
+    string,
+    FilterWhereBuilder<MyPrisma.StudentAbsenceWhereInput>
 >;
 
 const dayOfWeekByDateDay = [
@@ -52,15 +67,18 @@ export function createStudentAbsenceService({
 }): StudentAbsenceService {
     return {
         async list(studentId, input) {
+            const filterWhere = compileFilterWhere(
+                input.filter,
+                absenceFilterWhere,
+                "student absences"
+            );
             const absences = await prisma.studentAbsence.findMany({
                 ...absenceEntity.prismaSelection,
                 where: {
-                    studentCourseAttempt: {
-                        studentId,
-                        ...(input.courseAttemptId
-                            ? { id: input.courseAttemptId }
-                            : {})
-                    }
+                    AND: [
+                        { studentCourseAttempt: { studentId } },
+                        ...filterWhere
+                    ]
                 },
                 orderBy: [{ date: "desc" }, { id: "desc" }]
             });

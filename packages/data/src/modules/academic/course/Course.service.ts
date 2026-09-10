@@ -7,10 +7,12 @@ import courseEntity from "#/modules/academic/course/Course.entity.js";
 import { courseNotFoundProblem } from "#/modules/academic/course/Course.problems.js";
 import {
     compileFilterWhere,
+    err,
+    ok,
     prismaWhereFor,
-    type FilterWhereBuilder
-} from "#/queryFilterWhere.js";
-import { err, ok, type Result } from "@pomi/api-core";
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 

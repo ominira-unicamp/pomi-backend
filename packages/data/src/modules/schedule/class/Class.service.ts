@@ -6,10 +6,13 @@ import IO from "#/modules/schedule/class/Class.contract.js";
 import classEntity from "#/modules/schedule/class/Class.entity.js";
 import {
     compileFilterWhere,
+    err,
+    ok,
     prismaWhereFor,
-    type FilterWhereBuilder
-} from "#/queryFilterWhere.js";
-import { err, ok, ResourceNotFoundProblem, type Result } from "@pomi/api-core";
+    ResourceNotFoundProblem,
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 type ClassEntity = z.infer<typeof IO.schema>;
