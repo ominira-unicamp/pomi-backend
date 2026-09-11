@@ -110,6 +110,12 @@ const periodPlanningEntity = z
 const get = {
     meta: {
         ...specsBuilder.get(),
+        operationId: "getStudentPeriodPlannings",
+        sdk: {
+            resource: "periodPlannings",
+            action: "get" as const,
+            pathParameters: { sid: "studentId", id: "periodPlanningId" }
+        },
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.PLANNING_READ
@@ -130,6 +136,12 @@ const get = {
 const list = {
     meta: {
         ...specsBuilder.list(),
+        operationId: "listStudentPeriodPlannings",
+        sdk: {
+            resource: "periodPlannings",
+            action: "list" as const,
+            pathParameters: { sid: "studentId" }
+        },
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.PLANNING_READ
@@ -156,11 +168,18 @@ export const createBody = z
         guide: guideSchema.optional(),
         classes: z.array(z.number().int()).transform((arr) => new Set(arr))
     })
-    .strict();
+    .strict()
+    .openapi("CreatePeriodPlanningInput");
 
 const create = {
     meta: {
         ...specsBuilder.create(),
+        operationId: "createStudentPeriodPlannings",
+        sdk: {
+            resource: "periodPlannings",
+            action: "create" as const,
+            pathParameters: { sid: "studentId" }
+        },
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.PLANNING_WRITE
@@ -202,11 +221,18 @@ export const patchBody = z
             .partial()
             .optional()
     })
-    .strict();
+    .strict()
+    .openapi("UpdatePeriodPlanningInput");
 
 const patch = {
     meta: {
         ...specsBuilder.patch(),
+        operationId: "updateStudentPeriodPlannings",
+        sdk: {
+            resource: "periodPlannings",
+            action: "update" as const,
+            pathParameters: { sid: "studentId", id: "periodPlanningId" }
+        },
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.PLANNING_WRITE
@@ -240,6 +266,12 @@ const patch = {
 const remove = {
     meta: {
         ...specsBuilder.remove(),
+        operationId: "deleteStudentPeriodPlannings",
+        sdk: {
+            resource: "periodPlannings",
+            action: "delete" as const,
+            pathParameters: { sid: "studentId", id: "periodPlanningId" }
+        },
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.PLANNING_WRITE
@@ -262,6 +294,9 @@ function alias<Contract extends IO>(contract: Contract): Contract {
         ...contract,
         meta: {
             ...contract.meta,
+            operationId: undefined,
+            sdk: undefined,
+            pagination: undefined,
             path: contract.meta.path.map((segment) =>
                 segment.type === "literal" &&
                 segment.value === "period-plannings"

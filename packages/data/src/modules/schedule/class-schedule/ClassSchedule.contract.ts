@@ -41,8 +41,8 @@ export const classScheduleDataSchema = z
         classId: z.number().int(),
         roomCode: z.string(),
         classCode: z.string(),
-        unitId: z.number().int(),
-        unitCode: z.string(),
+        unitId: z.number().int().nullable(),
+        unitCode: z.string().nullable(),
         courseId: z.number().int(),
         courseCode: z.string(),
         studyPeriodId: z.number().int(),
@@ -63,7 +63,7 @@ export const classScheduleEntity = classScheduleDataSchema
             .object({
                 entity: z.string(),
                 studyPeriod: z.string(),
-                unit: z.string(),
+                unit: z.string().nullable(),
                 course: z.string(),
                 class: z.string()
             })

@@ -10,7 +10,9 @@ import {
 import type {
     EndpointRequestSchema,
     EndpointResponsesSchema,
-    HttpMethod
+    HttpMethod,
+    PaginationMetadata,
+    SdkOperationMetadata
 } from "./EndpointContract.js";
 import { executeEffects } from "./RequestHandler.js";
 import { sendProblem } from "./problemResponse.js";
@@ -28,6 +30,8 @@ export type CompatibilityContract = {
         queryFeatures?: {
             filter?: boolean;
         };
+        sdk?: SdkOperationMetadata;
+        pagination?: PaginationMetadata;
     };
     request: EndpointRequestSchema;
     response: EndpointResponsesSchema;

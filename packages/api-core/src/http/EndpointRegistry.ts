@@ -6,6 +6,7 @@ import { openApiFromEndpoint } from "../openapi/EndpointOpenApi.js";
 import { pathSegmentToExpressPath } from "../PathSegment.js";
 import {
     assertQueryFeatureConsistency,
+    assertSdkMetadataConsistency,
     type EndpointContract,
     type EndpointRegistry
 } from "./EndpointContract.js";
@@ -35,9 +36,18 @@ export function createEndpointRegistries<
 }) {
     const router = Router();
     const openApiRegistry = new OpenAPIRegistry();
+    const sdkOperations = new Set<string>();
 
     for (const [name, contract] of Object.entries(options.contracts)) {
         assertQueryFeatureConsistency(contract);
+        assertSdkMetadataConsistency(contract);
+        if (contract.meta.sdk) {
+            const sdkOperation = `${contract.meta.sdk.resource}.${contract.meta.sdk.action}`;
+            if (sdkOperations.has(sdkOperation)) {
+                throw new Error(`Duplicate SDK operation ${sdkOperation}`);
+            }
+            sdkOperations.add(sdkOperation);
+        }
         const action = options.actions[name];
         if (!action) throw new Error(`Missing action for endpoint ${name}`);
         const path = pathSegmentToExpressPath(contract.meta.path);

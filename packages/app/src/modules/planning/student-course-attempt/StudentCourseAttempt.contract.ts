@@ -116,7 +116,8 @@ const attemptBody = z
         status: statusSchema,
         grade: gradeSchema.optional()
     })
-    .strict();
+    .strict()
+    .openapi("CreateStudentCourseAttemptInput");
 
 const attemptFilter = resourceFilterSchema(
     {
@@ -143,6 +144,12 @@ export type StudentCourseAttemptFilter = Filter;
 const get = {
     meta: {
         ...specsBuilder.get(),
+        operationId: "getStudentCourseAttempts",
+        sdk: {
+            resource: "courseAttempts",
+            action: "get" as const,
+            pathParameters: { sid: "studentId", id: "courseAttemptId" }
+        },
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.HISTORY_READ
@@ -167,6 +174,12 @@ const get = {
 const list = {
     meta: {
         ...specsBuilder.list(),
+        operationId: "listStudentCourseAttempts",
+        sdk: {
+            resource: "courseAttempts",
+            action: "list" as const,
+            pathParameters: { sid: "studentId" }
+        },
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.HISTORY_READ
@@ -193,6 +206,12 @@ const list = {
 const create = {
     meta: {
         ...specsBuilder.create(),
+        operationId: "createStudentCourseAttempts",
+        sdk: {
+            resource: "courseAttempts",
+            action: "create" as const,
+            pathParameters: { sid: "studentId" }
+        },
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.HISTORY_WRITE
@@ -225,6 +244,12 @@ const create = {
 const patch = {
     meta: {
         ...specsBuilder.patch(),
+        operationId: "updateStudentCourseAttempts",
+        sdk: {
+            resource: "courseAttempts",
+            action: "update" as const,
+            pathParameters: { sid: "studentId", id: "courseAttemptId" }
+        },
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.HISTORY_WRITE
@@ -235,7 +260,11 @@ const patch = {
             sid: z.string().pipe(z.coerce.number()).pipe(z.number()),
             id: z.string().pipe(z.coerce.number()).pipe(z.number())
         }),
-        body: attemptBody.omit({ courseId: true }).partial().strict()
+        body: attemptBody
+            .omit({ courseId: true })
+            .partial()
+            .strict()
+            .openapi("UpdateStudentCourseAttemptInput")
     }),
     response: new OutputBuilder()
         .ok(attemptEntity, "Student course attempt updated successfully")
@@ -263,6 +292,12 @@ const patch = {
 const remove = {
     meta: {
         ...specsBuilder.remove(),
+        operationId: "deleteStudentCourseAttempts",
+        sdk: {
+            resource: "courseAttempts",
+            action: "delete" as const,
+            pathParameters: { sid: "studentId", id: "courseAttemptId" }
+        },
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.HISTORY_WRITE

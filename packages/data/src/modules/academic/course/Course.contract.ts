@@ -96,7 +96,16 @@ const PageCoursesSchema =
     getPaginatedSchema(courseEntity).openapi("PageCourses");
 
 const get = {
-    meta: { ...specsBuilder.get(), authorization: policies.public },
+    meta: {
+        ...specsBuilder.get(),
+        operationId: "getCourses",
+        authorization: policies.public,
+        sdk: {
+            resource: "courses",
+            action: "get" as const,
+            pathParameters: { id: "courseId" }
+        }
+    },
     request: z.object({
         path: z
             .object({
@@ -113,8 +122,16 @@ const get = {
 const list = {
     meta: {
         ...specsBuilder.list(),
+        operationId: "listCourses",
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        sdk: { resource: "courses", action: "list" as const },
+        pagination: {
+            itemsField: "data",
+            nextField: "_paths.next",
+            defaultPageSize: 20,
+            maxPageSize: 1000
+        }
     },
     request: z.object({
         query: listCourseQuery

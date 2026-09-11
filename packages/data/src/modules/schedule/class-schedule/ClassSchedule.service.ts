@@ -79,15 +79,13 @@ function classScheduleData(
     classSchedule: PrismaClassSchedulePayload
 ): ClassScheduleData {
     const { room, class: classEntity, ...rest } = classSchedule;
-    if (!classEntity.course.unit)
-        throw new Error("A turma exige que o curso tenha uma unidade");
     return {
         ...rest,
         roomCode: room.code,
         classCode: classEntity.code,
         classId: classEntity.id,
-        unitId: classEntity.course.unit.id,
-        unitCode: classEntity.course.unit.code,
+        unitId: classEntity.course.unit?.id ?? null,
+        unitCode: classEntity.course.unit?.code ?? null,
         courseId: classEntity.course.id,
         courseCode: classEntity.course.code,
         studyPeriodId: classEntity.studyPeriod.id,

@@ -26,7 +26,10 @@ function withPaths(
         _paths: {
             entity: classSchedulePaths.entity(schedule.id),
             studyPeriod: studyPeriodPaths.entity(schedule.studyPeriodId),
-            unit: unitPaths.entity(schedule.unitId),
+            unit:
+                schedule.unitId === null
+                    ? null
+                    : unitPaths.entity(schedule.unitId),
             course: coursePaths.entity(schedule.courseId),
             class: classPaths.entity(schedule.classId)
         }

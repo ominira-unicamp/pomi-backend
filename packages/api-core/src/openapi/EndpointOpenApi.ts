@@ -90,7 +90,11 @@ export function openApiFromEndpoint(
         ...(contract.meta.deprecated !== undefined
             ? { deprecated: contract.meta.deprecated }
             : {}),
+        ...(contract.meta.sdk ? { "x-pomi-sdk": contract.meta.sdk } : {}),
+        ...(contract.meta.pagination
+            ? { "x-pomi-pagination": contract.meta.pagination }
+            : {}),
         request: request.build(),
         responses: responses.build()
-    };
+    } as RouteConfig;
 }
