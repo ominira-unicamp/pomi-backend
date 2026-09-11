@@ -38,8 +38,8 @@ const classEntity = z
             "SECOND_SEMESTER"
         ]),
         courseCode: z.string(),
-        unitId: z.number().int(),
-        unitCode: z.string(),
+        unitId: z.number().int().nullable(),
+        unitCode: z.string().nullable(),
         professors: z.array(
             z
                 .object({
@@ -51,7 +51,7 @@ const classEntity = z
         _paths: z
             .object({
                 studyPeriod: z.string(),
-                unit: z.string(),
+                unit: z.string().nullable(),
                 course: z.string(),
                 class: z.string(),
                 classSchedules: z.string(),

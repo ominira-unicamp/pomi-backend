@@ -24,13 +24,13 @@ type PrismaClassPayload = MyPrisma.ClassGetPayload<
 >;
 
 function relatedPathsForClass(classPayload: PrismaClassPayload) {
-    if (!classPayload.course.unit)
-        throw new Error("A turma exige que o curso tenha uma unidade");
     return {
         studyPeriod: resourcesPaths.studyPeriod.entity(
             classPayload.studyPeriod.id
         ),
-        unit: resourcesPaths.unit.entity(classPayload.course.unit.id),
+        unit: classPayload.course.unit
+            ? resourcesPaths.unit.entity(classPayload.course.unit.id)
+            : null,
         course: resourcesPaths.course.entity(classPayload.course.id),
         class: resourcesPaths.class.entity(classPayload.id),
         classSchedules: resourcesPaths.classSchedule.list({
@@ -58,8 +58,6 @@ function buildClassEntity(
     classData: PrismaClassPayload
 ): z.infer<typeof IO.schema> {
     const { course, studyPeriod, ...rest } = classData;
-    if (!course.unit)
-        throw new Error("A turma exige que o curso tenha uma unidade");
     return {
         ...rest,
         studyPeriodId: studyPeriod.id,
@@ -67,8 +65,8 @@ function buildClassEntity(
         studyPeriodYearPeriod: studyPeriod.yearPeriod,
         courseId: course.id,
         courseCode: course.code,
-        unitId: course.unit.id,
-        unitCode: course.unit.code,
+        unitId: course.unit?.id ?? null,
+        unitCode: course.unit?.code ?? null,
         professorIds: classData.professors.map((p) => p.id),
         _paths: relatedPathsForClass(classData)
     };
