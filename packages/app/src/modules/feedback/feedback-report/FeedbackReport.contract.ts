@@ -6,6 +6,7 @@ import {
 } from "#/modules/feedback/feedback-report/FeedbackReport.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     ResourceNotFoundProblemSchema
@@ -44,7 +45,7 @@ const studentFeedbackPath = [
 ];
 
 const studentPath = z.object({
-    sid: z.string().pipe(z.coerce.number()).pipe(z.number().int())
+    sid: pathParam.integer()
 });
 
 const target = z
@@ -105,7 +106,7 @@ const report = z
     .openapi("FeedbackReport");
 
 const idPath = z.object({
-    id: z.string().pipe(z.coerce.number()).pipe(z.number().int().positive())
+    id: pathParam.positiveInteger()
 });
 const adminPatchBody = z
     .object({

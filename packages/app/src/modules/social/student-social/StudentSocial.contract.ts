@@ -3,6 +3,7 @@ import { OutputBuilder, type IO } from "#/Contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     filterDefinition,
+    pathParam,
     pathSeg,
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
@@ -14,11 +15,11 @@ import z from "zod";
 extendZodWithOpenApi(z);
 
 const sidPath = z.object({
-    sid: z.string().pipe(z.coerce.number()).pipe(z.number().int())
+    sid: pathParam.integer()
 });
 const publicIdPath = sidPath.extend({ publicId: z.string().uuid() });
 const friendshipPath = sidPath.extend({
-    id: z.string().pipe(z.coerce.number()).pipe(z.number().int())
+    id: pathParam.integer()
 });
 const academicReference = z
     .object({ code: z.union([z.string(), z.number()]), name: z.string() })
@@ -164,22 +165,28 @@ const listPeople = {
         method: "get" as const,
         path: peoplePath,
         tags: ["student-social"],
-        authorization: read
+        authorization: read,
+        sdk: {
+            resource: "studentPeople",
+            action: "list" as const,
+            pathParameters: { sid: "studentId" }
+        },
+        pagination: {
+            strategy: "page-number" as const,
+            itemsField: "items",
+            pageField: "page",
+            pageSizeField: "pageSize",
+            totalField: "total",
+            defaultPageSize: 20,
+            maxPageSize: 50
+        }
     },
     request: z.object({
         path: sidPath,
         query: z.object({
             query: z.string().trim().min(1).optional(),
-            page: z
-                .string()
-                .pipe(z.coerce.number())
-                .pipe(z.number().int().min(1))
-                .default(1),
-            pageSize: z
-                .string()
-                .pipe(z.coerce.number())
-                .pipe(z.number().int().min(1).max(50))
-                .default(20)
+            page: z.coerce.number().int().min(1).default(1),
+            pageSize: z.coerce.number().int().min(1).max(50).default(20)
         })
     }),
     response: new OutputBuilder()
@@ -191,7 +198,8 @@ const listPeople = {
                     pageSize: z.number(),
                     total: z.number()
                 })
-                .strict(),
+                .strict()
+                .openapi("StudentPeoplePage"),
             "Pessoas recuperadas"
         )
         .build()

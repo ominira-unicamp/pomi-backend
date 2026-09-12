@@ -4,6 +4,7 @@ import { InvalidStudentCourseAttemptProblem } from "#/modules/planning/student-c
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     filterDefinition,
+    pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     resourceFilterSchema,
@@ -157,8 +158,8 @@ const get = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number()),
-            id: z.string().pipe(z.coerce.number()).pipe(z.number())
+            sid: pathParam.integer(),
+            id: pathParam.integer()
         })
     }),
     response: new OutputBuilder()
@@ -188,7 +189,7 @@ const list = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number())
+            sid: pathParam.integer()
         }),
         query: z
             .object({ filter: attemptFilter.optional() })
@@ -219,7 +220,7 @@ const create = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number())
+            sid: pathParam.integer()
         }),
         body: attemptBody
     }),
@@ -257,8 +258,8 @@ const patch = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number()),
-            id: z.string().pipe(z.coerce.number()).pipe(z.number())
+            sid: pathParam.integer(),
+            id: pathParam.integer()
         }),
         body: attemptBody
             .omit({ courseId: true })
@@ -305,8 +306,8 @@ const remove = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number()),
-            id: z.string().pipe(z.coerce.number()).pipe(z.number())
+            sid: pathParam.integer(),
+            id: pathParam.integer()
         })
     }),
     response: new OutputBuilder()

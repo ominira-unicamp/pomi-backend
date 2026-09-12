@@ -4,6 +4,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     filterDefinition,
     getPaginatedSchema,
+    pathParam,
     pathSeg,
     resourceFilterSchema,
     serializeQueryParams,
@@ -79,7 +80,7 @@ const list = {
 const get = {
     meta: { ...specsBuilder.get(), authorization: policies.public },
     request: z.object({
-        path: z.object({ id: z.coerce.number().int() }).strict()
+        path: z.object({ id: pathParam.integer() }).strict()
     }),
     response: new OutputBuilder()
         .ok(coordinatorEntity, "Coordinator retrieved successfully")

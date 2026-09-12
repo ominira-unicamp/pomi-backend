@@ -5,7 +5,11 @@ import {
     type StudentCapability
 } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { pathSeg, ResourceNotFoundProblemSchema } from "@pomi/api-core";
+import {
+    pathParam,
+    pathSeg,
+    ResourceNotFoundProblemSchema
+} from "@pomi/api-core";
 import z from "zod";
 
 extendZodWithOpenApi(z);
@@ -35,7 +39,7 @@ const bot = z
     .strict()
     .openapi("BotIdentityEntity");
 const path = z.object({
-    botAuthUserId: z.string().pipe(z.coerce.number()).pipe(z.number().int())
+    botAuthUserId: pathParam.integer()
 });
 const replaceBody = z
     .object({ capabilities: z.array(z.enum(capabilities)) })

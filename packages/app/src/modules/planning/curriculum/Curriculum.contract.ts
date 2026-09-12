@@ -3,6 +3,7 @@ import { type IO, OutputBuilder } from "#/Contract.js";
 import { InvalidCurriculumProblem } from "#/modules/planning/curriculum/Curriculum.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     ResourceNotFoundProblemSchema,
@@ -136,8 +137,8 @@ export const patchBody = z
     .strict();
 
 const pathWithId = z.object({
-    sid: z.string().pipe(z.coerce.number()).pipe(z.number()),
-    id: z.string().pipe(z.coerce.number()).pipe(z.number())
+    sid: pathParam.integer(),
+    id: pathParam.integer()
 });
 
 const get = {
@@ -165,7 +166,7 @@ const list = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number())
+            sid: pathParam.integer()
         })
     }),
     response: new OutputBuilder()
@@ -197,7 +198,7 @@ const create = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number())
+            sid: pathParam.integer()
         }),
         body: createBody
     }),

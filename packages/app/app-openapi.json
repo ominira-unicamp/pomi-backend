@@ -1407,6 +1407,33 @@
         },
         "additionalProperties": false
       },
+      "SharedPeriodPlanningPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SharedPeriodPlanning"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "pageSize": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "additionalProperties": false
+      },
       "SharedPeriodPlanning": {
         "type": "object",
         "properties": {
@@ -2809,6 +2836,33 @@
         ],
         "additionalProperties": false
       },
+      "StudentPeoplePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StudentPublicPerson"
+            }
+          },
+          "page": {
+            "type": "number"
+          },
+          "pageSize": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "additionalProperties": false
+      },
       "StudentPublicPerson": {
         "type": "object",
         "properties": {
@@ -3458,6 +3512,11 @@
         ],
         "operationId": "listMe",
         "summary": "List Me",
+        "x-pomi-sdk": {
+          "resource": "me",
+          "action": "list",
+          "pathParameters": {}
+        },
         "responses": {
           "200": {
             "description": "Usuário atual recuperado",
@@ -3504,6 +3563,11 @@
         ],
         "operationId": "listBots",
         "summary": "List Bots",
+        "x-pomi-sdk": {
+          "resource": "bots",
+          "action": "list",
+          "pathParameters": {}
+        },
         "responses": {
           "200": {
             "description": "Bots ativos recuperados",
@@ -3553,6 +3617,11 @@
         ],
         "operationId": "listMeBotGrants",
         "summary": "List MeBotGrants",
+        "x-pomi-sdk": {
+          "resource": "meBotGrants",
+          "action": "list",
+          "pathParameters": {}
+        },
         "responses": {
           "200": {
             "description": "Permissões de bots recuperadas",
@@ -3602,10 +3671,17 @@
         ],
         "operationId": "updateMeBotGrants",
         "summary": "Update MeBotGrants",
+        "x-pomi-sdk": {
+          "resource": "meBotGrants",
+          "action": "update",
+          "pathParameters": {
+            "botAuthUserId": "botAuthUserId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "botAuthUserId",
@@ -3672,10 +3748,17 @@
         ],
         "operationId": "getStudents",
         "summary": "Get Students",
+        "x-pomi-sdk": {
+          "resource": "students",
+          "action": "get",
+          "pathParameters": {
+            "id": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -3736,10 +3819,17 @@
         ],
         "operationId": "updateStudents",
         "summary": "Update Students",
+        "x-pomi-sdk": {
+          "resource": "students",
+          "action": "update",
+          "pathParameters": {
+            "id": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -3835,10 +3925,17 @@
         ],
         "operationId": "deleteStudents",
         "summary": "Delete Students",
+        "x-pomi-sdk": {
+          "resource": "students",
+          "action": "delete",
+          "pathParameters": {
+            "id": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -3925,6 +4022,11 @@
         ],
         "operationId": "createStudents",
         "summary": "Create Students",
+        "x-pomi-sdk": {
+          "resource": "students",
+          "action": "create",
+          "pathParameters": {}
+        },
         "requestBody": {
           "description": "Request body",
           "required": true,
@@ -4026,10 +4128,18 @@
         ],
         "operationId": "getStudentCurricula",
         "summary": "Get StudentCurricula",
+        "x-pomi-sdk": {
+          "resource": "studentCurricula",
+          "action": "get",
+          "pathParameters": {
+            "sid": "studentId",
+            "id": "studentCurriculaId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -4037,7 +4147,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -4098,10 +4208,18 @@
         ],
         "operationId": "updateStudentCurricula",
         "summary": "Update StudentCurricula",
+        "x-pomi-sdk": {
+          "resource": "studentCurricula",
+          "action": "update",
+          "pathParameters": {
+            "sid": "studentId",
+            "id": "studentCurriculaId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -4109,7 +4227,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -4355,10 +4473,18 @@
         ],
         "operationId": "deleteStudentCurricula",
         "summary": "Delete StudentCurricula",
+        "x-pomi-sdk": {
+          "resource": "studentCurricula",
+          "action": "delete",
+          "pathParameters": {
+            "sid": "studentId",
+            "id": "studentCurriculaId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -4366,7 +4492,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -4422,10 +4548,17 @@
         ],
         "operationId": "listStudentCurricula",
         "summary": "List StudentCurricula",
+        "x-pomi-sdk": {
+          "resource": "studentCurricula",
+          "action": "list",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -4479,10 +4612,17 @@
         ],
         "operationId": "createStudentCurricula",
         "summary": "Create StudentCurricula",
+        "x-pomi-sdk": {
+          "resource": "studentCurricula",
+          "action": "create",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -4683,7 +4823,7 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -4691,7 +4831,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -4763,7 +4903,7 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -4771,7 +4911,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -4878,7 +5018,7 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -4886,7 +5026,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -4952,7 +5092,7 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -5016,7 +5156,7 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -5104,10 +5244,18 @@
         ],
         "operationId": "getStudentPeriodPlan",
         "summary": "Get StudentPeriodPlan",
+        "x-pomi-sdk": {
+          "resource": "studentPeriodPlan",
+          "action": "get",
+          "pathParameters": {
+            "sid": "studentId",
+            "id": "studentPeriodPlanId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -5115,7 +5263,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -5176,10 +5324,18 @@
         ],
         "operationId": "updateStudentPeriodPlan",
         "summary": "Update StudentPeriodPlan",
+        "x-pomi-sdk": {
+          "resource": "studentPeriodPlan",
+          "action": "update",
+          "pathParameters": {
+            "sid": "studentId",
+            "id": "studentPeriodPlanId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -5187,7 +5343,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -5283,10 +5439,18 @@
         ],
         "operationId": "deleteStudentPeriodPlan",
         "summary": "Delete StudentPeriodPlan",
+        "x-pomi-sdk": {
+          "resource": "studentPeriodPlan",
+          "action": "delete",
+          "pathParameters": {
+            "sid": "studentId",
+            "id": "studentPeriodPlanId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -5294,7 +5458,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -5350,10 +5514,17 @@
         ],
         "operationId": "listStudentPeriodPlan",
         "summary": "List StudentPeriodPlan",
+        "x-pomi-sdk": {
+          "resource": "studentPeriodPlan",
+          "action": "list",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -5407,10 +5578,17 @@
         ],
         "operationId": "createStudentPeriodPlan",
         "summary": "Create StudentPeriodPlan",
+        "x-pomi-sdk": {
+          "resource": "studentPeriodPlan",
+          "action": "create",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -5498,10 +5676,24 @@
         ],
         "operationId": "listSharedPeriodPlannings",
         "summary": "List SharedPeriodPlannings",
+        "x-pomi-sdk": {
+          "resource": "sharedPeriodPlannings",
+          "action": "list"
+        },
+        "x-pomi-pagination": {
+          "strategy": "page-number",
+          "itemsField": "items",
+          "pageField": "page",
+          "pageSizeField": "pageSize",
+          "totalField": "total",
+          "defaultPageSize": 20,
+          "maxPageSize": 50
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string",
+              "type": "integer",
+              "minimum": 1,
               "default": 1
             },
             "required": false,
@@ -5510,7 +5702,9 @@
           },
           {
             "schema": {
-              "type": "string",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
               "default": 20
             },
             "required": false,
@@ -5591,31 +5785,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/SharedPeriodPlanning"
-                      }
-                    },
-                    "page": {
-                      "type": "integer"
-                    },
-                    "pageSize": {
-                      "type": "integer"
-                    },
-                    "total": {
-                      "type": "integer"
-                    }
-                  },
-                  "required": [
-                    "items",
-                    "page",
-                    "pageSize",
-                    "total"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/SharedPeriodPlanningPage"
                 }
               }
             }
@@ -5651,6 +5821,13 @@
         ],
         "operationId": "getSharedPeriodPlannings",
         "summary": "Get SharedPeriodPlannings",
+        "x-pomi-sdk": {
+          "resource": "sharedPeriodPlannings",
+          "action": "get",
+          "pathParameters": {
+            "shareId": "shareId"
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -5714,10 +5891,26 @@
         ],
         "operationId": "listStudentSharedPeriodPlannings",
         "summary": "List StudentSharedPeriodPlannings",
+        "x-pomi-sdk": {
+          "resource": "studentSharedPeriodPlannings",
+          "action": "list",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
+        "x-pomi-pagination": {
+          "strategy": "page-number",
+          "itemsField": "items",
+          "pageField": "page",
+          "pageSizeField": "pageSize",
+          "totalField": "total",
+          "defaultPageSize": 20,
+          "maxPageSize": 50
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -5725,7 +5918,8 @@
           },
           {
             "schema": {
-              "type": "string",
+              "type": "integer",
+              "minimum": 1,
               "default": 1
             },
             "required": false,
@@ -5734,7 +5928,9 @@
           },
           {
             "schema": {
-              "type": "string",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
               "default": 20
             },
             "required": false,
@@ -5810,31 +6006,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/SharedPeriodPlanning"
-                      }
-                    },
-                    "page": {
-                      "type": "integer"
-                    },
-                    "pageSize": {
-                      "type": "integer"
-                    },
-                    "total": {
-                      "type": "integer"
-                    }
-                  },
-                  "required": [
-                    "items",
-                    "page",
-                    "pageSize",
-                    "total"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/SharedPeriodPlanningPage"
                 }
               }
             }
@@ -5874,10 +6046,18 @@
         ],
         "operationId": "getStudentSharedPeriodPlannings",
         "summary": "Get StudentSharedPeriodPlannings",
+        "x-pomi-sdk": {
+          "resource": "studentSharedPeriodPlannings",
+          "action": "get",
+          "pathParameters": {
+            "sid": "studentId",
+            "shareId": "shareId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -5949,10 +6129,19 @@
         ],
         "operationId": "listStudentClassesProfessorsEvaluation",
         "summary": "List StudentClassesProfessorsEvaluation",
+        "x-pomi-sdk": {
+          "resource": "studentClassesProfessorsEvaluation",
+          "action": "list",
+          "pathParameters": {
+            "sid": "studentId",
+            "classId": "classId",
+            "professorId": "professorId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -5960,7 +6149,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "classId",
@@ -5968,7 +6157,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "professorId",
@@ -6043,10 +6232,19 @@
         ],
         "operationId": "updateStudentClassesProfessorsEvaluation",
         "summary": "Update StudentClassesProfessorsEvaluation",
+        "x-pomi-sdk": {
+          "resource": "studentClassesProfessorsEvaluation",
+          "action": "update",
+          "pathParameters": {
+            "sid": "studentId",
+            "classId": "classId",
+            "professorId": "professorId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -6054,7 +6252,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "classId",
@@ -6062,7 +6260,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "professorId",
@@ -6150,10 +6348,17 @@
         ],
         "operationId": "listStudentProfessorEvaluationsPending",
         "summary": "List StudentProfessorEvaluationsPending",
+        "x-pomi-sdk": {
+          "resource": "studentProfessorEvaluationsPending",
+          "action": "list",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -6310,7 +6515,7 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -6318,7 +6523,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -6390,7 +6595,7 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -6398,7 +6603,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -6515,7 +6720,7 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -6523,7 +6728,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -6589,7 +6794,7 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -6823,7 +7028,7 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -6921,10 +7126,17 @@
         ],
         "operationId": "createStudentCourseHistory",
         "summary": "Create StudentCourseHistory",
+        "x-pomi-sdk": {
+          "resource": "studentCourseHistory",
+          "action": "create",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -7008,10 +7220,17 @@
         ],
         "operationId": "listStudentAbsences",
         "summary": "List StudentAbsences",
+        "x-pomi-sdk": {
+          "resource": "studentAbsences",
+          "action": "list",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -7123,10 +7342,17 @@
         ],
         "operationId": "createStudentAbsences",
         "summary": "Create StudentAbsences",
+        "x-pomi-sdk": {
+          "resource": "studentAbsences",
+          "action": "create",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -7224,10 +7450,18 @@
         ],
         "operationId": "deleteStudentAbsences",
         "summary": "Delete StudentAbsences",
+        "x-pomi-sdk": {
+          "resource": "studentAbsences",
+          "action": "delete",
+          "pathParameters": {
+            "sid": "studentId",
+            "id": "studentAbsenceId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -7235,7 +7469,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -7291,10 +7525,17 @@
         ],
         "operationId": "listStudentPublicProfile",
         "summary": "List StudentPublicProfile",
+        "x-pomi-sdk": {
+          "resource": "studentPublicProfile",
+          "action": "list",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -7355,10 +7596,17 @@
         ],
         "operationId": "updateStudentPublicProfile",
         "summary": "Update StudentPublicProfile",
+        "x-pomi-sdk": {
+          "resource": "studentPublicProfile",
+          "action": "update",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -7457,10 +7705,26 @@
         ],
         "operationId": "listStudentPeople",
         "summary": "List StudentPeople",
+        "x-pomi-sdk": {
+          "resource": "studentPeople",
+          "action": "list",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
+        "x-pomi-pagination": {
+          "strategy": "page-number",
+          "itemsField": "items",
+          "pageField": "page",
+          "pageSizeField": "pageSize",
+          "totalField": "total",
+          "defaultPageSize": 20,
+          "maxPageSize": 50
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -7477,7 +7741,8 @@
           },
           {
             "schema": {
-              "type": "string",
+              "type": "integer",
+              "minimum": 1,
               "default": 1
             },
             "required": false,
@@ -7486,7 +7751,9 @@
           },
           {
             "schema": {
-              "type": "string",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
               "default": 20
             },
             "required": false,
@@ -7500,31 +7767,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/StudentPublicPerson"
-                      }
-                    },
-                    "page": {
-                      "type": "number"
-                    },
-                    "pageSize": {
-                      "type": "number"
-                    },
-                    "total": {
-                      "type": "number"
-                    }
-                  },
-                  "required": [
-                    "items",
-                    "page",
-                    "pageSize",
-                    "total"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/StudentPeoplePage"
                 }
               }
             }
@@ -7564,10 +7807,18 @@
         ],
         "operationId": "getStudentPeople",
         "summary": "Get StudentPeople",
+        "x-pomi-sdk": {
+          "resource": "studentPeople",
+          "action": "get",
+          "pathParameters": {
+            "sid": "studentId",
+            "publicId": "publicId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -7639,10 +7890,17 @@
         ],
         "operationId": "listStudentFriendships",
         "summary": "List StudentFriendships",
+        "x-pomi-sdk": {
+          "resource": "studentFriendships",
+          "action": "list",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -7809,10 +8067,17 @@
         ],
         "operationId": "createStudentFriendships",
         "summary": "Create StudentFriendships",
+        "x-pomi-sdk": {
+          "resource": "studentFriendships",
+          "action": "create",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -7906,10 +8171,18 @@
         ],
         "operationId": "createStudentFriendshipsAccept",
         "summary": "Create StudentFriendshipsAccept",
+        "x-pomi-sdk": {
+          "resource": "studentFriendshipsAccept",
+          "action": "create",
+          "pathParameters": {
+            "sid": "studentId",
+            "id": "studentFriendshipsAcceptId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -7917,7 +8190,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -7990,10 +8263,18 @@
         ],
         "operationId": "deleteStudentFriendships",
         "summary": "Delete StudentFriendships",
+        "x-pomi-sdk": {
+          "resource": "studentFriendships",
+          "action": "delete",
+          "pathParameters": {
+            "sid": "studentId",
+            "id": "studentFriendshipId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -8001,7 +8282,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "id",
@@ -8057,6 +8338,11 @@
         ],
         "operationId": "createFeedbackReports",
         "summary": "Create FeedbackReports",
+        "x-pomi-sdk": {
+          "resource": "feedbackReports",
+          "action": "create",
+          "pathParameters": {}
+        },
         "requestBody": {
           "description": "Request body",
           "required": true,
@@ -8154,10 +8440,17 @@
         ],
         "operationId": "createStudentFeedbackReports",
         "summary": "Create StudentFeedbackReports",
+        "x-pomi-sdk": {
+          "resource": "studentFeedbackReports",
+          "action": "create",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -8253,10 +8546,17 @@
         ],
         "operationId": "listStudentFeedbackReports",
         "summary": "List StudentFeedbackReports",
+        "x-pomi-sdk": {
+          "resource": "studentFeedbackReports",
+          "action": "list",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -8312,10 +8612,17 @@
         ],
         "operationId": "listStudentExchangeNoticeSubscription",
         "summary": "List StudentExchangeNoticeSubscription",
+        "x-pomi-sdk": {
+          "resource": "studentExchangeNoticeSubscription",
+          "action": "list",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -8366,10 +8673,17 @@
         ],
         "operationId": "updateStudentExchangeNoticeSubscription",
         "summary": "Update StudentExchangeNoticeSubscription",
+        "x-pomi-sdk": {
+          "resource": "studentExchangeNoticeSubscription",
+          "action": "update",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -8443,6 +8757,11 @@
         ],
         "operationId": "createExchangeNoticeSubscriptionsUnsubscribe",
         "summary": "Create ExchangeNoticeSubscriptionsUnsubscribe",
+        "x-pomi-sdk": {
+          "resource": "exchangeNoticeSubscriptionsUnsubscribe",
+          "action": "create",
+          "pathParameters": {}
+        },
         "parameters": [
           {
             "schema": {
@@ -8508,6 +8827,11 @@
         ],
         "operationId": "listCategories",
         "summary": "List Categories",
+        "x-pomi-sdk": {
+          "resource": "categories",
+          "action": "list",
+          "pathParameters": {}
+        },
         "responses": {
           "200": {
             "description": "Categorias recuperadas",
@@ -8551,6 +8875,11 @@
         ],
         "operationId": "createCategories",
         "summary": "Create Categories",
+        "x-pomi-sdk": {
+          "resource": "categories",
+          "action": "create",
+          "pathParameters": {}
+        },
         "requestBody": {
           "description": "Request body",
           "required": true,
@@ -8628,6 +8957,13 @@
         ],
         "operationId": "getCategories",
         "summary": "Get Categories",
+        "x-pomi-sdk": {
+          "resource": "categories",
+          "action": "get",
+          "pathParameters": {
+            "id": "categoryId"
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -8690,6 +9026,13 @@
         ],
         "operationId": "updateCategories",
         "summary": "Update Categories",
+        "x-pomi-sdk": {
+          "resource": "categories",
+          "action": "update",
+          "pathParameters": {
+            "id": "categoryId"
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -8787,6 +9130,13 @@
         ],
         "operationId": "deleteCategories",
         "summary": "Delete Categories",
+        "x-pomi-sdk": {
+          "resource": "categories",
+          "action": "delete",
+          "pathParameters": {
+            "id": "categoryId"
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -8858,6 +9208,11 @@
         ],
         "operationId": "listTags",
         "summary": "List Tags",
+        "x-pomi-sdk": {
+          "resource": "tags",
+          "action": "list",
+          "pathParameters": {}
+        },
         "parameters": [
           {
             "schema": {
@@ -9041,6 +9396,11 @@
         ],
         "operationId": "createTags",
         "summary": "Create Tags",
+        "x-pomi-sdk": {
+          "resource": "tags",
+          "action": "create",
+          "pathParameters": {}
+        },
         "requestBody": {
           "description": "Request body",
           "required": true,
@@ -9141,6 +9501,13 @@
         ],
         "operationId": "getTags",
         "summary": "Get Tags",
+        "x-pomi-sdk": {
+          "resource": "tags",
+          "action": "get",
+          "pathParameters": {
+            "id": "tagId"
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -9203,6 +9570,13 @@
         ],
         "operationId": "updateTags",
         "summary": "Update Tags",
+        "x-pomi-sdk": {
+          "resource": "tags",
+          "action": "update",
+          "pathParameters": {
+            "id": "tagId"
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -9323,6 +9697,13 @@
         ],
         "operationId": "deleteTags",
         "summary": "Delete Tags",
+        "x-pomi-sdk": {
+          "resource": "tags",
+          "action": "delete",
+          "pathParameters": {
+            "id": "tagId"
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -9394,6 +9775,13 @@
         ],
         "operationId": "listCoursesTags",
         "summary": "List CoursesTags",
+        "x-pomi-sdk": {
+          "resource": "coursesTags",
+          "action": "list",
+          "pathParameters": {
+            "courseId": "courseId"
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -9461,6 +9849,19 @@
         ],
         "operationId": "listTagsCourses",
         "summary": "List TagsCourses",
+        "x-pomi-sdk": {
+          "resource": "tagsCourses",
+          "action": "list",
+          "pathParameters": {
+            "id": "tagsCourseId"
+          }
+        },
+        "x-pomi-pagination": {
+          "itemsField": "data",
+          "nextField": "_paths.next",
+          "defaultPageSize": 100,
+          "maxPageSize": 1000
+        },
         "parameters": [
           {
             "schema": {
@@ -9588,6 +9989,14 @@
         ],
         "operationId": "updateCoursesTags",
         "summary": "Update CoursesTags",
+        "x-pomi-sdk": {
+          "resource": "coursesTags",
+          "action": "update",
+          "pathParameters": {
+            "courseId": "courseId",
+            "tagId": "tagId"
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -9657,6 +10066,14 @@
         ],
         "operationId": "deleteCoursesTags",
         "summary": "Delete CoursesTags",
+        "x-pomi-sdk": {
+          "resource": "coursesTags",
+          "action": "delete",
+          "pathParameters": {
+            "courseId": "courseId",
+            "tagId": "tagId"
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -9728,10 +10145,17 @@
         ],
         "operationId": "listStudentTagInterests",
         "summary": "List StudentTagInterests",
+        "x-pomi-sdk": {
+          "resource": "studentTagInterests",
+          "action": "list",
+          "pathParameters": {
+            "sid": "studentId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -9787,10 +10211,18 @@
         ],
         "operationId": "updateStudentTagInterests",
         "summary": "Update StudentTagInterests",
+        "x-pomi-sdk": {
+          "resource": "studentTagInterests",
+          "action": "update",
+          "pathParameters": {
+            "sid": "studentId",
+            "tagId": "tagId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -9798,7 +10230,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "tagId",
@@ -9852,10 +10284,18 @@
         ],
         "operationId": "deleteStudentTagInterests",
         "summary": "Delete StudentTagInterests",
+        "x-pomi-sdk": {
+          "resource": "studentTagInterests",
+          "action": "delete",
+          "pathParameters": {
+            "sid": "studentId",
+            "tagId": "tagId"
+          }
+        },
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "sid",
@@ -9863,7 +10303,7 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
             "required": true,
             "name": "tagId",

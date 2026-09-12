@@ -42,7 +42,7 @@ export function createEndpointRegistries<
         assertQueryFeatureConsistency(contract);
         assertSdkMetadataConsistency(contract);
         if (contract.meta.sdk) {
-            const sdkOperation = `${contract.meta.sdk.resource}.${contract.meta.sdk.action}`;
+            const sdkOperation = `${contract.meta.sdk.resource}.${contract.meta.sdk.method ?? contract.meta.sdk.action}`;
             if (sdkOperations.has(sdkOperation)) {
                 throw new Error(`Duplicate SDK operation ${sdkOperation}`);
             }

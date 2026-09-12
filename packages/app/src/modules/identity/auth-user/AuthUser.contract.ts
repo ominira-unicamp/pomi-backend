@@ -2,7 +2,11 @@ import { type IO, OutputBuilder } from "#/Contract.js";
 import { Capabilities, policies } from "#/auth.js";
 import { AdminIdentityManagedByCliProblem } from "#/modules/identity/auth-user/AuthUser.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { pathSeg, ResourceNotFoundProblemSchema } from "@pomi/api-core";
+import {
+    pathParam,
+    pathSeg,
+    ResourceNotFoundProblemSchema
+} from "@pomi/api-core";
 import z from "zod";
 
 extendZodWithOpenApi(z);
@@ -48,7 +52,7 @@ const patchBody = z
     .strict()
     .openapi("PatchAuthUserBody");
 const path = z.object({
-    id: z.string().pipe(z.coerce.number()).pipe(z.number().int())
+    id: pathParam.integer()
 });
 const list = {
     meta: {

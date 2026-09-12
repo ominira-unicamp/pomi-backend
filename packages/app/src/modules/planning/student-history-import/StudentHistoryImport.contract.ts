@@ -3,6 +3,7 @@ import { type IO, OutputBuilder } from "#/Contract.js";
 import { InvalidStudentHistoryImportProblem } from "#/modules/planning/student-history-import/StudentHistoryImport.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    pathParam,
     pathSeg,
     ResourceNotFoundProblemSchema,
     SpecBuilder
@@ -87,7 +88,7 @@ const importHistory = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number())
+            sid: pathParam.integer()
         }),
         body
     }),

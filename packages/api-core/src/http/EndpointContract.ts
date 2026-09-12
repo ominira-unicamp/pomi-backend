@@ -57,15 +57,48 @@ export type SdkOperationAction =
 export type SdkOperationMetadata = {
     resource: string;
     action: SdkOperationAction;
+    method?: string;
     pathParameters?: Record<string, string>;
 };
 
-export type PaginationMetadata = {
+export type SdkSchemaMetadata = {
+    kind?:
+        | "entity"
+        | "value-object"
+        | "projection"
+        | "input"
+        | "page"
+        | "problem"
+        | "transport";
+    publicName?: string;
+    transportFields?: string[];
+};
+
+export type LinkPaginationMetadata = {
+    strategy?: "link";
     itemsField: string;
     nextField: string;
+    pageParameter?: string;
+    pageSizeParameter?: string;
     defaultPageSize: number;
     maxPageSize: number;
 };
+
+export type PageNumberPaginationMetadata = {
+    strategy: "page-number";
+    itemsField: string;
+    pageField: string;
+    pageSizeField: string;
+    totalField: string;
+    pageParameter?: string;
+    pageSizeParameter?: string;
+    defaultPageSize: number;
+    maxPageSize: number;
+};
+
+export type PaginationMetadata =
+    | LinkPaginationMetadata
+    | PageNumberPaginationMetadata;
 
 export type EndpointContract<Authorization = unknown> = {
     meta: {
@@ -99,6 +132,12 @@ export function assertSdkMetadataConsistency(
             segment.type === "param" ? [segment.name] : []
         )
     );
+    if (
+        sdk?.method !== undefined &&
+        !/^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(sdk.method)
+    ) {
+        throw new Error(`Invalid SDK method "${sdk.method}"`);
+    }
     for (const parameter of Object.keys(sdk?.pathParameters ?? {})) {
         if (!pathParameters.has(parameter)) {
             throw new Error(
@@ -133,7 +172,11 @@ export function assertSdkMetadataConsistency(
         if (
             !responseBody ||
             !schemaHasPath(responseBody, pagination.itemsField) ||
-            !schemaHasPath(responseBody, pagination.nextField)
+            ("nextField" in pagination
+                ? !schemaHasPath(responseBody, pagination.nextField)
+                : !schemaHasPath(responseBody, pagination.pageField) ||
+                  !schemaHasPath(responseBody, pagination.pageSizeField) ||
+                  !schemaHasPath(responseBody, pagination.totalField))
         ) {
             throw new Error(
                 "SDK pagination fields must exist in the successful response"
@@ -142,7 +185,8 @@ export function assertSdkMetadataConsistency(
     }
 }
 
-function schemaHasPath(schema: z.ZodType, path: string): boolean {
+function schemaHasPath(schema: z.ZodType, path: string | undefined): boolean {
+    if (!path) return false;
     let current: unknown = schema;
     for (const part of path.split(".")) {
         if (!(current instanceof z.ZodObject)) return false;

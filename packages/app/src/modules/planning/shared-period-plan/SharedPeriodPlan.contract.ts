@@ -4,6 +4,7 @@ import { periodPlanningClass } from "#/modules/planning/period-plan/PeriodPlan.c
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     filterDefinition,
+    pathParam,
     pathSeg,
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
@@ -40,6 +41,15 @@ const sharedPeriodPlanning = z
     })
     .strict()
     .openapi("SharedPeriodPlanning");
+const sharedPeriodPlanningPage = z
+    .object({
+        items: z.array(sharedPeriodPlanning),
+        page: z.number().int(),
+        pageSize: z.number().int(),
+        total: z.number().int()
+    })
+    .strict()
+    .openapi("SharedPeriodPlanningPage");
 
 const publicPath = [pathSeg.literal("shared-period-plannings")];
 const studentPath = [
@@ -62,23 +72,15 @@ const studentFilter = resourceFilterSchema(
 export type SharedPeriodPlanningFilter = Filter;
 const publicQuery = z
     .object({
-        page: z
-            .string()
-            .pipe(z.coerce.number())
-            .pipe(z.number().int().min(1))
-            .default(1),
-        pageSize: z
-            .string()
-            .pipe(z.coerce.number())
-            .pipe(z.number().int().min(1).max(50))
-            .default(20),
+        page: z.coerce.number().int().min(1).default(1),
+        pageSize: z.coerce.number().int().min(1).max(50).default(20),
         query: z.string().trim().min(1).optional(),
         filter: publicFilter.optional()
     })
     .strict()
     .openapi("ListPublicSharedPeriodPlanningsQuery");
 const sidPath = z.object({
-    sid: z.string().pipe(z.coerce.number()).pipe(z.number().int())
+    sid: pathParam.integer()
 });
 const sharePath = z.object({ shareId: z.string().uuid() });
 
@@ -88,21 +90,21 @@ const listPublic = {
         path: publicPath,
         tags: ["shared-period-plannings"],
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        sdk: { resource: "sharedPeriodPlannings", action: "list" as const },
+        pagination: {
+            strategy: "page-number" as const,
+            itemsField: "items",
+            pageField: "page",
+            pageSizeField: "pageSize",
+            totalField: "total",
+            defaultPageSize: 20,
+            maxPageSize: 50
+        }
     },
     request: z.object({ query: publicQuery }),
     response: new OutputBuilder()
-        .ok(
-            z
-                .object({
-                    items: z.array(sharedPeriodPlanning),
-                    page: z.number().int(),
-                    pageSize: z.number().int(),
-                    total: z.number().int()
-                })
-                .strict(),
-            "Planejamentos públicos recuperados"
-        )
+        .ok(sharedPeriodPlanningPage, "Planejamentos públicos recuperados")
         .build()
 } satisfies IO;
 
@@ -133,22 +135,28 @@ const listForStudent = {
             "sid",
             StudentCapabilities.PLANNING_READ
         ),
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        sdk: {
+            resource: "studentSharedPeriodPlannings",
+            action: "list" as const,
+            pathParameters: { sid: "studentId" }
+        },
+        pagination: {
+            strategy: "page-number" as const,
+            itemsField: "items",
+            pageField: "page",
+            pageSizeField: "pageSize",
+            totalField: "total",
+            defaultPageSize: 20,
+            maxPageSize: 50
+        }
     },
     request: z.object({
         path: sidPath,
         query: z
             .object({
-                page: z
-                    .string()
-                    .pipe(z.coerce.number())
-                    .pipe(z.number().int().min(1))
-                    .default(1),
-                pageSize: z
-                    .string()
-                    .pipe(z.coerce.number())
-                    .pipe(z.number().int().min(1).max(50))
-                    .default(20),
+                page: z.coerce.number().int().min(1).default(1),
+                pageSize: z.coerce.number().int().min(1).max(50).default(20),
                 filter: studentFilter.optional()
             })
             .strict()
@@ -156,14 +164,7 @@ const listForStudent = {
     }),
     response: new OutputBuilder()
         .ok(
-            z
-                .object({
-                    items: z.array(sharedPeriodPlanning),
-                    page: z.number().int(),
-                    pageSize: z.number().int(),
-                    total: z.number().int()
-                })
-                .strict(),
+            sharedPeriodPlanningPage,
             "Planejamentos compartilhados recuperados"
         )
         .build()

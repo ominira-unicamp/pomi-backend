@@ -1,7 +1,11 @@
 import type { RouteConfig } from "@asteasolutions/zod-to-openapi";
-import type z from "zod";
+import z from "zod";
 
-import type { EndpointContract } from "../http/EndpointContract.js";
+import type {
+    EndpointContract,
+    PaginationMetadata,
+    SdkOperationMetadata
+} from "../http/EndpointContract.js";
 import { pathSegmentToOpenApiPath } from "../PathSegment.js";
 import {
     operationIdFromEndpoint,
@@ -77,6 +81,9 @@ export function openApiFromEndpoint(
             contract.meta.path,
             contract.meta.tags
         );
+    const sdk = contract.meta.sdk ?? sdkMetadata(operationId, contract);
+    const pagination =
+        contract.meta.pagination ?? linkPaginationMetadata(contract, sdk);
 
     return {
         method: contract.meta.method,
@@ -90,11 +97,74 @@ export function openApiFromEndpoint(
         ...(contract.meta.deprecated !== undefined
             ? { deprecated: contract.meta.deprecated }
             : {}),
-        ...(contract.meta.sdk ? { "x-pomi-sdk": contract.meta.sdk } : {}),
-        ...(contract.meta.pagination
-            ? { "x-pomi-pagination": contract.meta.pagination }
-            : {}),
+        ...(sdk ? { "x-pomi-sdk": sdk } : {}),
+        ...(pagination ? { "x-pomi-pagination": pagination } : {}),
         request: request.build(),
         responses: responses.build()
     } as RouteConfig;
+}
+
+function sdkMetadata(
+    operationId: string,
+    contract: EndpointContract<unknown>
+): SdkOperationMetadata | undefined {
+    const match = /^(list|get|create|update|delete)([A-Z].*)$/.exec(
+        operationId
+    );
+    if (!match) return undefined;
+
+    const action = match[1] as SdkOperationMetadata["action"];
+    const resource = `${match[2][0].toLowerCase()}${match[2].slice(1)}`;
+    const singular = resource.endsWith("ies")
+        ? `${resource.slice(0, -3)}y`
+        : resource.endsWith("s")
+          ? resource.slice(0, -1)
+          : resource;
+    const pathParameters = Object.fromEntries(
+        contract.meta.path.flatMap((segment) => {
+            if (segment.type !== "param") return [];
+            if (segment.name === "sid") return [[segment.name, "studentId"]];
+            if (segment.name === "id") return [[segment.name, `${singular}Id`]];
+            return [[segment.name, segment.name]];
+        })
+    );
+
+    return { resource, action, pathParameters };
+}
+
+function linkPaginationMetadata(
+    contract: EndpointContract<unknown>,
+    sdk: SdkOperationMetadata | undefined
+): PaginationMetadata | undefined {
+    if (sdk?.action !== "list") return undefined;
+    const response = contract.response.options.find((variant) => {
+        const status = variant.shape.status.value;
+        return status >= 200 && status < 300;
+    });
+    const schema = response
+        ? (response.shape.body as z.ZodOptional<z.ZodType>).unwrap()
+        : undefined;
+    if (
+        !schema ||
+        !schemaHasPath(schema, "data") ||
+        !schemaHasPath(schema, "_paths.next")
+    )
+        return undefined;
+    return {
+        itemsField: "data",
+        nextField: "_paths.next",
+        defaultPageSize: 100,
+        maxPageSize: 1000
+    };
+}
+
+function schemaHasPath(schema: z.ZodType, path: string): boolean {
+    let current: unknown = schema;
+    for (const part of path.split(".")) {
+        if (!(current instanceof z.ZodObject)) return false;
+        const child = current.shape[part];
+        if (!child) return false;
+        current = child;
+    }
+    return true;
 }

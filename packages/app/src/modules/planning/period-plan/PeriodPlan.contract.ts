@@ -3,6 +3,7 @@ import { type IO, OutputBuilder } from "#/Contract.js";
 import { InvalidPeriodPlanProblem } from "#/modules/planning/period-plan/PeriodPlan.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     ResourceNotFoundProblemSchema,
@@ -123,8 +124,8 @@ const get = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number()),
-            id: z.string().pipe(z.coerce.number()).pipe(z.number())
+            sid: pathParam.integer(),
+            id: pathParam.integer()
         })
     }),
     response: new OutputBuilder()
@@ -149,7 +150,7 @@ const list = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number())
+            sid: pathParam.integer()
         })
     }),
     response: new OutputBuilder()
@@ -187,7 +188,7 @@ const create = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number())
+            sid: pathParam.integer()
         }),
         body: createBody
     }),
@@ -240,8 +241,8 @@ const patch = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number()),
-            id: z.string().pipe(z.coerce.number()).pipe(z.number())
+            sid: pathParam.integer(),
+            id: pathParam.integer()
         }),
         body: patchBody
     }),
@@ -279,8 +280,8 @@ const remove = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number()),
-            id: z.string().pipe(z.coerce.number()).pipe(z.number())
+            sid: pathParam.integer(),
+            id: pathParam.integer()
         })
     }),
     response: new OutputBuilder()

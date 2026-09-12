@@ -3,6 +3,7 @@ import { type IO, OutputBuilder } from "#/Contract.js";
 import { InvalidStudentProfileProblem } from "#/modules/planning/student/Student.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     ResourceNotFoundProblemSchema,
@@ -68,7 +69,7 @@ const get = {
     },
     request: z.object({
         path: z.object({
-            id: z.string().pipe(z.coerce.number()).pipe(z.number())
+            id: pathParam.integer()
         })
     }),
     response: new OutputBuilder()
@@ -122,7 +123,7 @@ const patch = {
     },
     request: z.object({
         path: z.object({
-            id: z.string().pipe(z.coerce.number()).pipe(z.number())
+            id: pathParam.integer()
         }),
         body: patchStudentBody
     }),
@@ -150,7 +151,7 @@ const remove = {
     },
     request: z.object({
         path: z.object({
-            id: z.string().pipe(z.coerce.number()).pipe(z.number())
+            id: pathParam.integer()
         }),
         body: z
             .object({

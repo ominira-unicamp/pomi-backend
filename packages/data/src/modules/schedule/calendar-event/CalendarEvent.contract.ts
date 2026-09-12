@@ -3,6 +3,7 @@ import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     filterDefinition,
+    pathParam,
     pathSeg,
     resourceFilterSchema,
     SpecBuilder,
@@ -55,12 +56,7 @@ const calendarEventFilter = resourceFilterSchema(
 const get = {
     meta: { ...specsBuilder.get(), authorization: policies.public },
     request: z.object({
-        path: z.object({
-            id: z
-                .string()
-                .pipe(z.coerce.number())
-                .pipe(z.number().int().positive())
-        })
+        path: z.object({ id: pathParam.positiveInteger() })
     }),
     response: new OutputBuilder()
         .ok(schema, "Calendar event retrieved successfully")

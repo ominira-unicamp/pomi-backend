@@ -5,6 +5,7 @@ import {
     equalityOperators,
     filterDefinition,
     getPaginatedSchema,
+    pathParam,
     pathSeg,
     resourceFilterSchema,
     serializeQueryParams,
@@ -161,7 +162,7 @@ const list = {
 const get = {
     meta: { ...specsBuilder.get(), authorization: policies.public },
     request: z.object({
-        path: z.object({ id: z.coerce.number().int() }).strict()
+        path: z.object({ id: pathParam.integer() }).strict()
     }),
     response: new OutputBuilder()
         .ok(catalogCourseEntity, "Catalog course retrieved successfully")

@@ -5,6 +5,7 @@ import {
     filterDefinition,
     getPaginatedSchema,
     paginationQuerySchema,
+    pathParam,
     pathSeg,
     resourceFilterSchema,
     SpecBuilder,
@@ -21,7 +22,7 @@ const profileSpecs = new SpecBuilder(
     "id"
 );
 const idPath = z.object({
-    id: z.string().pipe(z.coerce.number()).pipe(z.number().int().positive())
+    id: pathParam.positiveInteger()
 });
 const profileId = z.number().int().positive();
 const careerReference = z
@@ -32,7 +33,8 @@ const careerReference = z
         category: z.string().nullable(),
         progressionOrder: z.number().int()
     })
-    .strict();
+    .strict()
+    .openapi("CareerReference");
 const position = z
     .object({
         id: profileId,
@@ -43,13 +45,15 @@ const position = z
         postdoctoralModality: z.string().nullable(),
         careerReference: careerReference.nullable()
     })
-    .strict();
+    .strict()
+    .openapi("ProfessorPosition");
 const unit = z
     .object({ id: profileId, code: z.string(), name: z.string() })
     .strict();
 const department = z
     .object({ id: profileId, name: z.string(), unitId: profileId })
-    .strict();
+    .strict()
+    .openapi("Department");
 const identifier = z
     .object({ id: profileId, system: z.string(), externalId: z.string() })
     .strict();
@@ -98,18 +102,20 @@ const profile = z
     })
     .strict()
     .openapi("ProfessorDataPortalProfile");
-export const profileSummary = profile.pick({
-    id: true,
-    professorId: true,
-    portalId: true,
-    name: true,
-    email: true,
-    lattesAbstract: true,
-    unit: true,
-    department: true,
-    position: true,
-    _paths: true
-});
+export const profileSummary = profile
+    .pick({
+        id: true,
+        professorId: true,
+        portalId: true,
+        name: true,
+        email: true,
+        lattesAbstract: true,
+        unit: true,
+        department: true,
+        position: true,
+        _paths: true
+    })
+    .openapi("ProfessorDataPortalProfileSummary");
 
 export type ProfileFilter = Filter;
 const profileFilterDefinitions = {
@@ -217,8 +223,12 @@ export const positionSchema = position;
 export const departmentSchema = department;
 export const keywordSchema = z
     .object({ id: profileId, name: z.string() })
-    .strict();
-export const coauthorSchema = keywordSchema;
+    .strict()
+    .openapi("Keyword");
+export const coauthorSchema = z
+    .object({ id: profileId, name: z.string() })
+    .strict()
+    .openapi("Coauthor");
 const keywordList = {
     meta: {
         ...new SpecBuilder(

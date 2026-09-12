@@ -3,6 +3,7 @@ import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     filterDefinition,
+    pathParam,
     pathSeg,
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
@@ -19,10 +20,6 @@ const tags = ["curriculum-suggestions"];
 const specsBuilder = new SpecBuilder(basePath, tags, "id");
 
 const positiveId = z.number().int().positive();
-const pathId = z
-    .string()
-    .pipe(z.coerce.number())
-    .pipe(z.number().int().positive());
 const catalogYear = z.number().int().min(1900).max(2100);
 const suggestionType = z.enum(CurriculumSuggestionType);
 const specializationSummary = z
@@ -108,7 +105,9 @@ const listQuerySchema = z
 
 const get = {
     meta: { ...specsBuilder.get(), authorization: policies.public },
-    request: z.object({ path: z.object({ id: pathId }).strict() }),
+    request: z.object({
+        path: z.object({ id: pathParam.positiveInteger() }).strict()
+    }),
     response: new OutputBuilder()
         .ok(
             curriculumSuggestionEntitySchema,

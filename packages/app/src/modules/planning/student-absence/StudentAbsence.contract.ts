@@ -4,6 +4,7 @@ import { InvalidStudentAbsenceProblem } from "#/modules/planning/student-absence
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     filterDefinition,
+    pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     resourceFilterSchema,
@@ -80,10 +81,10 @@ const absenceBody = z
     .openapi("CreateStudentAbsenceBody");
 
 const studentPath = z.object({
-    sid: z.string().pipe(z.coerce.number()).pipe(z.number().int())
+    sid: pathParam.integer()
 });
 const entityPath = studentPath.extend({
-    id: z.string().pipe(z.coerce.number()).pipe(z.number().int())
+    id: pathParam.integer()
 });
 
 const absenceFilter = resourceFilterSchema(

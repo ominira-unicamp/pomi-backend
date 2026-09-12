@@ -1,7 +1,11 @@
 import { policies, StudentCapabilities } from "#/Authorization.js";
 import { type IO, OutputBuilder } from "#/Contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { pathSeg, ReferenceNotFoundProblemSchema } from "@pomi/api-core";
+import {
+    pathParam,
+    pathSeg,
+    ReferenceNotFoundProblemSchema
+} from "@pomi/api-core";
 import z from "zod";
 
 extendZodWithOpenApi(z);
@@ -13,7 +17,7 @@ const path = [
 ];
 
 const studentPath = z.object({
-    sid: z.string().pipe(z.coerce.number()).pipe(z.number().int().positive())
+    sid: pathParam.positiveInteger()
 });
 
 const entity = z

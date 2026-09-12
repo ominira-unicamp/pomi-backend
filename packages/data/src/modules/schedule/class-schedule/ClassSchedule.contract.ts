@@ -9,6 +9,7 @@ import {
     getPaginatedSchema,
     paginationQuerySchema,
     PaginationQueryType,
+    pathParam,
     pathSeg,
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
@@ -133,7 +134,7 @@ const get = {
     meta: { ...specsBuilder.get(), authorization: policies.public },
     request: z.object({
         path: z.object({
-            id: z.string().pipe(z.coerce.number()).pipe(z.number())
+            id: pathParam.integer()
         })
     }),
     response: new OutputBuilder()

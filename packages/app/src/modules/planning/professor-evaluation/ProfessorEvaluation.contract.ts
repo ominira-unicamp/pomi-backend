@@ -4,6 +4,7 @@ import { InvalidProfessorEvaluationProblem } from "#/modules/planning/professor-
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     filterDefinition,
+    pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     resourceFilterSchema,
@@ -31,9 +32,9 @@ const pendingPath = [
 ];
 
 const path = z.object({
-    sid: z.string().pipe(z.coerce.number()).pipe(z.number().int()),
-    classId: z.string().pipe(z.coerce.number()).pipe(z.number().int()),
-    professorId: z.string().pipe(z.coerce.number()).pipe(z.number().int())
+    sid: pathParam.integer(),
+    classId: pathParam.integer(),
+    professorId: pathParam.integer()
 });
 
 const score = z.number().int().min(1).max(5);
@@ -169,7 +170,7 @@ const listPending = {
     },
     request: z.object({
         path: z.object({
-            sid: z.string().pipe(z.coerce.number()).pipe(z.number().int())
+            sid: pathParam.integer()
         }),
         query: z
             .object({ filter: pendingFilter })
