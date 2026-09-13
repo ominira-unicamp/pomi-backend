@@ -3,7 +3,9 @@ import { OutputBuilder, type IO } from "#/Contract.js";
 import { InvalidStudentCourseAttemptProblem } from "#/modules/planning/student-course-attempt/StudentCourseAttempt.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
     filterDefinition,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
@@ -11,6 +13,7 @@ import {
     ResourceNotFoundProblemSchema,
     SpecBuilder,
     UniqueConstraintConflictProblemSchema,
+    unpaginatedByDefault,
     type Filter
 } from "@pomi/api-core";
 import z from "zod";
@@ -185,20 +188,22 @@ const list = {
             "sid",
             StudentCapabilities.HISTORY_READ
         ),
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: unpaginatedByDefault
     },
     request: z.object({
         path: z.object({
             sid: pathParam.integer()
         }),
-        query: z
-            .object({ filter: attemptFilter.optional() })
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            filter: attemptFilter.optional()
+        })
             .strict()
             .openapi("ListStudentCourseAttemptsQuery")
     }),
     response: new OutputBuilder()
         .ok(
-            z.array(attemptEntity),
+            getPaginatedSchema(attemptEntity),
             "Student course attempts retrieved successfully"
         )
         .build()

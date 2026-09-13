@@ -2,9 +2,12 @@ import { createDataEndpointRegistries, type Context } from "#/BuildHandler.js";
 import IO, { classPaths } from "#/modules/schedule/class/Class.contract.js";
 import {
     ApiResponse,
+    buildPaginationPath,
     buildPaginationResponse,
     createResultResponder,
+    paginatedByDefault,
     problemResponse,
+    resolvePagination,
     ResourceNotFoundProblem,
     serializeQueryParams,
     type EndpointActions
@@ -23,14 +26,13 @@ function listPath(query: Record<string, unknown>) {
 const actions: Actions = {
     list: async (ctx, input) => {
         const result = await ctx.classService.list(input.query);
-        const page = input.query.page ?? 1;
-        const pageSize = input.query.pageSize ?? Math.max(result.total, 1);
+        const pagination = resolvePagination(input.query, paginatedByDefault);
         return ApiResponse.ok(
             buildPaginationResponse<typeof IO.schema>(
                 result.items,
                 result.total,
-                { page, pageSize },
-                (next) => listPath({ ...input.query, page: next, pageSize })
+                pagination,
+                (link) => buildPaginationPath("/classes", input.query, link)
             )
         );
     },

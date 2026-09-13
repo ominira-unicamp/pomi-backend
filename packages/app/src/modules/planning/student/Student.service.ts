@@ -169,7 +169,9 @@ export function createStudentService({
 }): StudentService {
     return {
         async list() {
-            return (await prisma.student.findMany()).map(studentEntity.build);
+            return (
+                await prisma.student.findMany({ orderBy: { id: "asc" } })
+            ).map(studentEntity.build);
         },
         async getById(id) {
             const student = await prisma.student.findUnique({ where: { id } });

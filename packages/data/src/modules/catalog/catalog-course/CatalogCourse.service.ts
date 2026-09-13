@@ -8,8 +8,11 @@ import {
     compileFilterWhere,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
     type Result
 } from "@pomi/api-core";
@@ -45,7 +48,11 @@ export function catalogCourseFilterWhere(
 }
 
 export type CatalogCourseService = {
-    list(query: Query): Promise<{ items: CatalogCourse[]; total: number }>;
+    list(query: Query): Promise<{
+        items: CatalogCourse[];
+        total: number;
+        pagination: import("@pomi/api-core").ResolvedPagination;
+    }>;
     getById(
         id: number
     ): Promise<
@@ -60,28 +67,25 @@ export function createCatalogCourseService({
 }): CatalogCourseService {
     return {
         async list(query) {
+            const pagination = resolvePagination(query, unpaginatedByDefault);
             const filterWhere = catalogCourseFilterWhere(query.filter);
             const where: MyPrisma.CatalogCourseWhereInput =
                 filterWhere.length > 0 ? { AND: filterWhere } : {};
             const total = await prisma.catalogCourse.count({ where });
             const courses = await prisma.catalogCourse.findMany({
-                ...(query.page !== undefined || query.pageSize !== undefined
-                    ? {
-                          skip:
-                              ((query.page ?? 1) - 1) * (query.pageSize ?? 20),
-                          take: query.pageSize ?? 20
-                      }
-                    : {}),
+                ...prismaPaginationParams(pagination),
                 ...catalogCourseEntity.selection,
                 where,
                 orderBy: [
                     { catalog: { year: "desc" } },
-                    { course: { code: "asc" } }
+                    { course: { code: "asc" } },
+                    { id: "asc" }
                 ]
             });
             return {
                 items: courses.map(catalogCourseEntity.build),
-                total
+                total,
+                pagination
             };
         },
         async getById(id) {

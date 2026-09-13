@@ -3,7 +3,6 @@ import z from "zod";
 
 import type {
     EndpointContract,
-    PaginationMetadata,
     SdkOperationMetadata
 } from "../http/EndpointContract.js";
 import { pathSegmentToOpenApiPath } from "../PathSegment.js";
@@ -82,8 +81,7 @@ export function openApiFromEndpoint(
             contract.meta.tags
         );
     const sdk = contract.meta.sdk ?? sdkMetadata(operationId, contract);
-    const pagination =
-        contract.meta.pagination ?? linkPaginationMetadata(contract, sdk);
+    const pagination = contract.meta.pagination;
 
     return {
         method: contract.meta.method,
@@ -130,41 +128,4 @@ function sdkMetadata(
     );
 
     return { resource, action, pathParameters };
-}
-
-function linkPaginationMetadata(
-    contract: EndpointContract<unknown>,
-    sdk: SdkOperationMetadata | undefined
-): PaginationMetadata | undefined {
-    if (sdk?.action !== "list") return undefined;
-    const response = contract.response.options.find((variant) => {
-        const status = variant.shape.status.value;
-        return status >= 200 && status < 300;
-    });
-    const schema = response
-        ? (response.shape.body as z.ZodOptional<z.ZodType>).unwrap()
-        : undefined;
-    if (
-        !schema ||
-        !schemaHasPath(schema, "data") ||
-        !schemaHasPath(schema, "_paths.next")
-    )
-        return undefined;
-    return {
-        itemsField: "data",
-        nextField: "_paths.next",
-        defaultPageSize: 100,
-        maxPageSize: 1000
-    };
-}
-
-function schemaHasPath(schema: z.ZodType, path: string): boolean {
-    let current: unknown = schema;
-    for (const part of path.split(".")) {
-        if (!(current instanceof z.ZodObject)) return false;
-        const child = current.shape[part];
-        if (!child) return false;
-        current = child;
-    }
-    return true;
 }

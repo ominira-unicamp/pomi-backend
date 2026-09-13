@@ -2,6 +2,7 @@ import { OutputBuilder, type IO } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
@@ -9,6 +10,7 @@ import {
     resourceFilterSchema,
     serializeQueryParams,
     SpecBuilder,
+    unpaginatedByDefault,
     type Filter
 } from "@pomi/api-core";
 import z from "zod";
@@ -52,13 +54,9 @@ const coordinatorFilter = resourceFilterSchema(
     "Structured coordinator filters. Use bracket notation such as filter[name]=Ada."
 );
 
-const listQuery = z
-    .object({
-        page: z.coerce.number().int().min(1).optional(),
-        pageSize: z.coerce.number().int().min(1).optional(),
-        filter: coordinatorFilter.optional()
-    })
-    .openapi("ListCoordinatorsQuery");
+const listQuery = createPaginationQuerySchema(unpaginatedByDefault, {
+    filter: coordinatorFilter.optional()
+}).openapi("ListCoordinatorsQuery");
 
 export type ListQueryParams = z.infer<typeof listQuery>;
 
@@ -66,7 +64,8 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: unpaginatedByDefault
     },
     request: z.object({ query: listQuery.strict() }),
     response: new OutputBuilder()

@@ -1,7 +1,9 @@
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
     createResultResponder,
     problemInput,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -36,11 +38,23 @@ const createForStudent: Actions["createForStudent"] = async (ctx, input) =>
 
 const listStudent: Actions["listStudent"] = async (ctx, input) =>
     ApiResponse.ok(
-        await ctx.feedbackReportService.listForStudent(input.path.sid)
+        buildArrayPaginationResponse(
+            await ctx.feedbackReportService.listForStudent(input.path.sid),
+            input.query,
+            unpaginatedByDefault,
+            `/student/${input.path.sid}/feedback-reports`
+        )
     );
 
-const listAdmin: Actions["listAdmin"] = async (ctx) =>
-    ApiResponse.ok(await ctx.feedbackReportService.listForAdmin());
+const listAdmin: Actions["listAdmin"] = async (ctx, input) =>
+    ApiResponse.ok(
+        buildArrayPaginationResponse(
+            await ctx.feedbackReportService.listForAdmin(),
+            input.query,
+            unpaginatedByDefault,
+            "/admin/feedback-reports"
+        )
+    );
 
 const patchAdmin: Actions["patchAdmin"] = async (ctx, input) =>
     respond(

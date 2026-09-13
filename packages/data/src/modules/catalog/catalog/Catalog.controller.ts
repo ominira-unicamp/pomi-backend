@@ -2,9 +2,11 @@ import { createDataEndpointRegistries, type Context } from "#/BuildHandler.js";
 import IO from "#/modules/catalog/catalog/Catalog.contract.js";
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
     createResultResponder,
     problemResponse,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 const { schemas: _schemas, ...contracts } = IO;
@@ -14,7 +16,14 @@ const respond = createResultResponder({
 });
 const actions: Actions = {
     list: async (ctx, input) =>
-        ApiResponse.ok(await ctx.catalogService.list(input.query)),
+        ApiResponse.ok(
+            buildArrayPaginationResponse(
+                await ctx.catalogService.list(input.query),
+                input.query,
+                unpaginatedByDefault,
+                "/catalogs"
+            )
+        ),
     get: async (ctx, input) =>
         respond(await ctx.catalogService.getById(input.path.id), ApiResponse.ok)
 };

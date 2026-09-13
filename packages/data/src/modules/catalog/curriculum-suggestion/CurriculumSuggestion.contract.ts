@@ -2,12 +2,15 @@ import { OutputBuilder, type IO } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
     filterDefinition,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
     SpecBuilder,
+    unpaginatedByDefault,
     type Filter
 } from "@pomi/api-core";
 import { CurriculumSuggestionType } from "@pomi/db";
@@ -98,8 +101,9 @@ const curriculumSuggestionEntitySchema = curriculumSuggestionDataSchema
     .strict()
     .openapi("CurriculumSuggestionEntity");
 
-const listQuerySchema = z
-    .object({ filter: curriculumSuggestionFilter.optional() })
+const listQuerySchema = createPaginationQuerySchema(unpaginatedByDefault, {
+    filter: curriculumSuggestionFilter.optional()
+})
     .strict()
     .openapi("ListCurriculumSuggestionsQuery");
 
@@ -125,12 +129,13 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: unpaginatedByDefault
     },
     request: z.object({ query: listQuerySchema }),
     response: new OutputBuilder()
         .ok(
-            z.array(curriculumSuggestionEntitySchema),
+            getPaginatedSchema(curriculumSuggestionEntitySchema),
             "List of curriculum suggestions retrieved successfully"
         )
         .badRequest()

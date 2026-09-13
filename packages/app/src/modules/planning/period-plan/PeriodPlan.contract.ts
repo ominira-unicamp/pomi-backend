@@ -3,11 +3,14 @@ import { type IO, OutputBuilder } from "#/Contract.js";
 import { InvalidPeriodPlanProblem } from "#/modules/planning/period-plan/PeriodPlan.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     ResourceNotFoundProblemSchema,
-    SpecBuilder
+    SpecBuilder,
+    unpaginatedByDefault
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -146,16 +149,18 @@ const list = {
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.PLANNING_READ
-        )
+        ),
+        pagination: unpaginatedByDefault
     },
     request: z.object({
         path: z.object({
             sid: pathParam.integer()
-        })
+        }),
+        query: createPaginationQuerySchema(unpaginatedByDefault)
     }),
     response: new OutputBuilder()
         .ok(
-            z.array(periodPlanningEntity),
+            getPaginatedSchema(periodPlanningEntity),
             "List of period plannings retrieved successfully"
         )
         .build()
@@ -297,7 +302,6 @@ function alias<Contract extends IO>(contract: Contract): Contract {
             ...contract.meta,
             operationId: undefined,
             sdk: undefined,
-            pagination: undefined,
             path: contract.meta.path.map((segment) =>
                 segment.type === "literal" &&
                 segment.value === "period-plannings"

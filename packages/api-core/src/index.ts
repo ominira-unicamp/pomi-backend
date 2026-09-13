@@ -15,6 +15,7 @@ export * from "./openapi/EndpointOpenApi.js";
 export * from "./openapi/OperationMetadata.js";
 export { default as RequestBuilder } from "./openapi/RequestBuilder.js";
 export { default as ResponseBuilder } from "./openapi/ResponseBuilder.js";
+export * from "./openapi/SdkSchemaMetadata.js";
 export * from "./operational.js";
 export * from "./pagination.js";
 export * from "./PathParam.js";

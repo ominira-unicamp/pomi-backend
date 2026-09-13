@@ -3,12 +3,15 @@ import { type IO, OutputBuilder } from "#/Contract.js";
 import { InvalidStudentProfileProblem } from "#/modules/planning/student/Student.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     ResourceNotFoundProblemSchema,
     SpecBuilder,
-    UniqueConstraintConflictProblemSchema
+    UniqueConstraintConflictProblemSchema,
+    unpaginatedByDefault
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -79,10 +82,19 @@ const get = {
 } satisfies IO;
 
 const list = {
-    meta: { ...specsBuilder.list(), authorization: policies.admin },
-    request: z.object({}),
+    meta: {
+        ...specsBuilder.list(),
+        authorization: policies.admin,
+        pagination: unpaginatedByDefault
+    },
+    request: z.object({
+        query: createPaginationQuerySchema(unpaginatedByDefault)
+    }),
     response: new OutputBuilder()
-        .ok(z.array(studentEntity), "List of students retrieved successfully")
+        .ok(
+            getPaginatedSchema(studentEntity),
+            "List of students retrieved successfully"
+        )
         .build()
 } satisfies IO;
 

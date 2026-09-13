@@ -2,6 +2,7 @@ import type { CookieOptions } from "express";
 import z from "zod";
 
 import type { PathSegment } from "../PathSegment.js";
+import type { PaginationPolicy } from "../pagination.js";
 
 export const HttpMethods = {
     GET: "get",
@@ -74,31 +75,7 @@ export type SdkSchemaMetadata = {
     transportFields?: string[];
 };
 
-export type LinkPaginationMetadata = {
-    strategy?: "link";
-    itemsField: string;
-    nextField: string;
-    pageParameter?: string;
-    pageSizeParameter?: string;
-    defaultPageSize: number;
-    maxPageSize: number;
-};
-
-export type PageNumberPaginationMetadata = {
-    strategy: "page-number";
-    itemsField: string;
-    pageField: string;
-    pageSizeField: string;
-    totalField: string;
-    pageParameter?: string;
-    pageSizeParameter?: string;
-    defaultPageSize: number;
-    maxPageSize: number;
-};
-
-export type PaginationMetadata =
-    | LinkPaginationMetadata
-    | PageNumberPaginationMetadata;
+export type PaginationMetadata = PaginationPolicy;
 
 export type EndpointContract<Authorization = unknown> = {
     meta: {
@@ -125,6 +102,22 @@ export function assertSdkMetadataConsistency(
 ) {
     const sdk = contract.meta.sdk;
     const pagination = contract.meta.pagination;
+    const responseBody = getSuccessfulResponseBody(contract);
+    const hasPaginationEnvelope =
+        responseBody !== undefined &&
+        schemaHasPath(responseBody, "data") &&
+        schemaHasPath(responseBody, "quantity") &&
+        schemaHasPath(responseBody, "total") &&
+        schemaHasPath(responseBody, "_paths.next");
+
+    if (responseBody instanceof z.ZodArray) {
+        throw new Error(
+            "Collection endpoints must use the standard pagination envelope"
+        );
+    }
+    if (hasPaginationEnvelope && !pagination) {
+        throw new Error("Paginated responses must declare a pagination policy");
+    }
     if (!sdk && !pagination) return;
 
     const pathParameters = new Set(
@@ -151,38 +144,44 @@ export function assertSdkMetadataConsistency(
             );
         }
     }
-    if (pagination && sdk?.action !== "list") {
+    if (pagination && sdk && sdk.action !== "list") {
         throw new Error("SDK pagination metadata requires action=list");
     }
-    if (
-        pagination &&
-        (pagination.defaultPageSize < 1 ||
-            pagination.maxPageSize < pagination.defaultPageSize)
-    ) {
-        throw new Error("Invalid SDK pagination limits");
-    }
     if (pagination) {
-        const success = contract.response.options.find((variant) => {
-            const status = variant.shape.status.value;
-            return status >= 200 && status < 300;
-        });
-        const responseBody = success
-            ? (success.shape.body as z.ZodOptional<z.ZodType>).unwrap()
-            : undefined;
         if (
-            !responseBody ||
-            !schemaHasPath(responseBody, pagination.itemsField) ||
-            ("nextField" in pagination
-                ? !schemaHasPath(responseBody, pagination.nextField)
-                : !schemaHasPath(responseBody, pagination.pageField) ||
-                  !schemaHasPath(responseBody, pagination.pageSizeField) ||
-                  !schemaHasPath(responseBody, pagination.totalField))
+            pagination.defaultPageSize < 1 ||
+            (pagination.maxPageSize !== undefined &&
+                pagination.maxPageSize < pagination.defaultPageSize) ||
+            (pagination.defaultMode === "all" && !pagination.allowAll)
         ) {
+            throw new Error("Invalid pagination policy");
+        }
+        const query = contract.request.shape.query;
+        if (
+            !(query instanceof z.ZodObject) ||
+            !Object.hasOwn(query.shape, "page") ||
+            !Object.hasOwn(query.shape, "pageSize")
+        ) {
+            throw new Error(
+                "Paginated endpoints must define page and pageSize query parameters"
+            );
+        }
+        if (!hasPaginationEnvelope) {
             throw new Error(
                 "SDK pagination fields must exist in the successful response"
             );
         }
     }
+}
+
+function getSuccessfulResponseBody(contract: EndpointContract<unknown>) {
+    const success = contract.response.options.find((variant) => {
+        const status = variant.shape.status.value;
+        return status >= 200 && status < 300;
+    });
+    if (!success) return undefined;
+    const body = success.shape.body;
+    return body instanceof z.ZodOptional ? body.unwrap() : body;
 }
 
 function schemaHasPath(schema: z.ZodType, path: string | undefined): boolean {

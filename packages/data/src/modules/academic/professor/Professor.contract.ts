@@ -4,6 +4,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     filterDefinition,
     getPaginatedSchema,
+    paginatedByDefault,
     paginationQuerySchema,
     pathParam,
     pathSeg,
@@ -69,7 +70,8 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: paginatedByDefault
     },
     request: z.object({
         query: listProfessorsQuery

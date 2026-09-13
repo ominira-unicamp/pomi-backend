@@ -20,18 +20,15 @@ const respond = createResultResponder({
 
 const list: Actions["list"] = async (ctx, input) => {
     const result = await ctx.coordinatorService.list(input.query);
-    const page = input.query.page ?? 1;
-    const pageSize = input.query.pageSize ?? Math.max(result.total, 1);
     return ApiResponse.ok(
         buildPaginationResponse<typeof IO.schema>(
             result.items as Array<z.infer<typeof IO.schema>>,
             result.total,
-            { page, pageSize },
-            (pageNumber) =>
+            result.pagination,
+            (pagination) =>
                 coordinatorPaths.list({
                     ...input.query,
-                    page: pageNumber,
-                    pageSize
+                    ...pagination
                 })
         )
     );

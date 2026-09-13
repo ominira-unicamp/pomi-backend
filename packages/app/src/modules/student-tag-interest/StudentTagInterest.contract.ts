@@ -2,9 +2,12 @@ import { policies, StudentCapabilities } from "#/Authorization.js";
 import { type IO, OutputBuilder } from "#/Contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
-    ReferenceNotFoundProblemSchema
+    ReferenceNotFoundProblemSchema,
+    unpaginatedByDefault
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -44,11 +47,15 @@ const list = {
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.PROFILE_READ
-        )
+        ),
+        pagination: unpaginatedByDefault
     },
-    request: z.object({ path: studentId }),
+    request: z.object({
+        path: studentId,
+        query: createPaginationQuerySchema(unpaginatedByDefault)
+    }),
     response: new OutputBuilder()
-        .ok(z.array(tag), "Interesses por tags recuperados")
+        .ok(getPaginatedSchema(tag), "Interesses por tags recuperados")
         .build()
 } satisfies IO;
 

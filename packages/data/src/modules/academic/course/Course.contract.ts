@@ -2,6 +2,7 @@ import { OutputBuilder, type IO } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
     equalityOperators,
     filterDefinition,
     getPaginatedSchema,
@@ -11,7 +12,8 @@ import {
     serializeQueryParams,
     SpecBuilder,
     type Filter,
-    type FilterValue
+    type FilterValue,
+    type PaginationPolicy
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -77,18 +79,16 @@ const courseFilter = resourceFilterSchema(
     }
 );
 
-const listCourseQuery = z
-    .object({
-        page: z.coerce.number().int().min(1).optional().openapi({
-            description:
-                "Page number. If omitted together with pageSize, all courses are returned."
-        }),
-        pageSize: z.coerce.number().int().min(1).optional().openapi({
-            description:
-                "Number of courses per page. If omitted together with page, all courses are returned."
-        }),
-        filter: courseFilter.optional()
-    })
+export const coursePagination = {
+    defaultMode: "all",
+    defaultPageSize: 20,
+    maxPageSize: 1000,
+    allowAll: true
+} satisfies PaginationPolicy;
+
+const listCourseQuery = createPaginationQuerySchema(coursePagination, {
+    filter: courseFilter.optional()
+})
     .strict()
     .openapi("ListCoursesQuery");
 export type ListQueryParams = z.infer<typeof listCourseQuery>;
@@ -123,12 +123,7 @@ const list = {
         authorization: policies.public,
         queryFeatures: { filter: true },
         sdk: { resource: "courses", action: "list" as const },
-        pagination: {
-            itemsField: "data",
-            nextField: "_paths.next",
-            defaultPageSize: 20,
-            maxPageSize: 1000
-        }
+        pagination: coursePagination
     },
     request: z.object({
         query: listCourseQuery

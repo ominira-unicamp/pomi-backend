@@ -3,13 +3,18 @@ import type { AuthorizationPolicy } from "#/auth.js";
 import IO, { relatedCourse } from "#/modules/tagging/Tagging.contract.js";
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
+    buildPaginationPath,
     buildPaginationResponse,
     createResultResponder,
+    paginatedByDefault,
     problemInput,
     problemResponse,
     ReferenceNotFoundProblem,
+    resolvePagination,
     ResourceNotFoundProblem,
     UniqueConstraintConflictProblem,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -22,21 +27,43 @@ const respond = createResultResponder({
     )
 });
 const actions: Actions = {
-    listCategories: async (ctx) =>
-        ApiResponse.ok(await ctx.taggingService.listCategories()),
+    listCategories: async (ctx, input) =>
+        ApiResponse.ok(
+            buildArrayPaginationResponse(
+                await ctx.taggingService.listCategories(),
+                input.query,
+                unpaginatedByDefault,
+                "/categories"
+            )
+        ),
     getCategory: async (ctx, input) =>
         respond(
             await ctx.taggingService.getCategory(input.path.id),
             ApiResponse.ok
         ),
     listTags: async (ctx, input) =>
-        ApiResponse.ok(await ctx.taggingService.listTags(input.query)),
+        ApiResponse.ok(
+            buildArrayPaginationResponse(
+                await ctx.taggingService.listTags(input.query),
+                input.query,
+                unpaginatedByDefault,
+                "/tags"
+            )
+        ),
     getTag: async (ctx, input) =>
         respond(await ctx.taggingService.getTag(input.path.id), ApiResponse.ok),
     listCourseTags: async (ctx, input) =>
         respond(
             await ctx.taggingService.listCourseTags(input.path.courseId),
-            ApiResponse.ok
+            (items) =>
+                ApiResponse.ok(
+                    buildArrayPaginationResponse(
+                        items,
+                        input.query,
+                        unpaginatedByDefault,
+                        `/courses/${input.path.courseId}/tags`
+                    )
+                )
         ),
     listTagCourses: async (ctx, input) =>
         respond(
@@ -50,12 +77,13 @@ const actions: Actions = {
                     buildPaginationResponse<typeof relatedCourse>(
                         value.items,
                         value.total,
-                        {
-                            page: input.query.page ?? 1,
-                            pageSize: input.query.pageSize ?? 20
-                        },
-                        (page) =>
-                            `/tags/${input.path.id}/courses?page=${page}&pageSize=${input.query.pageSize ?? 20}`
+                        resolvePagination(input.query, paginatedByDefault),
+                        (link) =>
+                            buildPaginationPath(
+                                `/tags/${input.path.id}/courses`,
+                                input.query,
+                                link
+                            )
                     )
                 )
         ),

@@ -6,10 +6,13 @@ import {
 } from "#/modules/feedback/feedback-report/FeedbackReport.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
-    ResourceNotFoundProblemSchema
+    ResourceNotFoundProblemSchema,
+    unpaginatedByDefault
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -131,11 +134,15 @@ const listStudent = {
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.FEEDBACK_READ
-        )
+        ),
+        pagination: unpaginatedByDefault
     },
-    request: z.object({ path: studentPath }),
+    request: z.object({
+        path: studentPath,
+        query: createPaginationQuerySchema(unpaginatedByDefault)
+    }),
     response: new OutputBuilder()
-        .ok(z.array(report), "Solicitações recuperadas")
+        .ok(getPaginatedSchema(report), "Solicitações recuperadas")
         .build()
 } satisfies IO;
 
@@ -144,11 +151,14 @@ const listAdmin = {
         method: "get" as const,
         path: [pathSeg.literal("admin"), pathSeg.literal("feedback-reports")],
         tags: ["feedback-reports"],
-        authorization: policies.admin
+        authorization: policies.admin,
+        pagination: unpaginatedByDefault
     },
-    request: z.object({}),
+    request: z.object({
+        query: createPaginationQuerySchema(unpaginatedByDefault)
+    }),
     response: new OutputBuilder()
-        .ok(z.array(report), "Solicitações recuperadas")
+        .ok(getPaginatedSchema(report), "Solicitações recuperadas")
         .build()
 } satisfies IO;
 

@@ -7,6 +7,7 @@ import {
     filterDefinition,
     type FilterValue,
     getPaginatedSchema,
+    paginatedByDefault,
     paginationQuerySchema,
     PaginationQueryType,
     pathParam,
@@ -151,7 +152,8 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: paginatedByDefault
     },
     request: z.object({
         query: getClassSchedulesQuery

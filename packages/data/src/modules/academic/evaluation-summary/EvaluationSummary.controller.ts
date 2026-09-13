@@ -1,9 +1,13 @@
 import {
     ApiResponse,
+    ResourceNotFoundProblem,
+    buildPaginationPath,
     buildPaginationResponse,
     createResultResponder,
+    paginateItems,
+    paginatedByDefault,
     problemResponse,
-    ResourceNotFoundProblem,
+    resolvePagination,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -21,13 +25,6 @@ const respond = createResultResponder({
     [ResourceNotFoundProblem.type]: problemResponse(ResourceNotFoundProblem)
 });
 
-function pagePath(path: string, page: number, pageSize: number) {
-    return `${path}?${new URLSearchParams({
-        page: String(page),
-        pageSize: String(pageSize)
-    })}`;
-}
-
 const professorSummaries: Actions["professorSummaries"] = async (
     ctx,
     input
@@ -35,19 +32,17 @@ const professorSummaries: Actions["professorSummaries"] = async (
     const summaries = await ctx.evaluationSummaryService.listProfessorSummaries(
         input.query.filter
     );
-    const page = input.query.page ?? 1;
-    const pageSize = input.query.pageSize ?? Math.max(summaries.length, 1);
-    const start = (page - 1) * pageSize;
+    const pagination = resolvePagination(input.query, paginatedByDefault);
     return ApiResponse.ok(
         buildPaginationResponse<typeof IO.professorSummary>(
-            summaries.slice(start, start + pageSize),
+            paginateItems(summaries, pagination),
             summaries.length,
-            { page, pageSize },
-            (pageNumber) =>
-                pagePath(
+            pagination,
+            (link) =>
+                buildPaginationPath(
                     "/professors/evaluation-summaries",
-                    pageNumber,
-                    pageSize
+                    input.query,
+                    link
                 )
         )
     );
@@ -57,16 +52,18 @@ const courseSummaries: Actions["courseSummaries"] = async (ctx, input) => {
     const summaries = await ctx.evaluationSummaryService.listCourseSummaries(
         input.query.filter
     );
-    const page = input.query.page ?? 1;
-    const pageSize = input.query.pageSize ?? Math.max(summaries.length, 1);
-    const start = (page - 1) * pageSize;
+    const pagination = resolvePagination(input.query, paginatedByDefault);
     return ApiResponse.ok(
         buildPaginationResponse<typeof IO.courseSummary>(
-            summaries.slice(start, start + pageSize),
+            paginateItems(summaries, pagination),
             summaries.length,
-            { page, pageSize },
-            (pageNumber) =>
-                pagePath("/courses/evaluation-summaries", pageNumber, pageSize)
+            pagination,
+            (link) =>
+                buildPaginationPath(
+                    "/courses/evaluation-summaries",
+                    input.query,
+                    link
+                )
         )
     );
 };

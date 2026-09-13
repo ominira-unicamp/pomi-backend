@@ -1,7 +1,9 @@
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
     createResultResponder,
     problemInput,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -16,7 +18,12 @@ const respond = createResultResponder(studentAbsenceProblemResponses);
 
 const list: Actions["list"] = async (ctx, input) =>
     ApiResponse.ok(
-        await ctx.studentAbsenceService.list(input.path.sid, input.query)
+        buildArrayPaginationResponse(
+            await ctx.studentAbsenceService.list(input.path.sid, input.query),
+            input.query,
+            unpaginatedByDefault,
+            `/student/${input.path.sid}/absences`
+        )
     );
 
 const create: Actions["create"] = async (ctx, input) =>

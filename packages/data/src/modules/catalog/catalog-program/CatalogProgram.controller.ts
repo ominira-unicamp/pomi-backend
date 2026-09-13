@@ -1,6 +1,8 @@
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
     createResultResponder,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -14,7 +16,14 @@ type Actions = EndpointActions<typeof contracts, AuthorizationPolicy, Context>;
 const respond = createResultResponder(catalogProgramProblemResponses);
 
 const list: Actions["list"] = async (ctx, input) =>
-    ApiResponse.ok(await ctx.catalogProgramService.list(input.query));
+    ApiResponse.ok(
+        buildArrayPaginationResponse(
+            await ctx.catalogProgramService.list(input.query),
+            input.query,
+            unpaginatedByDefault,
+            "/catalog-program"
+        )
+    );
 
 const get: Actions["get"] = async (ctx, input) => {
     return respond(

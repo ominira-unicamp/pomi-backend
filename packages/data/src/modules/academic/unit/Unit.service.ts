@@ -45,7 +45,8 @@ export function createUnitService({
             const filterWhere = unitFilterWhere(query.filter);
             return (
                 await prisma.unit.findMany({
-                    where: filterWhere.length > 0 ? { AND: filterWhere } : {}
+                    where: filterWhere.length > 0 ? { AND: filterWhere } : {},
+                    orderBy: [{ code: "asc" }, { id: "asc" }]
                 })
             ).map(unitEntity.build);
         },

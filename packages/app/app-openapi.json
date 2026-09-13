@@ -42,7 +42,11 @@
           "capabilities",
           "studentId"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity",
+          "publicName": "CurrentUser"
+        }
       },
       "InvalidRequestProblem": {
         "type": "object",
@@ -85,7 +89,10 @@
           "detail",
           "fields"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "ProblemField": {
         "type": "object",
@@ -114,7 +121,10 @@
           "path",
           "message"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "InternalServerErrorProblem": {
         "type": "object",
@@ -150,7 +160,10 @@
           "status",
           "detail"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "BotIdentityEntity": {
         "type": "object",
@@ -167,7 +180,11 @@
           "id",
           "displayName"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity",
+          "publicName": "BotIdentity"
+        }
       },
       "BotGrantEntity": {
         "type": "object",
@@ -232,7 +249,11 @@
           "revokedAt",
           "botAuthUser"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity",
+          "publicName": "BotGrant"
+        }
       },
       "ResourceNotFoundProblem": {
         "type": "object",
@@ -268,7 +289,10 @@
           "status",
           "detail"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "ReplaceBotGrantBody": {
         "type": "object",
@@ -295,7 +319,10 @@
         "required": [
           "capabilities"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input"
+        }
       },
       "StudentEntity": {
         "type": "object",
@@ -358,7 +385,14 @@
           "languageId",
           "_paths"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity",
+          "publicName": "Student",
+          "transportFields": [
+            "_paths"
+          ]
+        }
       },
       "UniqueConstraintConflictProblem": {
         "type": "object",
@@ -401,7 +435,10 @@
           "detail",
           "fields"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "ReferenceNotFoundProblem": {
         "type": "object",
@@ -444,7 +481,10 @@
           "detail",
           "fields"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "InvalidStudentProfileProblem": {
         "type": "object",
@@ -507,7 +547,10 @@
           "detail",
           "fields"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "CreateStudentBody": {
         "type": "object",
@@ -541,7 +584,10 @@
         "required": [
           "name"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input"
+        }
       },
       "PatchStudentBody": {
         "type": "object",
@@ -575,7 +621,10 @@
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input"
+        }
       },
       "CurriculumEntity": {
         "type": "object",
@@ -747,7 +796,14 @@
           "updatedAt",
           "_paths"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity",
+          "publicName": "Curriculum",
+          "transportFields": [
+            "_paths"
+          ]
+        }
       },
       "CurriculumSummaryEntity": {
         "type": "object",
@@ -822,7 +878,14 @@
           "updatedAt",
           "_paths"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity",
+          "publicName": "CurriculumSummary",
+          "transportFields": [
+            "_paths"
+          ]
+        }
       },
       "InvalidCurriculumProblem": {
         "type": "object",
@@ -884,7 +947,10 @@
           "detail",
           "fields"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "PeriodPlanningEntity": {
         "type": "object",
@@ -1145,7 +1211,14 @@
           "classes",
           "_paths"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity",
+          "publicName": "PeriodPlanning",
+          "transportFields": [
+            "_paths"
+          ]
+        }
       },
       "InvalidPeriodPlanProblem": {
         "type": "object",
@@ -1207,7 +1280,10 @@
           "detail",
           "fields"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "CreatePeriodPlanningInput": {
         "type": "object",
@@ -1297,7 +1373,10 @@
           "studyPeriodId",
           "classes"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input"
+        }
       },
       "UpdatePeriodPlanningInput": {
         "type": "object",
@@ -1405,34 +1484,64 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input"
+        }
       },
       "SharedPeriodPlanningPage": {
         "type": "object",
         "properties": {
-          "items": {
+          "data": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SharedPeriodPlanning"
             }
           },
-          "page": {
-            "type": "integer"
-          },
-          "pageSize": {
+          "quantity": {
             "type": "integer"
           },
           "total": {
             "type": "integer"
+          },
+          "_paths": {
+            "type": "object",
+            "properties": {
+              "firstPage": {
+                "type": "string"
+              },
+              "lastPage": {
+                "type": "string"
+              },
+              "next": {
+                "type": "string",
+                "nullable": true
+              },
+              "prev": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "firstPage",
+              "lastPage",
+              "next",
+              "prev"
+            ]
           }
         },
         "required": [
-          "items",
-          "page",
-          "pageSize",
-          "total"
+          "data",
+          "quantity",
+          "total",
+          "_paths"
         ],
-        "additionalProperties": false
+        "x-pomi-schema": {
+          "kind": "page",
+          "transportFields": [
+            "_paths"
+          ]
+        }
       },
       "SharedPeriodPlanning": {
         "type": "object",
@@ -1608,7 +1717,10 @@
           "createdAt",
           "updatedAt"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity"
+        }
       },
       "ProfessorEvaluationEligibility": {
         "type": "object",
@@ -1624,7 +1736,10 @@
           "eligible",
           "evaluation"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "projection"
+        }
       },
       "ProfessorEvaluation": {
         "type": "object",
@@ -1683,7 +1798,10 @@
           "createdAt",
           "updatedAt"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity"
+        }
       },
       "InvalidProfessorEvaluationProblem": {
         "type": "object",
@@ -1746,7 +1864,10 @@
           "detail",
           "fields"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "ProfessorEvaluationBody": {
         "type": "object",
@@ -1778,7 +1899,10 @@
           "clarity",
           "difficulty"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input"
+        }
       },
       "PendingProfessorEvaluation": {
         "type": "object",
@@ -1842,7 +1966,10 @@
           "course",
           "professor"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity"
+        }
       },
       "StudentCourseAttempt": {
         "type": "object",
@@ -2045,7 +2172,13 @@
           "class",
           "_paths"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity",
+          "transportFields": [
+            "_paths"
+          ]
+        }
       },
       "InvalidStudentCourseAttemptProblem": {
         "type": "object",
@@ -2108,7 +2241,10 @@
           "detail",
           "fields"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "CreateStudentCourseAttemptInput": {
         "type": "object",
@@ -2157,7 +2293,10 @@
           "courseId",
           "status"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input"
+        }
       },
       "UpdateStudentCourseAttemptInput": {
         "type": "object",
@@ -2199,7 +2338,10 @@
             "maximum": 10
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input"
+        }
       },
       "StudentHistoryImportSummary": {
         "type": "object",
@@ -2253,7 +2395,10 @@
           "skipped",
           "warnings"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "projection"
+        }
       },
       "InvalidStudentHistoryImportProblem": {
         "type": "object",
@@ -2316,7 +2461,10 @@
           "detail",
           "fields"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "StudentHistoryImportBody": {
         "type": "object",
@@ -2431,7 +2579,10 @@
           "student",
           "semesters"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input"
+        }
       },
       "StudentAbsence": {
         "type": "object",
@@ -2554,7 +2705,13 @@
           "end",
           "_paths"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity",
+          "transportFields": [
+            "_paths"
+          ]
+        }
       },
       "InvalidStudentAbsenceProblem": {
         "type": "object",
@@ -2617,7 +2774,10 @@
           "detail",
           "fields"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "CreateStudentAbsenceBody": {
         "type": "object",
@@ -2638,7 +2798,10 @@
           "classScheduleId",
           "date"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input"
+        }
       },
       "StudentPublicProfile": {
         "type": "object",
@@ -2770,7 +2933,13 @@
           "enabled",
           "currentCoursesVisibility"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity",
+          "transportFields": [
+            "_paths"
+          ]
+        }
       },
       "StudentCurrentCourse": {
         "type": "object",
@@ -2834,34 +3003,64 @@
           "classCode",
           "schedules"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity"
+        }
       },
       "StudentPeoplePage": {
         "type": "object",
         "properties": {
-          "items": {
+          "data": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/StudentPublicPerson"
             }
           },
-          "page": {
-            "type": "number"
-          },
-          "pageSize": {
-            "type": "number"
+          "quantity": {
+            "type": "integer"
           },
           "total": {
-            "type": "number"
+            "type": "integer"
+          },
+          "_paths": {
+            "type": "object",
+            "properties": {
+              "firstPage": {
+                "type": "string"
+              },
+              "lastPage": {
+                "type": "string"
+              },
+              "next": {
+                "type": "string",
+                "nullable": true
+              },
+              "prev": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "firstPage",
+              "lastPage",
+              "next",
+              "prev"
+            ]
           }
         },
         "required": [
-          "items",
-          "page",
-          "pageSize",
-          "total"
+          "data",
+          "quantity",
+          "total",
+          "_paths"
         ],
-        "additionalProperties": false
+        "x-pomi-schema": {
+          "kind": "page",
+          "transportFields": [
+            "_paths"
+          ]
+        }
       },
       "StudentPublicPerson": {
         "type": "object",
@@ -2980,7 +3179,13 @@
           "entryYear",
           "_paths"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity",
+          "transportFields": [
+            "_paths"
+          ]
+        }
       },
       "StudentFriendship": {
         "type": "object",
@@ -3041,7 +3246,13 @@
           "acceptedAt",
           "_paths"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity",
+          "transportFields": [
+            "_paths"
+          ]
+        }
       },
       "FeedbackReportAccepted": {
         "type": "object",
@@ -3054,7 +3265,10 @@
         "required": [
           "createdAt"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "projection"
+        }
       },
       "InvalidFeedbackReportProblem": {
         "type": "object",
@@ -3117,7 +3331,10 @@
           "detail",
           "fields"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "FeedbackRateLimitProblem": {
         "type": "object",
@@ -3159,7 +3376,10 @@
           "detail",
           "retryAfterSeconds"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem"
+        }
       },
       "CreateFeedbackReportBody": {
         "type": "object",
@@ -3197,7 +3417,10 @@
           "title",
           "description"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input"
+        }
       },
       "FeedbackReportTarget": {
         "oneOf": [
@@ -3280,7 +3503,10 @@
             ],
             "additionalProperties": false
           }
-        ]
+        ],
+        "x-pomi-schema": {
+          "kind": "entity"
+        }
       },
       "FeedbackReport": {
         "type": "object",
@@ -3347,7 +3573,10 @@
           "createdAt",
           "updatedAt"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity"
+        }
       },
       "ExchangeNoticeSubscription": {
         "type": "object",
@@ -3374,7 +3603,10 @@
           "enabled",
           "placeIds"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity"
+        }
       },
       "PatchExchangeNoticeSubscriptionBody": {
         "type": "object",
@@ -3391,7 +3623,10 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input"
+        }
       },
       "Category": {
         "type": "object",
@@ -3408,7 +3643,10 @@
           "id",
           "name"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity"
+        }
       },
       "Tag": {
         "type": "object",
@@ -3434,7 +3672,10 @@
           "categoryId",
           "parentTagId"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity"
+        }
       },
       "TagRelatedCourse": {
         "type": "object",
@@ -3461,7 +3702,10 @@
           "name",
           "credits"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity"
+        }
       },
       "StudentTagInterest": {
         "type": "object",
@@ -3492,7 +3736,10 @@
           "categoryId",
           "parentTagId"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity"
+        }
       }
     },
     "parameters": {},
@@ -3568,16 +3815,97 @@
           "action": "list",
           "pathParameters": {}
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Bots ativos recuperados",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BotIdentityEntity"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/BotIdentityEntity"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }
@@ -3622,16 +3950,97 @@
           "action": "list",
           "pathParameters": {}
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Permissões de bots recuperadas",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BotGrantEntity"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/BotGrantEntity"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }
@@ -4555,6 +4964,11 @@
             "sid": "studentId"
           }
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
         "parameters": [
           {
             "schema": {
@@ -4563,6 +4977,38 @@
             "required": true,
             "name": "sid",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
           }
         ],
         "responses": {
@@ -4571,10 +5017,52 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/CurriculumSummaryEntity"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CurriculumSummaryEntity"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }
@@ -5089,6 +5577,11 @@
             "sid": "studentId"
           }
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
         "parameters": [
           {
             "schema": {
@@ -5097,6 +5590,38 @@
             "required": true,
             "name": "sid",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
           }
         ],
         "responses": {
@@ -5105,10 +5630,52 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PeriodPlanningEntity"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PeriodPlanningEntity"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }
@@ -5521,6 +6088,11 @@
             "sid": "studentId"
           }
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
         "parameters": [
           {
             "schema": {
@@ -5529,6 +6101,38 @@
             "required": true,
             "name": "sid",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
           }
         ],
         "responses": {
@@ -5537,10 +6141,52 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PeriodPlanningEntity"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PeriodPlanningEntity"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }
@@ -5681,22 +6327,20 @@
           "action": "list"
         },
         "x-pomi-pagination": {
-          "strategy": "page-number",
-          "itemsField": "items",
-          "pageField": "page",
-          "pageSizeField": "pageSize",
-          "totalField": "total",
+          "defaultMode": "page",
           "defaultPageSize": 20,
-          "maxPageSize": 50
+          "maxPageSize": 50,
+          "allowAll": false
         },
         "parameters": [
           {
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "default": 1
+              "description": "Page number. The first page is 1."
             },
             "required": false,
+            "description": "Page number. The first page is 1.",
             "name": "page",
             "in": "query"
           },
@@ -5705,9 +6349,10 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 50,
-              "default": 20
+              "description": "Number of items per page."
             },
             "required": false,
+            "description": "Number of items per page.",
             "name": "pageSize",
             "in": "query"
           },
@@ -5899,13 +6544,10 @@
           }
         },
         "x-pomi-pagination": {
-          "strategy": "page-number",
-          "itemsField": "items",
-          "pageField": "page",
-          "pageSizeField": "pageSize",
-          "totalField": "total",
+          "defaultMode": "page",
           "defaultPageSize": 20,
-          "maxPageSize": 50
+          "maxPageSize": 50,
+          "allowAll": false
         },
         "parameters": [
           {
@@ -5920,9 +6562,10 @@
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "default": 1
+              "description": "Page number. The first page is 1."
             },
             "required": false,
+            "description": "Page number. The first page is 1.",
             "name": "page",
             "in": "query"
           },
@@ -5931,9 +6574,10 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 50,
-              "default": 20
+              "description": "Number of items per page."
             },
             "required": false,
+            "description": "Number of items per page.",
             "name": "pageSize",
             "in": "query"
           },
@@ -6355,6 +6999,11 @@
             "sid": "studentId"
           }
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
         "parameters": [
           {
             "schema": {
@@ -6363,6 +7012,38 @@
             "required": true,
             "name": "sid",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
           },
           {
             "schema": {
@@ -6461,10 +7142,52 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PendingProfessorEvaluation"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PendingProfessorEvaluation"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }
@@ -6791,6 +7514,11 @@
             "sid": "studentId"
           }
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
         "parameters": [
           {
             "schema": {
@@ -6799,6 +7527,38 @@
             "required": true,
             "name": "sid",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
           },
           {
             "schema": {
@@ -6977,10 +7737,52 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/StudentCourseAttempt"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StudentCourseAttempt"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }
@@ -7227,6 +8029,11 @@
             "sid": "studentId"
           }
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
         "parameters": [
           {
             "schema": {
@@ -7235,6 +8042,38 @@
             "required": true,
             "name": "sid",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
           },
           {
             "schema": {
@@ -7301,10 +8140,52 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/StudentAbsence"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StudentAbsence"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }
@@ -7713,13 +8594,10 @@
           }
         },
         "x-pomi-pagination": {
-          "strategy": "page-number",
-          "itemsField": "items",
-          "pageField": "page",
-          "pageSizeField": "pageSize",
-          "totalField": "total",
+          "defaultMode": "page",
           "defaultPageSize": 20,
-          "maxPageSize": 50
+          "maxPageSize": 50,
+          "allowAll": false
         },
         "parameters": [
           {
@@ -7732,20 +8610,12 @@
           },
           {
             "schema": {
-              "type": "string",
-              "minLength": 1
-            },
-            "required": false,
-            "name": "query",
-            "in": "query"
-          },
-          {
-            "schema": {
               "type": "integer",
               "minimum": 1,
-              "default": 1
+              "description": "Page number. The first page is 1."
             },
             "required": false,
+            "description": "Page number. The first page is 1.",
             "name": "page",
             "in": "query"
           },
@@ -7754,10 +8624,20 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 50,
-              "default": 20
+              "description": "Number of items per page."
             },
             "required": false,
+            "description": "Number of items per page.",
             "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "query",
             "in": "query"
           }
         ],
@@ -7897,6 +8777,11 @@
             "sid": "studentId"
           }
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
         "parameters": [
           {
             "schema": {
@@ -7905,6 +8790,38 @@
             "required": true,
             "name": "sid",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
           },
           {
             "schema": {
@@ -8026,10 +8943,52 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/StudentFriendship"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StudentFriendship"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }
@@ -8553,6 +9512,11 @@
             "sid": "studentId"
           }
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
         "parameters": [
           {
             "schema": {
@@ -8561,6 +9525,38 @@
             "required": true,
             "name": "sid",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
           }
         ],
         "responses": {
@@ -8569,10 +9565,52 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/FeedbackReport"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FeedbackReport"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }
@@ -8832,16 +9870,97 @@
           "action": "list",
           "pathParameters": {}
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Categorias recuperadas",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Category"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Category"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }
@@ -9213,7 +10332,44 @@
           "action": "list",
           "pathParameters": {}
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
         "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
+          },
           {
             "schema": {
               "additionalProperties": false,
@@ -9359,10 +10515,52 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Tag"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Tag"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }
@@ -9782,6 +10980,11 @@
             "courseId": "courseId"
           }
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
         "parameters": [
           {
             "schema": {
@@ -9792,6 +10995,38 @@
             "required": true,
             "name": "courseId",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
           }
         ],
         "responses": {
@@ -9800,10 +11035,52 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Tag"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Tag"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }
@@ -9857,10 +11134,9 @@
           }
         },
         "x-pomi-pagination": {
-          "itemsField": "data",
-          "nextField": "_paths.next",
-          "defaultPageSize": 100,
-          "maxPageSize": 1000
+          "defaultMode": "page",
+          "defaultPageSize": 20,
+          "allowAll": false
         },
         "parameters": [
           {
@@ -9876,18 +11152,24 @@
           {
             "schema": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "default": 1,
+              "description": "Page number. The first page is 1."
             },
             "required": false,
+            "description": "Page number. The first page is 1.",
             "name": "page",
             "in": "query"
           },
           {
             "schema": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "default": 20,
+              "description": "Number of items per page."
             },
             "required": false,
+            "description": "Number of items per page.",
             "name": "pageSize",
             "in": "query"
           }
@@ -10152,6 +11434,11 @@
             "sid": "studentId"
           }
         },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
         "parameters": [
           {
             "schema": {
@@ -10160,6 +11447,38 @@
             "required": true,
             "name": "sid",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
           }
         ],
         "responses": {
@@ -10168,10 +11487,52 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/StudentTagInterest"
-                  }
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StudentTagInterest"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
                 }
               }
             }

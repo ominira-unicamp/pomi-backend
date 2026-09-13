@@ -2,12 +2,16 @@ import { policies } from "#/Authorization.js";
 import { OutputBuilder, type IO } from "#/Contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
     filterDefinition,
     getPaginatedSchema,
+    paginatedByDefault,
+    paginationQuerySchema,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     resourceFilterSchema,
     UniqueConstraintConflictProblemSchema,
+    unpaginatedByDefault,
     type Filter
 } from "@pomi/api-core";
 import z from "zod";
@@ -69,11 +73,14 @@ const listCategories = {
         method: "get" as const,
         path: categories,
         tags: ["categories"],
-        authorization: policies.public
+        authorization: policies.public,
+        pagination: unpaginatedByDefault
     },
-    request: z.object({ query: z.object({}).strict() }),
+    request: z.object({
+        query: createPaginationQuerySchema(unpaginatedByDefault).strict()
+    }),
     response: new OutputBuilder()
-        .ok(z.array(category), "Categorias recuperadas")
+        .ok(getPaginatedSchema(category), "Categorias recuperadas")
         .build()
 } satisfies IO;
 const getCategory = {
@@ -95,15 +102,19 @@ const listTags = {
         path: tags,
         tags: ["tags"],
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: unpaginatedByDefault
     },
     request: z.object({
-        query: z
-            .object({ filter: tagFilter.optional() })
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            filter: tagFilter.optional()
+        })
             .strict()
             .openapi("ListTagsQuery")
     }),
-    response: new OutputBuilder().ok(z.array(tag), "Tags recuperadas").build()
+    response: new OutputBuilder()
+        .ok(getPaginatedSchema(tag), "Tags recuperadas")
+        .build()
 } satisfies IO;
 const getTag = {
     meta: {
@@ -124,11 +135,15 @@ const listCourseTags = {
             pathSeg.literal("tags")
         ],
         tags: ["course-tags"],
-        authorization: policies.public
+        authorization: policies.public,
+        pagination: unpaginatedByDefault
     },
-    request: z.object({ path: coursePath }),
+    request: z.object({
+        path: coursePath,
+        query: createPaginationQuerySchema(unpaginatedByDefault)
+    }),
     response: new OutputBuilder()
-        .ok(z.array(tag), "Tags da disciplina recuperadas")
+        .ok(getPaginatedSchema(tag), "Tags da disciplina recuperadas")
         .notFound()
         .build()
 } satisfies IO;
@@ -137,16 +152,12 @@ const listTagCourses = {
         method: "get" as const,
         path: [...tags, pathSeg.param("id"), pathSeg.literal("courses")],
         tags: ["course-tags"],
-        authorization: policies.public
+        authorization: policies.public,
+        pagination: paginatedByDefault
     },
     request: z.object({
         path: entityId,
-        query: z
-            .object({
-                page: z.coerce.number().int().min(1).optional(),
-                pageSize: z.coerce.number().int().min(1).optional()
-            })
-            .strict()
+        query: paginationQuerySchema.strict()
     }),
     response: new OutputBuilder()
         .ok(

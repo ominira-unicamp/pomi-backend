@@ -5,6 +5,7 @@ import {
     ok,
     prismaWhereFor,
     ResourceNotFoundProblem,
+    type Filter,
     type FilterWhereBuilder,
     type Result
 } from "@pomi/api-core";
@@ -204,7 +205,7 @@ export function createProfessorDataPortalService({
     return {
         async listProfiles(query) {
             const filterWhere = compileFilterWhere(
-                query.filter,
+                query.filter as Filter | undefined,
                 profileWhereDefinitions,
                 "professor data portal profile"
             );
@@ -231,7 +232,7 @@ export function createProfessorDataPortalService({
         },
         async listPositions(query) {
             const filterWhere = compileFilterWhere(
-                query.filter,
+                query.filter as Filter | undefined,
                 positionWhereDefinitions,
                 "professor position"
             );
@@ -251,7 +252,7 @@ export function createProfessorDataPortalService({
         },
         async listDepartments(query) {
             const filterWhere = compileFilterWhere(
-                query.filter,
+                query.filter as Filter | undefined,
                 departmentWhereDefinitions,
                 "department"
             );

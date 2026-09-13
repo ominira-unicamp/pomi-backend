@@ -5,6 +5,7 @@ import { Router } from "express";
 
 import { dataControllers } from "#/Controllers.js";
 import {
+    enrichSdkSchemaMetadata,
     operationIdFromOpenApiPath,
     queryFilterOperatorMetadata
 } from "@pomi/api-core";
@@ -61,6 +62,7 @@ export function generateDataOpenApiDocument(audience: "public" | "all") {
         },
         servers: [{ url: "", description: "POMI Data" }]
     });
+    enrichSdkSchemaMetadata(document);
     document.components ??= {};
     document.components.securitySchemes ??= {};
     document.components.securitySchemes.DataAdminToken = {

@@ -3,7 +3,9 @@ import { OutputBuilder, type IO } from "#/Contract.js";
 import { InvalidStudentAbsenceProblem } from "#/modules/planning/student-absence/StudentAbsence.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
     filterDefinition,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
@@ -11,6 +13,7 @@ import {
     ResourceNotFoundProblemSchema,
     SpecBuilder,
     UniqueConstraintConflictProblemSchema,
+    unpaginatedByDefault,
     type Filter
 } from "@pomi/api-core";
 import z from "zod";
@@ -102,17 +105,19 @@ const list = {
             "sid",
             StudentCapabilities.HISTORY_READ
         ),
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: unpaginatedByDefault
     },
     request: z.object({
         path: studentPath,
-        query: z
-            .object({ filter: absenceFilter.optional() })
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            filter: absenceFilter.optional()
+        })
             .strict()
             .openapi("ListStudentAbsencesQuery")
     }),
     response: new OutputBuilder()
-        .ok(z.array(absenceEntity), "Faltas recuperadas com sucesso")
+        .ok(getPaginatedSchema(absenceEntity), "Faltas recuperadas com sucesso")
         .build()
 } satisfies IO;
 

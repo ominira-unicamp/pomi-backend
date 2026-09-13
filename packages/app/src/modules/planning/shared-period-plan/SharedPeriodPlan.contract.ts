@@ -3,13 +3,16 @@ import { OutputBuilder, type IO } from "#/Contract.js";
 import { periodPlanningClass } from "#/modules/planning/period-plan/PeriodPlan.contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
     filterDefinition,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
     SpecBuilder,
-    type Filter
+    type Filter,
+    type PaginationPolicy
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -41,15 +44,16 @@ const sharedPeriodPlanning = z
     })
     .strict()
     .openapi("SharedPeriodPlanning");
-const sharedPeriodPlanningPage = z
-    .object({
-        items: z.array(sharedPeriodPlanning),
-        page: z.number().int(),
-        pageSize: z.number().int(),
-        total: z.number().int()
-    })
-    .strict()
-    .openapi("SharedPeriodPlanningPage");
+const sharedPeriodPlanningPage = getPaginatedSchema(
+    sharedPeriodPlanning
+).openapi("SharedPeriodPlanningPage");
+
+export const sharedPeriodPlanningPagination = {
+    defaultMode: "page",
+    defaultPageSize: 20,
+    maxPageSize: 50,
+    allowAll: false
+} satisfies PaginationPolicy;
 
 const publicPath = [pathSeg.literal("shared-period-plannings")];
 const studentPath = [
@@ -70,13 +74,13 @@ const studentFilter = resourceFilterSchema(
     { ownerPublicId: "a375fdb0-45d9-4a79-8415-89fcb64157b6" }
 );
 export type SharedPeriodPlanningFilter = Filter;
-const publicQuery = z
-    .object({
-        page: z.coerce.number().int().min(1).default(1),
-        pageSize: z.coerce.number().int().min(1).max(50).default(20),
+const publicQuery = createPaginationQuerySchema(
+    sharedPeriodPlanningPagination,
+    {
         query: z.string().trim().min(1).optional(),
         filter: publicFilter.optional()
-    })
+    }
+)
     .strict()
     .openapi("ListPublicSharedPeriodPlanningsQuery");
 const sidPath = z.object({
@@ -92,15 +96,7 @@ const listPublic = {
         authorization: policies.public,
         queryFeatures: { filter: true },
         sdk: { resource: "sharedPeriodPlannings", action: "list" as const },
-        pagination: {
-            strategy: "page-number" as const,
-            itemsField: "items",
-            pageField: "page",
-            pageSizeField: "pageSize",
-            totalField: "total",
-            defaultPageSize: 20,
-            maxPageSize: 50
-        }
+        pagination: sharedPeriodPlanningPagination
     },
     request: z.object({ query: publicQuery }),
     response: new OutputBuilder()
@@ -141,24 +137,13 @@ const listForStudent = {
             action: "list" as const,
             pathParameters: { sid: "studentId" }
         },
-        pagination: {
-            strategy: "page-number" as const,
-            itemsField: "items",
-            pageField: "page",
-            pageSizeField: "pageSize",
-            totalField: "total",
-            defaultPageSize: 20,
-            maxPageSize: 50
-        }
+        pagination: sharedPeriodPlanningPagination
     },
     request: z.object({
         path: sidPath,
-        query: z
-            .object({
-                page: z.coerce.number().int().min(1).default(1),
-                pageSize: z.coerce.number().int().min(1).max(50).default(20),
-                filter: studentFilter.optional()
-            })
+        query: createPaginationQuerySchema(sharedPeriodPlanningPagination, {
+            filter: studentFilter.optional()
+        })
             .strict()
             .openapi("ListStudentSharedPeriodPlanningsQuery")
     }),

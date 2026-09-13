@@ -46,8 +46,10 @@ export function createStudentTagInterestService({
             });
             return interests
                 .map(({ tag }) => toTagEntity(tag))
-                .sort((left, right) =>
-                    left.name.localeCompare(right.name, "pt-BR")
+                .sort(
+                    (left, right) =>
+                        left.name.localeCompare(right.name, "pt-BR") ||
+                        left.id - right.id
                 );
         },
         async put(studentId, tagId) {

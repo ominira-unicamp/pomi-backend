@@ -3,9 +3,12 @@ import { Capabilities, policies } from "#/auth.js";
 import { AdminIdentityManagedByCliProblem } from "#/modules/identity/auth-user/AuthUser.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
-    ResourceNotFoundProblemSchema
+    ResourceNotFoundProblemSchema,
+    unpaginatedByDefault
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -59,11 +62,14 @@ const list = {
         method: "get" as const,
         path: [pathSeg.literal("admin"), pathSeg.literal("auth-users")],
         tags: ["auth-users"],
-        authorization: policies.admin
+        authorization: policies.admin,
+        pagination: unpaginatedByDefault
     },
-    request: z.object({}),
+    request: z.object({
+        query: createPaginationQuerySchema(unpaginatedByDefault)
+    }),
     response: new OutputBuilder()
-        .ok(z.array(entity), "Identidades recuperadas")
+        .ok(getPaginatedSchema(entity), "Identidades recuperadas")
         .build()
 } satisfies IO;
 const create = {

@@ -127,7 +127,8 @@ export function createClassScheduleService({
                     skip: (input.page - 1) * input.pageSize,
                     take: input.pageSize,
                     ...prismaClassScheduleFieldSelection,
-                    where
+                    where,
+                    orderBy: { id: "asc" }
                 })
             ]);
             return {

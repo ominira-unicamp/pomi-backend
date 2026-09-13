@@ -4,8 +4,10 @@ import IO from "#/modules/planning/curriculum/Curriculum.contract.js";
 import { curriculumProblemResponses } from "#/modules/planning/curriculum/Curriculum.problems.js";
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
     createResultResponder,
     problemInput,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -15,7 +17,14 @@ const respond = createResultResponder(curriculumProblemResponses);
 
 const actions: Actions = {
     list: async (ctx, input) =>
-        ApiResponse.ok(await ctx.curriculumService.list(input.path.sid)),
+        ApiResponse.ok(
+            buildArrayPaginationResponse(
+                await ctx.curriculumService.list(input.path.sid),
+                input.query,
+                unpaginatedByDefault,
+                `/student/${input.path.sid}/curricula`
+            )
+        ),
     get: async (ctx, input) =>
         respond(
             await ctx.curriculumService.getById(input.path.sid, input.path.id),

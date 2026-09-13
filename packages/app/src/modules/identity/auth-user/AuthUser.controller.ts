@@ -4,14 +4,24 @@ import IO from "#/modules/identity/auth-user/AuthUser.contract.js";
 import { authUserProblemResponses } from "#/modules/identity/auth-user/AuthUser.problems.js";
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
     createResultResponder,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 const { schemas: _schemas, ...contracts } = IO;
 type Actions = EndpointActions<typeof contracts, AuthorizationPolicy, Context>;
 const respond = createResultResponder(authUserProblemResponses);
 const actions: Actions = {
-    list: async (ctx) => ApiResponse.ok(await ctx.authUserService.list()),
+    list: async (ctx, input) =>
+        ApiResponse.ok(
+            buildArrayPaginationResponse(
+                await ctx.authUserService.list(),
+                input.query,
+                unpaginatedByDefault,
+                "/admin/auth-users"
+            )
+        ),
     create: async (ctx, input) =>
         ApiResponse.created(
             await ctx.authUserService.create(ctx.principal!, input.body)

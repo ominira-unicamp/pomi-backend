@@ -83,7 +83,8 @@ export function createCurriculumSuggestionService({
                     (left, right) =>
                         right.catalogYear - left.catalogYear ||
                         left.programCode - right.programCode ||
-                        left.code.localeCompare(right.code)
+                        left.code.localeCompare(right.code) ||
+                        left.id - right.id
                 );
         },
         async getById(id) {

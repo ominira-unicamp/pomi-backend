@@ -64,7 +64,8 @@ export function createCatalogProgramService({
                 filterWhere.length > 0 ? { AND: filterWhere } : {};
             const catalogPrograms = await prisma.catalogProgram.findMany({
                 ...catalogProgramEntity.prismaSelection,
-                where
+                where,
+                orderBy: { id: "asc" }
             });
             return catalogPrograms.map(catalogProgramEntity.build);
         },

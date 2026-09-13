@@ -1,14 +1,19 @@
 import periodPlanningEntity, {
     prismaPeriodPlanningFieldSelection
 } from "#/modules/planning/period-plan/PeriodPlan.entity.js";
-import IO from "#/modules/planning/shared-period-plan/SharedPeriodPlan.contract.js";
+import IO, {
+    sharedPeriodPlanningPagination
+} from "#/modules/planning/shared-period-plan/SharedPeriodPlan.contract.js";
 import {
     compileFilterWhere,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
+    type ResolvedPagination,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -117,9 +122,8 @@ function publicWhere(query: PublicQuery): MyPrisma.PeriodPlanningWhereInput {
 export type SharedPeriodPlanService = {
     listPublic(input: PublicQuery): Promise<{
         items: SharedPeriodPlan[];
-        page: number;
-        pageSize: number;
         total: number;
+        pagination: ResolvedPagination;
     }>;
     getPublic(shareId: string): Promise<Result<SharedPeriodPlan, NotFound>>;
     listForStudent(
@@ -127,9 +131,8 @@ export type SharedPeriodPlanService = {
         input: StudentQuery
     ): Promise<{
         items: SharedPeriodPlan[];
-        page: number;
-        pageSize: number;
         total: number;
+        pagination: ResolvedPagination;
     }>;
     getForStudent(
         studentId: number,
@@ -176,22 +179,24 @@ export function createSharedPeriodPlanService({
     };
     return {
         async listPublic(input) {
+            const pagination = resolvePagination(
+                input,
+                sharedPeriodPlanningPagination
+            );
             const where = publicWhere(input);
             const [rows, total] = await Promise.all([
                 prisma.periodPlanning.findMany({
                     ...selection,
                     where,
-                    orderBy: { updatedAt: "desc" },
-                    skip: (input.page - 1) * input.pageSize,
-                    take: input.pageSize
+                    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+                    ...prismaPaginationParams(pagination)
                 }),
                 prisma.periodPlanning.count({ where })
             ]);
             return {
                 items: rows.map(buildShared),
-                page: input.page,
-                pageSize: input.pageSize,
-                total
+                total,
+                pagination
             };
         },
         async getPublic(shareId) {
@@ -202,22 +207,24 @@ export function createSharedPeriodPlanService({
             return row ? ok(buildShared(row)) : err(notFound());
         },
         async listForStudent(studentId, input) {
+            const pagination = resolvePagination(
+                input,
+                sharedPeriodPlanningPagination
+            );
             const where = sharedWhere(studentId, input.filter);
             const [rows, total] = await Promise.all([
                 prisma.periodPlanning.findMany({
                     ...selection,
                     where,
-                    orderBy: { updatedAt: "desc" },
-                    skip: (input.page - 1) * input.pageSize,
-                    take: input.pageSize
+                    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+                    ...prismaPaginationParams(pagination)
                 }),
                 prisma.periodPlanning.count({ where })
             ]);
             return {
                 items: rows.map(buildShared),
-                page: input.page,
-                pageSize: input.pageSize,
-                total
+                total,
+                pagination
             };
         },
         async getForStudent(studentId, shareId) {

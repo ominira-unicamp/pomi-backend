@@ -4,6 +4,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     filterDefinition,
     getPaginatedSchema,
+    paginatedByDefault,
     paginationQuerySchema,
     pathSeg,
     resourceFilterSchema,
@@ -86,7 +87,8 @@ const professorSummaries = {
         ],
         tags: ["evaluation-summaries"],
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: paginatedByDefault
     },
     request: z.object({
         query: paginationQuerySchema.extend({
@@ -113,7 +115,8 @@ const courseSummaries = {
         ],
         tags: ["evaluation-summaries"],
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: paginatedByDefault
     },
     request: z.object({
         query: paginationQuerySchema.extend({

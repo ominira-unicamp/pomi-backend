@@ -1,4 +1,6 @@
-import IO from "#/modules/social/student-social/StudentSocial.contract.js";
+import IO, {
+    studentPeoplePagination
+} from "#/modules/social/student-social/StudentSocial.contract.js";
 import {
     socialConflictProblem,
     socialNotFoundProblem
@@ -7,9 +9,12 @@ import {
     compileFilterWhere,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     type FilterExpression,
     type FilterWhereBuilder,
+    type ResolvedPagination,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -267,9 +272,8 @@ export type StudentSocialService = {
         input: PeopleQuery
     ): Promise<{
         items: Person[];
-        page: number;
-        pageSize: number;
         total: number;
+        pagination: ResolvedPagination;
     }>;
     getPerson(
         studentId: number,
@@ -341,6 +345,10 @@ export function createStudentSocialService({
             return ok(buildProfile(student));
         },
         async listPeople(studentId, input) {
+            const pagination = resolvePagination(
+                input,
+                studentPeoplePagination
+            );
             const visibleName = {
                 OR: [
                     {
@@ -372,9 +380,12 @@ export function createStudentSocialService({
                 prisma.student.findMany({
                     where,
                     select: personSelection,
-                    orderBy: [{ publicDisplayName: "asc" }, { name: "asc" }],
-                    skip: (input.page - 1) * input.pageSize,
-                    take: input.pageSize
+                    orderBy: [
+                        { publicDisplayName: "asc" },
+                        { name: "asc" },
+                        { id: "asc" }
+                    ],
+                    ...prismaPaginationParams(pagination)
                 }),
                 prisma.student.count({ where })
             ]);
@@ -405,9 +416,8 @@ export function createStudentSocialService({
                 items: students.map((student) =>
                     buildPerson(student, studentId, false, acceptedFriendIds)
                 ),
-                page: input.page,
-                pageSize: input.pageSize,
-                total
+                total,
+                pagination
             };
         },
         async getPerson(studentId, publicId) {
@@ -472,7 +482,7 @@ export function createStudentSocialService({
                     ]
                 },
                 ...friendshipSelection,
-                orderBy: { updatedAt: "desc" }
+                orderBy: [{ updatedAt: "desc" }, { id: "asc" }]
             });
             return rows.map((row) => buildFriendship(row, studentId));
         },

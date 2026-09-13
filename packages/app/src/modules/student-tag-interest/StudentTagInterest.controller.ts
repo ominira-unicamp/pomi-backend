@@ -1,6 +1,8 @@
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
     createResultResponder,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -15,7 +17,12 @@ const respond = createResultResponder(studentTagInterestProblemResponses);
 const actions: Actions = {
     list: async (ctx, input) =>
         ApiResponse.ok(
-            await ctx.studentTagInterestService.list(input.path.sid)
+            buildArrayPaginationResponse(
+                await ctx.studentTagInterestService.list(input.path.sid),
+                input.query,
+                unpaginatedByDefault,
+                `/student/${input.path.sid}/tag-interests`
+            )
         ),
     put: async (ctx, input) =>
         respond(

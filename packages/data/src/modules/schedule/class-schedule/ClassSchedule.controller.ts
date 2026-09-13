@@ -1,7 +1,10 @@
 import {
     ApiResponse,
+    buildPaginationPath,
     buildPaginationResponse,
     createResultResponder,
+    paginatedByDefault,
+    resolvePagination,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -40,12 +43,13 @@ const respond = createResultResponder(classScheduleProblemResponses);
 
 const list: Actions["list"] = async (ctx, input) => {
     const result = await ctx.classScheduleService.list(input.query);
+    const pagination = resolvePagination(input.query, paginatedByDefault);
     return ApiResponse.ok(
         buildPaginationResponse<typeof classScheduleEntity>(
             result.items.map(withPaths),
             result.total,
-            input.query,
-            (page) => classSchedulePaths.list({ ...input.query, page })
+            pagination,
+            (link) => buildPaginationPath("/class-schedules", input.query, link)
         )
     );
 };

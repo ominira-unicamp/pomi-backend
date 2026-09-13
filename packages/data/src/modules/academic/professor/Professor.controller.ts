@@ -1,7 +1,10 @@
 import {
     ApiResponse,
+    buildPaginationPath,
     buildPaginationResponse,
     createResultResponder,
+    paginatedByDefault,
+    resolvePagination,
     serializeQueryParams,
     type EndpointActions
 } from "@pomi/api-core";
@@ -21,15 +24,13 @@ const respond = createResultResponder({
 
 const list: Actions["list"] = async (ctx, input) => {
     const result = await ctx.professorService.list(input.query);
-    const page = input.query.page ?? 1;
-    const pageSize = input.query.pageSize ?? Math.max(result.total, 1);
+    const pagination = resolvePagination(input.query, paginatedByDefault);
     return ApiResponse.ok(
         buildPaginationResponse<typeof IO.schema>(
             result.items,
             result.total,
-            { page, pageSize },
-            (pageNumber) =>
-                listPath({ ...input.query, page: pageNumber, pageSize })
+            pagination,
+            (link) => buildPaginationPath("/professors", input.query, link)
         )
     );
 };

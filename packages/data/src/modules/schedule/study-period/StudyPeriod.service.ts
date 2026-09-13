@@ -53,7 +53,8 @@ export function createStudyPeriodService({
             const filterWhere = studyPeriodFilterWhere(query.filter);
             return (
                 await prisma.studyPeriod.findMany({
-                    where: filterWhere.length > 0 ? { AND: filterWhere } : {}
+                    where: filterWhere.length > 0 ? { AND: filterWhere } : {},
+                    orderBy: { id: "asc" }
                 })
             ).map(studyPeriodEntity.build);
         },

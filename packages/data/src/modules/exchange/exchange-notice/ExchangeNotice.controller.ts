@@ -2,9 +2,11 @@ import { createDataEndpointRegistries, type Context } from "#/BuildHandler.js";
 import IO from "#/modules/exchange/exchange-notice/ExchangeNotice.contract.js";
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
     createResultResponder,
     problemResponse,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -15,7 +17,14 @@ const respond = createResultResponder({
 });
 const actions: Actions = {
     list: async (ctx, input) =>
-        ApiResponse.ok(await ctx.exchangeNoticeService.list(input.query)),
+        ApiResponse.ok(
+            buildArrayPaginationResponse(
+                await ctx.exchangeNoticeService.list(input.query),
+                input.query,
+                unpaginatedByDefault,
+                "/exchange-notices"
+            )
+        ),
     get: async (ctx, input) =>
         respond(
             await ctx.exchangeNoticeService.getById(input.path.id),

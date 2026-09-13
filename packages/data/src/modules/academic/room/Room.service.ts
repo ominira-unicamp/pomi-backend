@@ -45,7 +45,8 @@ export function createRoomService({
             const filterWhere = roomFilterWhere(query.filter);
             return (
                 await prisma.room.findMany({
-                    where: filterWhere.length > 0 ? { AND: filterWhere } : {}
+                    where: filterWhere.length > 0 ? { AND: filterWhere } : {},
+                    orderBy: [{ code: "asc" }, { id: "asc" }]
                 })
             ).map((room) => ({
                 ...room,

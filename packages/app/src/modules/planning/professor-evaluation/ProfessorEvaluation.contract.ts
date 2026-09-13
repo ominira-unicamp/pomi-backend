@@ -3,11 +3,14 @@ import { OutputBuilder, type IO } from "#/Contract.js";
 import { InvalidProfessorEvaluationProblem } from "#/modules/planning/professor-evaluation/ProfessorEvaluation.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
     filterDefinition,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     resourceFilterSchema,
+    unpaginatedByDefault,
     type Filter
 } from "@pomi/api-core";
 import z from "zod";
@@ -166,19 +169,24 @@ const listPending = {
             "sid",
             StudentCapabilities.HISTORY_READ
         ),
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: unpaginatedByDefault
     },
     request: z.object({
         path: z.object({
             sid: pathParam.integer()
         }),
-        query: z
-            .object({ filter: pendingFilter })
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            filter: pendingFilter
+        })
             .strict()
             .openapi("ListPendingProfessorEvaluationsQuery")
     }),
     response: new OutputBuilder()
-        .ok(z.array(pendingEvaluation), "Avaliações pendentes recuperadas")
+        .ok(
+            getPaginatedSchema(pendingEvaluation),
+            "Avaliações pendentes recuperadas"
+        )
         .build()
 } satisfies IO;
 

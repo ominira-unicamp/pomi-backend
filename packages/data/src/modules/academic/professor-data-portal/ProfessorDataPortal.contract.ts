@@ -2,13 +2,16 @@ import { OutputBuilder, type IO } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
     filterDefinition,
     getPaginatedSchema,
+    paginatedByDefault,
     paginationQuerySchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
     SpecBuilder,
+    unpaginatedByDefault,
     type Filter
 } from "@pomi/api-core";
 import z from "zod";
@@ -163,7 +166,8 @@ const profileList = {
     meta: {
         ...profileSpecs.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: paginatedByDefault
     },
     request: z.object({
         query: paginationQuerySchema
@@ -193,17 +197,22 @@ const simpleList = (
     path: string,
     tag: string,
     schema: z.ZodTypeAny,
-    query = z.object({}),
-    queryFeatures?: { filter?: boolean }
+    filter?: z.ZodType<Filter>
 ) => ({
     meta: {
         ...new SpecBuilder([pathSeg.literal(path)], [tag], "id").list(),
         authorization: policies.public,
-        ...(queryFeatures ? { queryFeatures } : {})
+        ...(filter ? { queryFeatures: { filter: true } } : {}),
+        pagination: unpaginatedByDefault
     },
-    request: z.object({ query }),
+    request: z.object({
+        query: createPaginationQuerySchema(
+            unpaginatedByDefault,
+            filter ? { filter: filter.optional() } : {}
+        ).strict()
+    }),
     response: new OutputBuilder()
-        .ok(z.array(schema), `${tag} retrieved successfully`)
+        .ok(getPaginatedSchema(schema), `${tag} retrieved successfully`)
         .badRequest()
         .build()
 });
@@ -237,7 +246,8 @@ const keywordList = {
             "id"
         ).list(),
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: paginatedByDefault
     },
     request: z.object({
         query: paginationQuerySchema
@@ -260,7 +270,8 @@ const coauthorList = {
             "id"
         ).list(),
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: paginatedByDefault
     },
     request: z.object({
         query: paginationQuerySchema
@@ -282,8 +293,7 @@ export default {
             "professor-positions",
             "professor-positions",
             position,
-            z.object({ filter: positionFilter.optional() }).strict(),
-            { filter: true }
+            positionFilter
         ),
         get: simpleGet("professor-positions", "professor-positions", position)
     },
@@ -292,8 +302,7 @@ export default {
             "departments",
             "departments",
             department,
-            z.object({ filter: departmentFilter.optional() }).strict(),
-            { filter: true }
+            departmentFilter
         ),
         get: simpleGet("departments", "departments", department)
     },

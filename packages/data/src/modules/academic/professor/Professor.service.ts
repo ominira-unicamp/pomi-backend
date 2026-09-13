@@ -59,6 +59,7 @@ export function createProfessorService({
             const professors = await prisma.professor.findMany({
                 where,
                 include: { dataPortalProfile: { select: { id: true } } },
+                orderBy: [{ name: "asc" }, { id: "asc" }],
                 ...(query.page !== undefined || query.pageSize !== undefined
                     ? {
                           skip:

@@ -1,7 +1,9 @@
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
     createResultResponder,
     problemInput,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -14,8 +16,15 @@ const { schema: _schema, ...contracts } = IO;
 type Actions = EndpointActions<typeof contracts, AuthorizationPolicy, Context>;
 const respond = createResultResponder(studentProblemResponses);
 
-const list: Actions["list"] = async (ctx) =>
-    ApiResponse.ok(await ctx.studentService.list());
+const list: Actions["list"] = async (ctx, input) =>
+    ApiResponse.ok(
+        buildArrayPaginationResponse(
+            await ctx.studentService.list(),
+            input.query,
+            unpaginatedByDefault,
+            "/students"
+        )
+    );
 
 const get: Actions["get"] = async (ctx, input) =>
     respond(await ctx.studentService.getById(input.path.id), ApiResponse.ok);

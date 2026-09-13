@@ -2,11 +2,14 @@ import { OutputBuilder, type IO } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
     filterDefinition,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
     SpecBuilder,
+    unpaginatedByDefault,
     type Filter
 } from "@pomi/api-core";
 import z from "zod";
@@ -75,14 +78,17 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: unpaginatedByDefault
     },
     request: z.object({
-        query: z.object({ filter: studyPeriodFilter.optional() }).strict()
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            filter: studyPeriodFilter.optional()
+        }).strict()
     }),
     response: new OutputBuilder()
         .ok(
-            z.array(studyPeriodEntity),
+            getPaginatedSchema(studyPeriodEntity),
             "List of study periods retrieved successfully"
         )
         .build()

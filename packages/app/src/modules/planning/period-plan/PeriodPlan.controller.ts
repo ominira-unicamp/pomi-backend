@@ -4,8 +4,10 @@ import IO from "#/modules/planning/period-plan/PeriodPlan.contract.js";
 import { periodPlanProblemResponses } from "#/modules/planning/period-plan/PeriodPlan.problems.js";
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
     createResultResponder,
     problemInput,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -15,7 +17,14 @@ const respond = createResultResponder(periodPlanProblemResponses);
 
 export const periodPlanActions: Actions = {
     list: async (ctx, input) =>
-        ApiResponse.ok(await ctx.periodPlanService.list(input.path.sid)),
+        ApiResponse.ok(
+            buildArrayPaginationResponse(
+                await ctx.periodPlanService.list(input.path.sid),
+                input.query,
+                unpaginatedByDefault,
+                `/student/${input.path.sid}/period-plannings`
+            )
+        ),
     get: async (ctx, input) =>
         respond(
             await ctx.periodPlanService.getById(input.path.sid, input.path.id),

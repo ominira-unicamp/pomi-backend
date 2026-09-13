@@ -6,9 +6,12 @@ import {
 } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
-    ResourceNotFoundProblemSchema
+    ResourceNotFoundProblemSchema,
+    unpaginatedByDefault
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -51,11 +54,14 @@ const listBots = {
         method: "get" as const,
         path: [pathSeg.literal("bots")],
         tags: ["bot-grants"],
-        authorization: policies.authenticated
+        authorization: policies.authenticated,
+        pagination: unpaginatedByDefault
     },
-    request: z.object({}),
+    request: z.object({
+        query: createPaginationQuerySchema(unpaginatedByDefault)
+    }),
     response: new OutputBuilder()
-        .ok(z.array(bot), "Bots ativos recuperados")
+        .ok(getPaginatedSchema(bot), "Bots ativos recuperados")
         .build()
 } satisfies IO;
 const list = {
@@ -63,11 +69,14 @@ const list = {
         method: "get" as const,
         path: [pathSeg.literal("me"), pathSeg.literal("bot-grants")],
         tags: ["bot-grants"],
-        authorization: policies.authenticated
+        authorization: policies.authenticated,
+        pagination: unpaginatedByDefault
     },
-    request: z.object({}),
+    request: z.object({
+        query: createPaginationQuerySchema(unpaginatedByDefault)
+    }),
     response: new OutputBuilder()
-        .ok(z.array(entity), "Permissões de bots recuperadas")
+        .ok(getPaginatedSchema(entity), "Permissões de bots recuperadas")
         .build()
 } satisfies IO;
 const replace = {

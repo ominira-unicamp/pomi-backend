@@ -2,13 +2,17 @@ import { policies, StudentCapabilities } from "#/Authorization.js";
 import { OutputBuilder, type IO } from "#/Contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
     filterDefinition,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
     UniqueConstraintConflictProblemSchema,
-    type Filter
+    unpaginatedByDefault,
+    type Filter,
+    type PaginationPolicy
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -134,6 +138,13 @@ const friendshipFilter = resourceFilterSchema(
 );
 export type StudentFriendshipFilter = Filter;
 
+export const studentPeoplePagination = {
+    defaultMode: "page",
+    defaultPageSize: 20,
+    maxPageSize: 50,
+    allowAll: false
+} satisfies PaginationPolicy;
+
 const getProfile = {
     meta: {
         method: "get" as const,
@@ -171,35 +182,17 @@ const listPeople = {
             action: "list" as const,
             pathParameters: { sid: "studentId" }
         },
-        pagination: {
-            strategy: "page-number" as const,
-            itemsField: "items",
-            pageField: "page",
-            pageSizeField: "pageSize",
-            totalField: "total",
-            defaultPageSize: 20,
-            maxPageSize: 50
-        }
+        pagination: studentPeoplePagination
     },
     request: z.object({
         path: sidPath,
-        query: z.object({
-            query: z.string().trim().min(1).optional(),
-            page: z.coerce.number().int().min(1).default(1),
-            pageSize: z.coerce.number().int().min(1).max(50).default(20)
+        query: createPaginationQuerySchema(studentPeoplePagination, {
+            query: z.string().trim().min(1).optional()
         })
     }),
     response: new OutputBuilder()
         .ok(
-            z
-                .object({
-                    items: z.array(person),
-                    page: z.number(),
-                    pageSize: z.number(),
-                    total: z.number()
-                })
-                .strict()
-                .openapi("StudentPeoplePage"),
+            getPaginatedSchema(person).openapi("StudentPeoplePage"),
             "Pessoas recuperadas"
         )
         .build()
@@ -223,17 +216,19 @@ const listFriendships = {
         path: friendshipsPath,
         tags: ["student-social"],
         authorization: read,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: unpaginatedByDefault
     },
     request: z.object({
         path: sidPath,
-        query: z
-            .object({ filter: friendshipFilter.optional() })
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            filter: friendshipFilter.optional()
+        })
             .strict()
             .openapi("ListStudentFriendshipsQuery")
     }),
     response: new OutputBuilder()
-        .ok(z.array(friendship), "Amizades recuperadas")
+        .ok(getPaginatedSchema(friendship), "Amizades recuperadas")
         .build()
 } satisfies IO;
 const createFriendship = {

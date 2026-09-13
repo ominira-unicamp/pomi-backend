@@ -8,8 +8,11 @@ import {
     compileFilterWhere,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
     type Result
 } from "@pomi/api-core";
@@ -38,7 +41,11 @@ export function coordinatorFilterWhere(
 }
 
 export type CoordinatorService = {
-    list(query: Query): Promise<{ items: Coordinator[]; total: number }>;
+    list(query: Query): Promise<{
+        items: Coordinator[];
+        total: number;
+        pagination: import("@pomi/api-core").ResolvedPagination;
+    }>;
     getById(
         id: number
     ): Promise<
@@ -53,25 +60,21 @@ export function createCoordinatorService({
 }): CoordinatorService {
     return {
         async list(query) {
+            const pagination = resolvePagination(query, unpaginatedByDefault);
             const filterWhere = coordinatorFilterWhere(query.filter);
             const where: MyPrisma.CoordinatorWhereInput =
                 filterWhere.length > 0 ? { AND: filterWhere } : {};
             const total = await prisma.coordinator.count({ where });
             const coordinators = await prisma.coordinator.findMany({
-                ...(query.page !== undefined || query.pageSize !== undefined
-                    ? {
-                          skip:
-                              ((query.page ?? 1) - 1) * (query.pageSize ?? 20),
-                          take: query.pageSize ?? 20
-                      }
-                    : {}),
+                ...prismaPaginationParams(pagination),
                 ...coordinatorEntity.selection,
                 where,
-                orderBy: { name: "asc" }
+                orderBy: [{ name: "asc" }, { id: "asc" }]
             });
             return {
                 items: coordinators.map(coordinatorEntity.build),
-                total
+                total,
+                pagination
             };
         },
         async getById(id) {

@@ -4,8 +4,12 @@ import IO from "#/modules/social/student-social/StudentSocial.contract.js";
 import { studentSocialProblemResponses } from "#/modules/social/student-social/StudentSocial.problems.js";
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
+    buildPaginationResponse,
     createResultResponder,
     problemInput,
+    serializeQueryParams,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -27,13 +31,26 @@ const actions: Actions = {
             ApiResponse.ok,
             problemInput.body
         ),
-    listPeople: async (ctx, input) =>
-        ApiResponse.ok(
-            await ctx.studentSocialService.listPeople(
-                input.path.sid,
-                input.query
+    listPeople: async (ctx, input) => {
+        const result = await ctx.studentSocialService.listPeople(
+            input.path.sid,
+            input.query
+        );
+        return ApiResponse.ok(
+            buildPaginationResponse<typeof IO.schemas.person>(
+                result.items,
+                result.total,
+                result.pagination,
+                (pagination) => {
+                    const search = serializeQueryParams({
+                        ...input.query,
+                        ...pagination
+                    });
+                    return `/student/${input.path.sid}/people${search ? `?${search}` : ""}`;
+                }
             )
-        ),
+        );
+    },
     getPerson: async (ctx, input) =>
         respond(
             await ctx.studentSocialService.getPerson(
@@ -44,9 +61,14 @@ const actions: Actions = {
         ),
     listFriendships: async (ctx, input) =>
         ApiResponse.ok(
-            await ctx.studentSocialService.listFriendships(
-                input.path.sid,
-                input.query
+            buildArrayPaginationResponse(
+                await ctx.studentSocialService.listFriendships(
+                    input.path.sid,
+                    input.query
+                ),
+                input.query,
+                unpaginatedByDefault,
+                `/student/${input.path.sid}/friendships`
             )
         ),
     createFriendship: async (ctx, input) =>

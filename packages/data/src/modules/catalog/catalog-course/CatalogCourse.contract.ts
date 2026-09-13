@@ -2,6 +2,7 @@ import { OutputBuilder, type IO } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
     equalityOperators,
     filterDefinition,
     getPaginatedSchema,
@@ -10,6 +11,7 @@ import {
     resourceFilterSchema,
     serializeQueryParams,
     SpecBuilder,
+    unpaginatedByDefault,
     type Filter,
     type FilterValue
 } from "@pomi/api-core";
@@ -133,12 +135,9 @@ const catalogCourseEntity = z
     .strict()
     .openapi("CatalogCourseEntity");
 
-const listQuery = z
-    .object({
-        page: z.coerce.number().int().min(1).optional(),
-        pageSize: z.coerce.number().int().min(1).optional(),
-        filter: catalogCourseFilter.optional()
-    })
+const listQuery = createPaginationQuerySchema(unpaginatedByDefault, {
+    filter: catalogCourseFilter.optional()
+})
     .strict()
     .openapi("ListCatalogCoursesQuery");
 
@@ -148,7 +147,8 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: unpaginatedByDefault
     },
     request: z.object({ query: listQuery }),
     response: new OutputBuilder()

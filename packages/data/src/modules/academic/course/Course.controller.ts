@@ -16,15 +16,12 @@ const respond = createResultResponder(courseProblemResponses);
 
 const list: Actions["list"] = async (ctx, input) => {
     const result = await ctx.courseService.list(input.query);
-    const page = input.query.page ?? 1;
-    const pageSize = input.query.pageSize ?? Math.max(result.total, 1);
     return ApiResponse.ok(
         buildPaginationResponse<typeof IO.schema>(
             result.items as Array<z.infer<typeof IO.schema>>,
             result.total,
-            { page, pageSize },
-            (pageNumber) =>
-                coursePaths.list({ ...input.query, page: pageNumber, pageSize })
+            result.pagination,
+            (pagination) => coursePaths.list({ ...input.query, ...pagination })
         )
     );
 };

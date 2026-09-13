@@ -5,6 +5,7 @@ import { Router } from "express";
 
 import { appControllers } from "#/Controllers.js";
 import {
+    enrichSdkSchemaMetadata,
     operationIdFromOpenApiPath,
     queryFilterOperatorMetadata
 } from "@pomi/api-core";
@@ -62,6 +63,7 @@ export function generateAppOpenApiDocument(audience: "student" | "all") {
         },
         servers: [{ url: "", description: "POMI App" }]
     });
+    enrichSdkSchemaMetadata(document);
     document.components ??= {};
     document.components.securitySchemes ??= {};
     document.components.securitySchemes.BearerAuth = {

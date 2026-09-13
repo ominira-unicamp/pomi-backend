@@ -2,15 +2,20 @@ import type {
     CourseFilter,
     CourseFilterName
 } from "#/modules/academic/course/Course.contract.js";
-import IO from "#/modules/academic/course/Course.contract.js";
+import IO, {
+    coursePagination
+} from "#/modules/academic/course/Course.contract.js";
 import courseEntity from "#/modules/academic/course/Course.entity.js";
 import { courseNotFoundProblem } from "#/modules/academic/course/Course.problems.js";
 import {
     compileFilterWhere,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     type FilterWhereBuilder,
+    type ResolvedPagination,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -46,6 +51,7 @@ export type CourseService = {
     list(input: ListQueryParams): Promise<{
         items: CourseEntity[];
         total: number;
+        pagination: ResolvedPagination;
     }>;
     getById(
         id: number
@@ -59,23 +65,22 @@ export function createCourseService({
 }): CourseService {
     return {
         async list(query) {
+            const pagination = resolvePagination(query, coursePagination);
             const filterWhere = courseFilterWhere(query.filter);
             const where: MyPrisma.CourseWhereInput =
                 filterWhere.length > 0 ? { AND: filterWhere } : {};
             const total = await prisma.course.count({ where });
             const courses = await prisma.course.findMany({
-                ...(query.page !== undefined || query.pageSize !== undefined
-                    ? {
-                          skip:
-                              ((query.page ?? 1) - 1) * (query.pageSize ?? 20),
-                          take: query.pageSize ?? 20
-                      }
-                    : {}),
+                ...prismaPaginationParams(pagination),
                 ...courseEntity.selection,
                 where,
-                orderBy: { code: "asc" }
+                orderBy: [{ code: "asc" }, { id: "asc" }]
             });
-            return { items: courses.map(courseEntity.build), total };
+            return {
+                items: courses.map(courseEntity.build),
+                total,
+                pagination
+            };
         },
         async getById(id) {
             const course = await prisma.course.findUnique({

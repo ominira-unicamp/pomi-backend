@@ -1,7 +1,9 @@
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
     createResultResponder,
     problemInput,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -40,9 +42,14 @@ const put: Actions["put"] = async (ctx, input) =>
 
 const listPending: Actions["listPending"] = async (ctx, input) =>
     ApiResponse.ok(
-        await ctx.professorEvaluationService.listPending(
-            input.path.sid,
-            input.query
+        buildArrayPaginationResponse(
+            await ctx.professorEvaluationService.listPending(
+                input.path.sid,
+                input.query
+            ),
+            input.query,
+            unpaginatedByDefault,
+            `/student/${input.path.sid}/professor-evaluations/pending`
         )
     );
 

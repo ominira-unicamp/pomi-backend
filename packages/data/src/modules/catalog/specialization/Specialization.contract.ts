@@ -2,11 +2,14 @@ import { OutputBuilder, type IO } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
     filterDefinition,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
     SpecBuilder,
+    unpaginatedByDefault,
     type Filter
 } from "@pomi/api-core";
 import z from "zod";
@@ -66,13 +69,19 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true }
+        queryFeatures: { filter: true },
+        pagination: unpaginatedByDefault
     },
     request: z.object({
-        query: z.object({ filter: specializationFilter.optional() }).strict()
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            filter: specializationFilter.optional()
+        }).strict()
     }),
     response: new OutputBuilder()
-        .ok(z.array(schema), "List of specializations retrieved successfully")
+        .ok(
+            getPaginatedSchema(schema),
+            "List of specializations retrieved successfully"
+        )
         .build()
 } satisfies IO;
 export default {

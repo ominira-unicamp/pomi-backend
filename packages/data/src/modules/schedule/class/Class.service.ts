@@ -63,6 +63,7 @@ export function createClassService({
                 prisma.class.findMany({
                     ...classEntity.prismaSelection,
                     where,
+                    orderBy: { id: "asc" },
                     skip: ((query.page ?? 1) - 1) * (query.pageSize ?? 20),
                     take: query.pageSize ?? 20
                 })

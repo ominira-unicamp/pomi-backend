@@ -1,10 +1,15 @@
 import { createDataEndpointRegistries, type Context } from "#/BuildHandler.js";
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
+    buildPaginationPath,
     buildPaginationResponse,
     createResultResponder,
+    paginatedByDefault,
     problemResponse,
+    resolvePagination,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 import IO, {
@@ -34,14 +39,18 @@ const actions: Actions = {
         const result = await ctx.professorDataPortalService.listProfiles(
             input.query
         );
-        const page = input.query.page ?? 1;
-        const pageSize = input.query.pageSize ?? 20;
+        const pagination = resolvePagination(input.query, paginatedByDefault);
         return ApiResponse.ok(
             buildPaginationResponse<typeof profileSummary>(
                 result.items,
                 result.total,
-                { page, pageSize },
-                () => "/professor-data-portal-profiles"
+                pagination,
+                (link) =>
+                    buildPaginationPath(
+                        "/professor-data-portal-profiles",
+                        input.query,
+                        link
+                    )
             )
         );
     },
@@ -52,7 +61,12 @@ const actions: Actions = {
         ),
     positionList: async (ctx, input) =>
         ApiResponse.ok(
-            await ctx.professorDataPortalService.listPositions(input.query)
+            buildArrayPaginationResponse(
+                await ctx.professorDataPortalService.listPositions(input.query),
+                input.query,
+                unpaginatedByDefault,
+                "/professor-positions"
+            )
         ),
     positionGet: async (ctx, input) =>
         respond(
@@ -61,7 +75,14 @@ const actions: Actions = {
         ),
     departmentList: async (ctx, input) =>
         ApiResponse.ok(
-            await ctx.professorDataPortalService.listDepartments(input.query)
+            buildArrayPaginationResponse(
+                await ctx.professorDataPortalService.listDepartments(
+                    input.query
+                ),
+                input.query,
+                unpaginatedByDefault,
+                "/departments"
+            )
         ),
     departmentGet: async (ctx, input) =>
         respond(
@@ -72,14 +93,13 @@ const actions: Actions = {
         const result = await ctx.professorDataPortalService.listKeywords(
             input.query
         );
-        const page = input.query.page ?? 1;
-        const pageSize = input.query.pageSize ?? 20;
+        const pagination = resolvePagination(input.query, paginatedByDefault);
         return ApiResponse.ok(
             buildPaginationResponse<typeof keywordSchema>(
                 result.items,
                 result.total,
-                { page, pageSize },
-                () => "/keywords"
+                pagination,
+                (link) => buildPaginationPath("/keywords", input.query, link)
             )
         );
     },
@@ -92,14 +112,13 @@ const actions: Actions = {
         const result = await ctx.professorDataPortalService.listCoauthors(
             input.query
         );
-        const page = input.query.page ?? 1;
-        const pageSize = input.query.pageSize ?? 20;
+        const pagination = resolvePagination(input.query, paginatedByDefault);
         return ApiResponse.ok(
             buildPaginationResponse<typeof coauthorSchema>(
                 result.items,
                 result.total,
-                { page, pageSize },
-                () => "/coauthors"
+                pagination,
+                (link) => buildPaginationPath("/coauthors", input.query, link)
             )
         );
     },

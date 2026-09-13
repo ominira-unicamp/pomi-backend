@@ -1,7 +1,9 @@
 import {
     ApiResponse,
+    buildArrayPaginationResponse,
     createResultResponder,
     serializeQueryParams,
+    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -47,7 +49,14 @@ function withPaths(
 
 const list: Actions["list"] = async (ctx, input) =>
     ApiResponse.ok(
-        (await ctx.curriculumSuggestionService.list(input.query)).map(withPaths)
+        buildArrayPaginationResponse(
+            (await ctx.curriculumSuggestionService.list(input.query)).map(
+                withPaths
+            ),
+            input.query,
+            unpaginatedByDefault,
+            "/curriculum-suggestions"
+        )
     );
 
 const get: Actions["get"] = async (ctx, input) =>

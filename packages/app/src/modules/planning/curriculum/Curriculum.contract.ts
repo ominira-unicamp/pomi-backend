@@ -3,11 +3,14 @@ import { type IO, OutputBuilder } from "#/Contract.js";
 import { InvalidCurriculumProblem } from "#/modules/planning/curriculum/Curriculum.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    createPaginationQuerySchema,
+    getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     ResourceNotFoundProblemSchema,
-    SpecBuilder
+    SpecBuilder,
+    unpaginatedByDefault
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -162,16 +165,18 @@ const list = {
         authorization: policies.studentAccess(
             "sid",
             StudentCapabilities.PLANNING_READ
-        )
+        ),
+        pagination: unpaginatedByDefault
     },
     request: z.object({
         path: z.object({
             sid: pathParam.integer()
-        })
+        }),
+        query: createPaginationQuerySchema(unpaginatedByDefault)
     }),
     response: new OutputBuilder()
         .ok(
-            z.array(curriculumSummaryEntity),
+            getPaginatedSchema(curriculumSummaryEntity),
             "Curricula retrieved successfully"
         )
         .build()
