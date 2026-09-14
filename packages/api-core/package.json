@@ -9,7 +9,7 @@
     },
     "scripts": {
         "build": "tsc -b",
-        "test": "tsx --test test/**/*.test.ts"
+        "test": "tsx --test test/**/*.test.ts tests/**/*.test.ts"
     },
     "dependencies": {
         "@asteasolutions/zod-to-openapi": "^8.2.0",

@@ -84,7 +84,9 @@ export function createAppEndpointRegistries<
             requestIp: request.ip ?? "unknown"
         }),
         registerAuthorization: (method, path, authorization) =>
-            authRegistry.addPolicy(method, path, authorization)
+            authRegistry.addPolicy(method, path, authorization),
+        authorizationSecurity: (authorization) =>
+            authorization.kind === "public" ? [] : [{ BearerAuth: [] }]
     });
     return { router, registry: openApiRegistry, authRegistry };
 }

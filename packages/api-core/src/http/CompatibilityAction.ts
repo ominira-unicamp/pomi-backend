@@ -1,41 +1,28 @@
 import type { Request, Response } from "express";
 import z from "zod";
 
-import type { PathSegment } from "../PathSegment.js";
 import { ZodToApiError } from "../Validation.js";
 import {
     invalidRequestProblem,
     normalizeProblemResponse
 } from "../errors/ProblemDetails.js";
 import type {
+    EndpointContract,
     EndpointRequestSchema,
-    EndpointResponsesSchema,
-    HttpMethod,
-    PaginationMetadata,
-    SdkOperationMetadata
+    EndpointResponsesSchema
 } from "./EndpointContract.js";
 import { executeEffects } from "./RequestHandler.js";
 import { sendProblem } from "./problemResponse.js";
 
-export type CompatibilityContract = {
-    meta: {
-        operationId: string;
-        summary?: string;
-        description?: string;
-        deprecated?: boolean;
-        method: HttpMethod;
-        path: PathSegment[];
-        tags: string[];
-        authorization: unknown;
-        queryFeatures?: {
-            filter?: boolean;
-        };
-        sdk: SdkOperationMetadata | false;
-        pagination?: PaginationMetadata;
-    };
-    request: EndpointRequestSchema;
-    response: EndpointResponsesSchema;
-};
+export type CompatibilityContract<Authorization = unknown> =
+    EndpointContract<Authorization>;
+
+export function adaptLegacyContract<
+    Authorization,
+    Contract extends CompatibilityContract<Authorization>
+>(contract: Contract): Contract {
+    return contract;
+}
 
 export function isCompatibilityContract(
     value: unknown
@@ -114,6 +101,17 @@ export function buildCompatibilityHandler<
         }
         executeEffects(response);
         response.status(status);
-        return status === 204 ? response.send() : response.json(output[status]);
+        if (status === 204) return response.send();
+        const responseVariant = responseSchema.options.find(
+            (variant) => variant.shape.status.value === status
+        );
+        const mediaType = responseVariant?.meta()?.mediaType;
+        if (typeof mediaType === "string" && mediaType !== "application/json") {
+            if (!response.hasHeader("Content-Type")) {
+                response.setHeader("Content-Type", mediaType);
+            }
+            return response.send(output[status]);
+        }
+        return response.json(output[status]);
     };
 }

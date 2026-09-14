@@ -1,95 +1,36 @@
-import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
-import { Router, type Request, type Response } from "express";
-
-import { AuthRegistry } from "#/auth.js";
+import { createDataEndpointRegistries, type Context } from "#/BuildHandler.js";
+import contract from "#/modules/schedule/calendar/Calendar.contract.js";
 import { serializeCalendarFeed } from "#/modules/schedule/calendar/CalendarFeed.js";
 import {
-    calendarQuerySchema,
-    invalidCalendarQuery
-} from "#/modules/schedule/calendar/CalendarQuery.js";
-import {
-    InternalServerErrorProblemSchema,
-    InvalidRequestProblemSchema,
-    invalidRequestProblem,
-    sendProblem
+    ApiResponse,
+    ResponseEffects,
+    type EndpointActions
 } from "@pomi/api-core";
 
-const router = Router();
-const authRegistry = new AuthRegistry();
-
-authRegistry.addException("GET", "/calendar");
-
-async function getCalendar(req: Request, res: Response) {
-    const query = calendarQuerySchema.safeParse(req.query);
-    if (!query.success) {
-        const validation = invalidCalendarQuery(query.error);
-        return sendProblem(
-            res,
-            invalidRequestProblem(validation.errors, req.path)
-        );
-    }
-
-    const events = await req.scope.cradle.calendarService.feed(query.data);
-
+type Actions = EndpointActions<typeof contract, unknown, Context>;
+const get: Actions["get"] = async (context, input) => {
+    const events = await context.calendarService.feed(input.query);
     const feed = serializeCalendarFeed(events);
-    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
-    res.setHeader(
-        "Content-Disposition",
-        'inline; filename="pomi-calendar.ics"'
-    );
-    res.setHeader("Cache-Control", "public, max-age=300");
-    return res.status(200).send(feed);
-}
+    return ApiResponse.ok(feed, [
+        ResponseEffects.setHeader(
+            "Content-Type",
+            "text/calendar; charset=utf-8"
+        ),
+        ResponseEffects.setHeader(
+            "Content-Disposition",
+            'inline; filename="pomi-calendar.ics"'
+        ),
+        ResponseEffects.setHeader("Cache-Control", "public, max-age=300")
+    ]);
+};
 
-router.get("/calendar", getCalendar);
-
-const registry = new OpenAPIRegistry();
-
-registry.registerPath({
-    "method": "get",
-    "path": "/calendar",
-    "tags": ["calendar"],
-    "operationId": "getCalendarFeed",
-    "summary": "Get public iCalendar feed",
-    "x-pomi-sdk": {
-        resource: "calendar",
-        method: "getFeed",
-        action: "get"
-    },
-    "request": {
-        query: calendarQuerySchema
-    },
-    "responses": {
-        200: {
-            description: "Public iCalendar feed",
-            content: {
-                "text/calendar": {
-                    schema: {
-                        type: "string"
-                    }
-                }
-            }
-        },
-        500: {
-            description: "Não foi possível concluir a ação",
-            content: {
-                "application/problem+json": {
-                    schema: InternalServerErrorProblemSchema
-                }
-            }
-        },
-        400: {
-            description: "Dados da requisição inválidos",
-            content: {
-                "application/problem+json": {
-                    schema: InvalidRequestProblemSchema
-                }
-            }
-        }
-    }
-});
+const { router, registry, authRegistry } = createDataEndpointRegistries(
+    contract,
+    { get }
+);
 
 export default {
+    contracts: contract,
     router,
     registry,
     authRegistry

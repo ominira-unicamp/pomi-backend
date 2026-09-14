@@ -3,14 +3,14 @@ import { type IO, OutputBuilder } from "#/Contract.js";
 import { InvalidPeriodPlanProblem } from "#/modules/planning/period-plan/PeriodPlan.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
-    createPaginationQuerySchema,
+    collectionQuery,
     DayOfWeekSchema,
+    defineResource,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     ResourceNotFoundProblemSchema,
-    SpecBuilder,
     unpaginatedByDefault,
     YearPeriodSchema
 } from "@pomi/api-core";
@@ -48,11 +48,15 @@ const basePath = [
     pathSeg.param("sid"),
     pathSeg.literal("period-plannings")
 ];
-const tags = ["period-plannings"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id", {
-    resource: "periodPlannings",
+const periodPlannings = defineResource({
+    collectionPath: basePath,
+    memberParameter: "id",
+    tag: "period-plannings",
     operationName: "StudentPeriodPlannings",
-    pathParameters: { id: "periodPlanningId" }
+    sdk: {
+        resource: "periodPlannings",
+        pathParameters: { sid: "studentId", id: "periodPlanningId" }
+    }
 });
 
 export const guideSchema = z
@@ -170,21 +174,12 @@ const periodPlanningEntity = z
         }
     });
 
-const get = {
-    meta: {
-        ...specsBuilder.get(),
-        operationId: "getStudentPeriodPlannings",
-        sdk: {
-            resource: "periodPlannings",
-            action: "get" as const,
-            method: "get",
-            pathParameters: { sid: "studentId", id: "periodPlanningId" }
-        },
-        authorization: policies.studentAccess(
-            "sid",
-            StudentCapabilities.PLANNING_READ
-        )
-    },
+const get = periodPlannings.get({
+    operationId: "getStudentPeriodPlannings",
+    authorization: policies.studentAccess(
+        "sid",
+        StudentCapabilities.PLANNING_READ
+    ),
     request: z.object({
         path: z.object({
             sid: pathParam.integer(),
@@ -195,29 +190,19 @@ const get = {
         .ok(periodPlanningEntity, "Period planning retrieved successfully")
         .notFound()
         .build()
-} satisfies IO;
+});
 
-const list = {
-    meta: {
-        ...specsBuilder.list(),
-        operationId: "listStudentPeriodPlannings",
-        sdk: {
-            resource: "periodPlannings",
-            action: "list" as const,
-            method: "list",
-            pathParameters: { sid: "studentId" }
-        },
-        authorization: policies.studentAccess(
-            "sid",
-            StudentCapabilities.PLANNING_READ
-        ),
-        pagination: unpaginatedByDefault
-    },
+const list = periodPlannings.list({
+    operationId: "listStudentPeriodPlannings",
+    authorization: policies.studentAccess(
+        "sid",
+        StudentCapabilities.PLANNING_READ
+    ),
+    item: periodPlanningEntity,
+    pagination: unpaginatedByDefault,
     request: z.object({
-        path: z.object({
-            sid: pathParam.integer()
-        }),
-        query: createPaginationQuerySchema(unpaginatedByDefault)
+        path: z.object({ sid: pathParam.integer() }),
+        query: collectionQuery({ pagination: unpaginatedByDefault })
     }),
     response: new OutputBuilder()
         .ok(
@@ -225,15 +210,15 @@ const list = {
             "List of period plannings retrieved successfully"
         )
         .build()
-} satisfies IO;
+});
 
-export const createBody = z
+export const createBodyWireSchema = z
     .object({
         name: z.string().trim().min(1).optional(),
         studyPeriodId: z.number().int(),
         curriculumId: z.number().int().nullable().optional(),
         guide: guideSchema.optional(),
-        classes: z.array(z.number().int()).transform((arr) => new Set(arr))
+        classes: z.array(z.number().int())
     })
     .strict()
     .openapi("CreatePeriodPlanningInput", {
@@ -243,21 +228,17 @@ export const createBody = z
         }
     });
 
-const create = {
-    meta: {
-        ...specsBuilder.create(),
-        operationId: "createStudentPeriodPlannings",
-        sdk: {
-            resource: "periodPlannings",
-            action: "create" as const,
-            method: "create",
-            pathParameters: { sid: "studentId" }
-        },
-        authorization: policies.studentAccess(
-            "sid",
-            StudentCapabilities.PLANNING_WRITE
-        )
-    },
+export const createBody = createBodyWireSchema.transform((body) => ({
+    ...body,
+    classes: new Set(body.classes)
+}));
+
+const create = periodPlannings.create({
+    operationId: "createStudentPeriodPlannings",
+    authorization: policies.studentAccess(
+        "sid",
+        StudentCapabilities.PLANNING_WRITE
+    ),
     request: z.object({
         path: z.object({
             sid: pathParam.integer()
@@ -275,9 +256,9 @@ const create = {
             "Planejamento de semestre inválido"
         )
         .build()
-} satisfies IO;
+});
 
-export const patchBody = z
+export const patchBodyWireSchema = z
     .object({
         name: z.string().trim().min(1).optional(),
         visibility: planningVisibilitySchema.optional(),
@@ -285,11 +266,9 @@ export const patchBody = z
         guide: guideSchema.optional(),
         classes: z
             .object({
-                set: z.array(z.number().int()).transform((arr) => new Set(arr)),
-                add: z.array(z.number().int()).transform((arr) => new Set(arr)),
-                remove: z
-                    .array(z.number().int())
-                    .transform((arr) => new Set(arr))
+                set: z.array(z.number().int()),
+                add: z.array(z.number().int()),
+                remove: z.array(z.number().int())
             })
             .partial()
             .optional()
@@ -302,21 +281,38 @@ export const patchBody = z
         }
     });
 
-const patch = {
-    meta: {
-        ...specsBuilder.patch(),
-        operationId: "updateStudentPeriodPlannings",
-        sdk: {
-            resource: "periodPlannings",
-            action: "update" as const,
-            method: "update",
-            pathParameters: { sid: "studentId", id: "periodPlanningId" }
-        },
-        authorization: policies.studentAccess(
-            "sid",
-            StudentCapabilities.PLANNING_WRITE
-        )
-    },
+type PatchBody = Omit<z.infer<typeof patchBodyWireSchema>, "classes"> & {
+    classes?: {
+        set?: Set<number>;
+        add?: Set<number>;
+        remove?: Set<number>;
+    };
+};
+
+export const patchBody = patchBodyWireSchema.transform((body): PatchBody => {
+    const { classes, ...fields } = body;
+    return {
+        ...fields,
+        ...(classes
+            ? {
+                  classes: {
+                      ...(classes.set ? { set: new Set(classes.set) } : {}),
+                      ...(classes.add ? { add: new Set(classes.add) } : {}),
+                      ...(classes.remove
+                          ? { remove: new Set(classes.remove) }
+                          : {})
+                  }
+              }
+            : {})
+    };
+});
+
+const patch = periodPlannings.update({
+    operationId: "updateStudentPeriodPlannings",
+    authorization: policies.studentAccess(
+        "sid",
+        StudentCapabilities.PLANNING_WRITE
+    ),
     request: z.object({
         path: z.object({
             sid: pathParam.integer(),
@@ -340,23 +336,14 @@ const patch = {
             "Planejamento de semestre inválido"
         )
         .build()
-} satisfies IO;
+});
 
-const remove = {
-    meta: {
-        ...specsBuilder.remove(),
-        operationId: "deleteStudentPeriodPlannings",
-        sdk: {
-            resource: "periodPlannings",
-            action: "delete" as const,
-            method: "delete",
-            pathParameters: { sid: "studentId", id: "periodPlanningId" }
-        },
-        authorization: policies.studentAccess(
-            "sid",
-            StudentCapabilities.PLANNING_WRITE
-        )
-    },
+const remove = periodPlannings.delete({
+    operationId: "deleteStudentPeriodPlannings",
+    authorization: policies.studentAccess(
+        "sid",
+        StudentCapabilities.PLANNING_WRITE
+    ),
     request: z.object({
         path: z.object({
             sid: pathParam.integer(),
@@ -367,7 +354,7 @@ const remove = {
         .noContent("Period planning deleted successfully")
         .notFound()
         .build()
-} satisfies IO;
+});
 
 function alias<Contract extends IO>(
     contract: Contract,

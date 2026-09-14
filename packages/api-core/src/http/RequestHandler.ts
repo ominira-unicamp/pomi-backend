@@ -27,7 +27,11 @@ export function executeEffects(response: Response, effects?: ResponseEffect[]) {
         if (effect.type === "set-cookie") {
             response.cookie(effect.name, effect.value, effect.options);
         } else {
-            response.clearCookie(effect.name, effect.options);
+            if (effect.type === "clear-cookie") {
+                response.clearCookie(effect.name, effect.options);
+            } else {
+                response.setHeader(effect.name, effect.value);
+            }
         }
     }
 }
@@ -87,6 +91,16 @@ export function buildEndpointHandler<
         executeEffects(response, result.effects);
         response.status(result.status);
         if (result.status === 204) return response.send();
+        const responseVariant = contract.response.options.find(
+            (variant) => variant.shape.status.value === result.status
+        );
+        const mediaType = responseVariant?.meta()?.mediaType;
+        if (typeof mediaType === "string" && mediaType !== "application/json") {
+            if (!response.hasHeader("Content-Type")) {
+                response.setHeader("Content-Type", mediaType);
+            }
+            return response.send(result.body);
+        }
         return response.json(result.body);
     };
 }

@@ -9987,6 +9987,142 @@
           "method": "getFeed",
           "action": "get"
         },
+        "parameters": [
+          {
+            "schema": {
+              "additionalProperties": false,
+              "properties": {
+                "startDate": {
+                  "oneOf": [
+                    {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "eq": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "in": {
+                          "items": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                },
+                "endDate": {
+                  "oneOf": [
+                    {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "eq": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "in": {
+                          "items": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                },
+                "tagId": {
+                  "oneOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "eq": {
+                          "type": "integer"
+                        },
+                        "in": {
+                          "items": {
+                            "type": "integer"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              },
+              "type": "object"
+            },
+            "required": false,
+            "description": "Structured calendar feed filters. Use bracket notation such as filter[tagId]=1.",
+            "explode": true,
+            "style": "deepObject",
+            "x-pomi-filters": {
+              "version": 1,
+              "fields": [
+                {
+                  "path": [
+                    "startDate"
+                  ],
+                  "schema": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "operators": [
+                    "eq",
+                    "in"
+                  ]
+                },
+                {
+                  "path": [
+                    "endDate"
+                  ],
+                  "schema": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "operators": [
+                    "eq",
+                    "in"
+                  ]
+                },
+                {
+                  "path": [
+                    "tagId"
+                  ],
+                  "schema": {
+                    "type": "integer"
+                  },
+                  "operators": [
+                    "eq",
+                    "in"
+                  ]
+                }
+              ],
+              "constraints": {
+                "maxExpressions": 20,
+                "maxDepth": 3,
+                "maxParameters": 100
+              }
+            },
+            "name": "filter",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Public iCalendar feed",

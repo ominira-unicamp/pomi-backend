@@ -33,6 +33,9 @@ export function createEndpointRegistries<
         path: string,
         authorization: Authorization
     ): void;
+    authorizationSecurity?(
+        authorization: Authorization
+    ): Array<Record<string, string[]>>;
 }) {
     const router = Router();
     const openApiRegistry = new OpenAPIRegistry();
@@ -59,7 +62,12 @@ export function createEndpointRegistries<
                 options.createContext
             )
         );
-        openApiRegistry.registerPath(openApiFromEndpoint(contract));
+        const security = options.authorizationSecurity?.(
+            contract.meta.authorization
+        );
+        openApiRegistry.registerPath(
+            openApiFromEndpoint(contract, { security })
+        );
         options.registerAuthorization(
             contract.meta.method.toUpperCase() as Uppercase<
                 typeof contract.meta.method

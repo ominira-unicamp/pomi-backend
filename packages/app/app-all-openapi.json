@@ -4900,7 +4900,7 @@
         },
         "responses": {
           "204": {
-            "description": "No content"
+            "description": "Student deleted successfully"
           },
           "400": {
             "description": "Dados da requisição inválidos",
@@ -5572,7 +5572,7 @@
         ],
         "responses": {
           "204": {
-            "description": "No content"
+            "description": "Curriculum deleted successfully"
           },
           "400": {
             "description": "Dados da requisição inválidos",
@@ -6190,7 +6190,7 @@
         ],
         "responses": {
           "204": {
-            "description": "No content"
+            "description": "Period planning deleted successfully"
           },
           "400": {
             "description": "Dados da requisição inválidos",
@@ -6685,7 +6685,7 @@
         ],
         "responses": {
           "204": {
-            "description": "No content"
+            "description": "Period planning deleted successfully"
           },
           "400": {
             "description": "Dados da requisição inválidos",
@@ -11157,7 +11157,7 @@
         ],
         "responses": {
           "204": {
-            "description": "No content"
+            "description": "Categoria removida"
           },
           "400": {
             "description": "Dados da requisição inválidos",
@@ -11806,7 +11806,7 @@
         ],
         "responses": {
           "204": {
-            "description": "No content"
+            "description": "Tag removida"
           },
           "400": {
             "description": "Dados da requisição inválidos",
@@ -12196,7 +12196,7 @@
         ],
         "responses": {
           "204": {
-            "description": "No content"
+            "description": "Tag associada à disciplina"
           },
           "400": {
             "description": "Dados da requisição inválidos",
@@ -12274,7 +12274,7 @@
         ],
         "responses": {
           "204": {
-            "description": "No content"
+            "description": "Tag removida da disciplina"
           },
           "400": {
             "description": "Dados da requisição inválidos",
@@ -12496,7 +12496,7 @@
         ],
         "responses": {
           "204": {
-            "description": "No content"
+            "description": "Interesse por tag adicionado"
           },
           "400": {
             "description": "Dados da requisição inválidos",
@@ -12570,7 +12570,7 @@
         ],
         "responses": {
           "204": {
-            "description": "No content"
+            "description": "Interesse por tag removido"
           },
           "400": {
             "description": "Dados da requisição inválidos",

@@ -15,12 +15,22 @@ import { responseEffectSchema } from "./EndpointContract.js";
 function responseSchema<Status extends number, Schema extends z.ZodType>(
     status: Status,
     body: Schema,
-    description: string
+    description: string,
+    mediaType = status >= 400 ? "application/problem+json" : "application/json"
 ) {
     return z
         .object({
             status: z.literal(status),
-            body: body.optional(),
+            body,
+            effects: z.array(responseEffectSchema).optional()
+        })
+        .meta({ description, mediaType });
+}
+
+function noContentResponseSchema(description: string) {
+    return z
+        .object({
+            status: z.literal(204),
             effects: z.array(responseEffectSchema).optional()
         })
         .meta({ description });
@@ -34,8 +44,14 @@ export class ResponseSchemaBuilder<Variants extends ResponseVariant[] = []> {
         return this as unknown as ResponseSchemaBuilder<[...Variants, Variant]>;
     }
 
-    ok<Schema extends z.ZodType>(schema: Schema, description: string) {
-        return this.add(responseSchema(200, schema, description));
+    ok<Schema extends z.ZodType>(
+        schema: Schema,
+        description: string,
+        options?: { mediaType?: string }
+    ) {
+        return this.add(
+            responseSchema(200, schema, description, options?.mediaType)
+        );
     }
 
     created<Schema extends z.ZodType>(schema: Schema, description: string) {
@@ -43,7 +59,7 @@ export class ResponseSchemaBuilder<Variants extends ResponseVariant[] = []> {
     }
 
     noContent(description = "No content") {
-        return this.add(responseSchema(204, z.null(), description));
+        return this.add(noContentResponseSchema(description));
     }
 
     badRequest() {
@@ -117,17 +133,21 @@ export class ResponseSchemaBuilder<Variants extends ResponseVariant[] = []> {
     statusCode<Status extends number, Schema extends z.ZodType>(
         status: Status,
         schema: Schema,
-        description: string
+        description: string,
+        options?: { mediaType?: string }
     ) {
-        return this.status(status, schema, description);
+        return this.status(status, schema, description, options);
     }
 
     status<Status extends number, Schema extends z.ZodType>(
         status: Status,
         schema: Schema,
-        description: string
+        description: string,
+        options?: { mediaType?: string }
     ) {
-        return this.add(responseSchema(status, schema, description));
+        return this.add(
+            responseSchema(status, schema, description, options?.mediaType)
+        );
     }
 
     build(): z.ZodDiscriminatedUnion<
@@ -167,8 +187,10 @@ export const ApiResponse = {
         result(200 as const, body, effects),
     created: <Body>(body: Body, effects?: ResponseEffect[]) =>
         result(201 as const, body, effects),
-    noContent: (effects?: ResponseEffect[]) =>
-        result(204 as const, null, effects),
+    noContent: (effects?: ResponseEffect[]) => ({
+        status: 204 as const,
+        ...(effects ? { effects } : {})
+    }),
     status: <Status extends number, Body>(
         status: Status,
         body: Body,
@@ -186,5 +208,8 @@ export const ResponseEffects = {
     },
     clearCookie(name: string, options: CookieOptions): ResponseEffect {
         return { type: "clear-cookie", name, options };
+    },
+    setHeader(name: string, value: string): ResponseEffect {
+        return { type: "set-header", name, value };
     }
 };

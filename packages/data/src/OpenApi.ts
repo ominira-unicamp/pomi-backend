@@ -91,15 +91,11 @@ export function generateDataOpenApiDocument(audience: "public" | "all") {
             operationIds.set(operationId, `${method} ${path}`);
             operation.operationId = operationId;
             operation.summary ??= operationId;
-            const policy = dataControllers.authRegistry.rules.find(
-                (rule) =>
-                    rule.method.toLowerCase() === method &&
-                    expressPath(rule.path) === path
-            )?.policy.kind;
-            operation.security =
-                policy === "public" || audience === "public"
-                    ? []
-                    : [{ DataAdminToken: [] }];
+            if (operation.security !== undefined) {
+                const security = operation.security;
+                delete operation.security;
+                operation.security = security;
+            }
         }
     }
     document.tags = [...tags].map((name) => ({ name }));

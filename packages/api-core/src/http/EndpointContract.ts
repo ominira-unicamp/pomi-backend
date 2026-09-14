@@ -32,6 +32,11 @@ export const responseEffectSchema = z.discriminatedUnion("type", [
         type: z.literal("clear-cookie"),
         name: z.string(),
         options: z.custom<CookieOptions>()
+    }),
+    z.object({
+        type: z.literal("set-header"),
+        name: z.string(),
+        value: z.string()
     })
 ]);
 
@@ -39,7 +44,7 @@ export type ResponseEffect = z.infer<typeof responseEffectSchema>;
 
 export type ResponseVariant = z.ZodObject<{
     status: z.ZodLiteral<number>;
-    body: z.ZodType;
+    body?: z.ZodType;
     effects: z.ZodOptional<z.ZodArray<typeof responseEffectSchema>>;
 }>;
 
@@ -170,10 +175,11 @@ export function assertSdkMetadataConsistency(
             throw new Error("Invalid pagination policy");
         }
         const query = contract.request.shape.query;
+        const queryShape = zodObjectShape(query);
         if (
-            !(query instanceof z.ZodObject) ||
-            !Object.hasOwn(query.shape, "page") ||
-            !Object.hasOwn(query.shape, "pageSize")
+            !queryShape ||
+            !Object.hasOwn(queryShape, "page") ||
+            !Object.hasOwn(queryShape, "pageSize")
         ) {
             throw new Error(
                 "Paginated endpoints must define page and pageSize query parameters"
@@ -193,29 +199,39 @@ function getSuccessfulResponseBody(contract: EndpointContract<unknown>) {
         return status >= 200 && status < 300;
     });
     if (!success) return undefined;
-    const body = success.shape.body;
-    return body instanceof z.ZodOptional ? body.unwrap() : body;
+    return success.shape.body;
 }
 
 function schemaHasPath(schema: z.ZodType, path: string | undefined): boolean {
     if (!path) return false;
     let current: unknown = schema;
     for (const part of path.split(".")) {
-        if (!(current instanceof z.ZodObject)) return false;
-        const child = current.shape[part];
+        const shape = zodObjectShape(current);
+        if (!shape) return false;
+        const child = shape[part];
         if (!child) return false;
         current = child;
     }
     return true;
 }
 
+function zodObjectShape(value: unknown): z.ZodRawShape | undefined {
+    if (!value || typeof value !== "object" || !("shape" in value)) {
+        return undefined;
+    }
+    const shape = value.shape;
+    return shape && typeof shape === "object"
+        ? (shape as z.ZodRawShape)
+        : undefined;
+}
+
 export function assertQueryFeatureConsistency(
     contract: EndpointContract<unknown>
 ) {
     const querySchema = contract.request.shape.query;
+    const queryShape = zodObjectShape(querySchema);
     const hasFilterSchema =
-        querySchema instanceof z.ZodObject &&
-        Object.hasOwn(querySchema.shape, "filter");
+        queryShape !== undefined && Object.hasOwn(queryShape, "filter");
     const filterEnabled = contract.meta.queryFeatures?.filter === true;
 
     if (hasFilterSchema === filterEnabled) return;

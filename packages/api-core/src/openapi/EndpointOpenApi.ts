@@ -1,14 +1,18 @@
 import type { RouteConfig } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 
+import {
+    InternalServerErrorProblemSchema,
+    InvalidRequestProblemSchema
+} from "../errors/ProblemDetails.js";
 import type { EndpointContract } from "../http/EndpointContract.js";
 import { pathSegmentToOpenApiPath } from "../PathSegment.js";
 import { summaryFromOperationId } from "./OperationMetadata.js";
 import RequestBuilder from "./RequestBuilder.js";
-import ResponseBuilder from "./ResponseBuilder.js";
 
 export function openApiFromEndpoint(
-    contract: EndpointContract<unknown>
+    contract: EndpointContract<unknown>,
+    options?: { security?: Array<Record<string, string[]>> }
 ): RouteConfig {
     let request = new RequestBuilder();
     const shape = contract.request.shape;
@@ -23,49 +27,46 @@ export function openApiFromEndpoint(
         );
     }
 
-    const responses = new ResponseBuilder();
+    const responses: RouteConfig["responses"] = {};
     const statuses = new Set<number>();
     for (const variant of contract.response.options) {
         const status = variant.shape.status.value;
-        const schema = (
-            variant.shape.body as z.ZodOptional<z.ZodType>
-        ).unwrap();
+        const schema = variant.shape.body;
+        const metadata = variant.meta();
+        const mediaType =
+            typeof metadata?.mediaType === "string"
+                ? metadata.mediaType
+                : status >= 400
+                  ? "application/problem+json"
+                  : "application/json";
         statuses.add(status);
-        switch (status) {
-            case 200:
-                responses.ok(
-                    schema,
-                    variant.meta()?.description ?? "Successful response"
-                );
-                break;
-            case 201:
-                responses.created(
-                    schema,
-                    variant.meta()?.description ??
-                        "Resource created successfully"
-                );
-                break;
-            case 204:
-                responses.noContent();
-                break;
-            default:
-                if (status >= 400) {
-                    responses.problem(
-                        status,
-                        schema,
-                        variant.meta()?.description ?? "Problema"
-                    );
-                } else {
-                    responses.statusCode(
-                        status,
-                        schema,
-                        variant.meta()?.description ?? "Response"
-                    );
-                }
-        }
+        responses[status] = {
+            description:
+                metadata?.description ??
+                (status === 204 ? "No content" : "Response"),
+            ...(schema ? { content: { [mediaType]: { schema } } } : {})
+        };
     }
-    if (!statuses.has(400)) responses.badRequest();
-    if (!statuses.has(500)) responses.internalServerError();
+    if (!statuses.has(400)) {
+        responses[400] = {
+            description: "Dados da requisição inválidos",
+            content: {
+                "application/problem+json": {
+                    schema: InvalidRequestProblemSchema
+                }
+            }
+        };
+    }
+    if (!statuses.has(500)) {
+        responses[500] = {
+            description: "Não foi possível concluir a ação",
+            content: {
+                "application/problem+json": {
+                    schema: InternalServerErrorProblemSchema
+                }
+            }
+        };
+    }
 
     const operationId = contract.meta.operationId;
     const sdk = contract.meta.sdk;
@@ -85,7 +86,8 @@ export function openApiFromEndpoint(
             : {}),
         "x-pomi-sdk": sdk,
         ...(pagination ? { "x-pomi-pagination": pagination } : {}),
+        ...(options?.security ? { security: options.security } : {}),
         "request": request.build(),
-        "responses": responses.build()
+        responses
     } as RouteConfig;
 }

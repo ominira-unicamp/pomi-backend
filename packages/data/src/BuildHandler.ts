@@ -159,7 +159,9 @@ export function createDataEndpointRegistries<
             exchangePlaceService: request.scope.cradle.exchangePlaceService
         }),
         registerAuthorization: (method, path, authorization) =>
-            authRegistry.addPolicy(method, path, authorization)
+            authRegistry.addPolicy(method, path, authorization),
+        authorizationSecurity: (authorization) =>
+            authorization.kind === "public" ? [] : [{ DataAdminToken: [] }]
     });
     return { router, registry: openApiRegistry, authRegistry };
 }

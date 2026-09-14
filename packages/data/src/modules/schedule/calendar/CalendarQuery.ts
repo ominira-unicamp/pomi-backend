@@ -6,8 +6,6 @@ import {
 } from "@pomi/api-core";
 import z from "zod";
 
-import { ValidationError } from "@pomi/api-core";
-
 extendZodWithOpenApi(z);
 
 export type CalendarFilter = Filter;
@@ -17,22 +15,14 @@ const calendarFilterDefinitions = {
     tagId: filterDefinition.id()
 };
 
-export const calendarQuerySchema = resourceFilterSchema(
+const calendarFilterSchema = resourceFilterSchema(
     calendarFilterDefinitions,
     "calendar feed",
     "Structured calendar feed filters. Use bracket notation such as filter[tagId]=1."
-).openapi("CalendarFeedQuery", {
-    "x-pomi-schema": { kind: "input", publicName: "CalendarFeedQuery" }
-});
+);
+
+export const calendarQuerySchema = z
+    .object({ filter: calendarFilterSchema.optional() })
+    .strict();
 
 export type CalendarFeedQuery = z.infer<typeof calendarQuerySchema>;
-
-export function invalidCalendarQuery(error: z.ZodError) {
-    return new ValidationError(
-        error.issues.map((issue) => ({
-            code: "INVALID_VALUE" as const,
-            path: ["query", ...issue.path.map(String)],
-            message: issue.message
-        }))
-    );
-}

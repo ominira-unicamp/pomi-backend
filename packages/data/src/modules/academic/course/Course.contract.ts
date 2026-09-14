@@ -1,8 +1,9 @@
-import { OutputBuilder, type IO } from "#/BuildHandler.js";
+import { OutputBuilder } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineResource,
     equalityOperators,
     filterDefinition,
     getPaginatedSchema,
@@ -10,7 +11,6 @@ import {
     pathSeg,
     resourceFilterSchema,
     serializeQueryParams,
-    SpecBuilder,
     type Filter,
     type FilterValue,
     type PaginationPolicy
@@ -29,12 +29,15 @@ export const coursePaths = {
     entity: (id: number) => `/courses/${id}`
 };
 
-const basePath = [pathSeg.literal("courses")];
-const tags = ["courses"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id", {
-    resource: "courses",
+const courses = defineResource({
+    collectionPath: [pathSeg.literal("courses")],
+    memberParameter: "id",
+    tag: "courses",
     operationName: "Courses",
-    pathParameters: { id: "courseId" }
+    sdk: {
+        resource: "courses",
+        pathParameters: { id: "courseId" }
+    }
 });
 
 const courseEntity = z
@@ -97,15 +100,6 @@ export const coursePagination = {
     allowAll: true
 } satisfies PaginationPolicy;
 
-const listCourseQuery = createPaginationQuerySchema(coursePagination, {
-    filter: courseFilter.optional()
-})
-    .strict()
-    .openapi("ListCoursesQuery", {
-        "x-pomi-schema": { kind: "input", publicName: "ListCoursesQuery" }
-    });
-export type ListQueryParams = z.infer<typeof listCourseQuery>;
-
 const PageCoursesSchema = getPaginatedSchema(courseEntity).openapi(
     "PageCourses",
     {
@@ -117,18 +111,17 @@ const PageCoursesSchema = getPaginatedSchema(courseEntity).openapi(
     }
 );
 
-const get = {
-    meta: {
-        ...specsBuilder.get(),
-        operationId: "getCourses",
-        authorization: policies.public,
-        sdk: {
-            resource: "courses",
-            action: "get" as const,
-            method: "get",
-            pathParameters: { id: "courseId" }
-        }
-    },
+const listCourseQuery = createPaginationQuerySchema(coursePagination, {
+    filter: courseFilter.optional()
+})
+    .strict()
+    .openapi("ListCoursesQuery", {
+        "x-pomi-schema": { kind: "input", publicName: "ListCoursesQuery" }
+    });
+
+const get = courses.get({
+    authorization: policies.public,
+    operationId: "getCourses",
     request: z.object({
         path: z.object({ id: pathParam.integer() }).strict()
     }),
@@ -136,24 +129,20 @@ const get = {
         .ok(courseEntity, "Course retrieved successfully")
         .notFound()
         .build()
-};
+});
 
-const list = {
-    meta: {
-        ...specsBuilder.list(),
-        operationId: "listCourses",
-        authorization: policies.public,
-        queryFeatures: { filter: true },
-        sdk: { resource: "courses", action: "list" as const, method: "list" },
-        pagination: coursePagination
-    },
-    request: z.object({
-        query: listCourseQuery
-    }),
+const list = courses.list({
+    authorization: policies.public,
+    operationId: "listCourses",
+    item: courseEntity,
+    pagination: coursePagination,
+    request: z.object({ query: listCourseQuery }),
     response: new OutputBuilder()
         .ok(PageCoursesSchema, "List of courses retrieved successfully")
         .build()
-} satisfies IO;
+});
+
+export type ListQueryParams = z.infer<typeof list.request.shape.query>;
 
 export default {
     schema: courseEntity,

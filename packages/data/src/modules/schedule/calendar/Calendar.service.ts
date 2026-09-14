@@ -1,5 +1,7 @@
-import type { CalendarFilter } from "#/modules/schedule/calendar/CalendarQuery.js";
-import { calendarQuerySchema } from "#/modules/schedule/calendar/CalendarQuery.js";
+import type {
+    CalendarFeedQuery,
+    CalendarFilter
+} from "#/modules/schedule/calendar/CalendarQuery.js";
 import {
     compileFilterWhere,
     prismaWhereFor,
@@ -24,7 +26,7 @@ const calendarWhereDefinitions = {
     FilterWhereBuilder<MyPrisma.CalendarEventWhereInput>
 >;
 export type CalendarService = {
-    feed(query: unknown): Promise<
+    feed(query: CalendarFeedQuery): Promise<
         readonly {
             id: number;
             startDate: Date;
@@ -40,11 +42,10 @@ export function createCalendarService({
     prisma: PrismaClient;
 }): CalendarService {
     return {
-        async feed(raw) {
-            const query = calendarQuerySchema.parse(raw);
+        async feed(query) {
             const filterWhere =
                 compileFilterWhere<MyPrisma.CalendarEventWhereInput>(
-                    query as CalendarFilter,
+                    (query.filter ?? []) as CalendarFilter,
                     calendarWhereDefinitions,
                     "calendar feed"
                 );
