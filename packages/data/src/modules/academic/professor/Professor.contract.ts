@@ -22,7 +22,11 @@ export const professorPaths = {
 
 const basePath = [pathSeg.literal("professors")];
 const tags = ["professors"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "professors",
+    operationName: "Professors",
+    pathParameters: { id: "professorId" }
+});
 
 const professorEntity = z
     .object({
@@ -34,7 +38,14 @@ const professorEntity = z
         })
     })
     .strict()
-    .openapi("ProfessorEntity");
+    .openapi("ProfessorEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Professor",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type ProfessorFilter = Filter;
 const professorFilterDefinitions = { classId: filterDefinition.id() };
@@ -48,10 +59,20 @@ const professorFilter = resourceFilterSchema(
 const listProfessorsQuery = paginationQuerySchema
     .extend({ filter: professorFilter.optional() })
     .strict()
-    .openapi("ListProfessorsQuery");
+    .openapi("ListProfessorsQuery", {
+        "x-pomi-schema": { kind: "input", publicName: "ListProfessorsQuery" }
+    });
 
-const PageProfessorsSchema =
-    getPaginatedSchema(professorEntity).openapi("PageProfessors");
+const PageProfessorsSchema = getPaginatedSchema(professorEntity).openapi(
+    "PageProfessors",
+    {
+        "x-pomi-schema": {
+            kind: "page",
+            publicName: "PageProfessors",
+            transportFields: ["_paths"]
+        }
+    }
+);
 
 const get = {
     meta: { ...specsBuilder.get(), authorization: policies.public },

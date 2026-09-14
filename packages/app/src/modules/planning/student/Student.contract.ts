@@ -19,7 +19,11 @@ extendZodWithOpenApi(z);
 
 const basePath = [pathSeg.literal("students")];
 const tags = ["students"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "students",
+    operationName: "Students",
+    pathParameters: { id: "studentId" }
+});
 
 const studentEntity = z
     .object({
@@ -37,7 +41,14 @@ const studentEntity = z
         })
     })
     .strict()
-    .openapi("StudentEntity");
+    .openapi("StudentEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Student",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 const studentBase = z
     .object({
@@ -54,13 +65,17 @@ const studentBase = z
 
 const createStudentBody = studentBase
     .omit({ id: true, ra: true })
-    .openapi("CreateStudentBody");
+    .openapi("CreateStudentBody", {
+        "x-pomi-schema": { kind: "input", publicName: "CreateStudentBody" }
+    });
 
 const patchStudentBody = studentBase
     .omit({ id: true })
     .partial()
     .strict()
-    .openapi("PatchStudentBody");
+    .openapi("PatchStudentBody", {
+        "x-pomi-schema": { kind: "input", publicName: "PatchStudentBody" }
+    });
 
 const get = {
     meta: {

@@ -27,7 +27,12 @@ const entity = z
         placeIds: z.array(z.number().int().positive())
     })
     .strict()
-    .openapi("ExchangeNoticeSubscription");
+    .openapi("ExchangeNoticeSubscription", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "ExchangeNoticeSubscription"
+        }
+    });
 
 const patchBody = z
     .object({
@@ -45,10 +50,22 @@ const patchBody = z
             new Set(value.placeIds).size === value.placeIds.length,
         { path: ["placeIds"], message: "placeIds must not contain duplicates" }
     )
-    .openapi("PatchExchangeNoticeSubscriptionBody");
+    .openapi("PatchExchangeNoticeSubscriptionBody", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "PatchExchangeNoticeSubscriptionBody"
+        }
+    });
 
 const get = {
     meta: {
+        operationId: "getExchangeNoticeSubscription",
+        sdk: {
+            resource: "exchangeNoticeSubscriptions",
+            method: "get",
+            action: "get" as const,
+            pathParameters: { sid: "studentId" }
+        },
         method: "get" as const,
         path,
         tags: ["exchange-notice-subscriptions"],
@@ -65,6 +82,13 @@ const get = {
 
 const patch = {
     meta: {
+        operationId: "updateExchangeNoticeSubscription",
+        sdk: {
+            resource: "exchangeNoticeSubscriptions",
+            method: "update",
+            action: "update" as const,
+            pathParameters: { sid: "studentId" }
+        },
         method: "patch" as const,
         path,
         tags: ["exchange-notice-subscriptions"],

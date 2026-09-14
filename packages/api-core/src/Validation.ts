@@ -21,7 +21,9 @@ const ErrorCodeSchema = z
         "ALREADY_EXISTS",
         "REFERENCE_EXISTS"
     ])
-    .openapi("ErrorCode");
+    .openapi("ErrorCode", {
+        "x-pomi-schema": { kind: "value-object", publicName: "ErrorCode" }
+    });
 
 const ErrorFieldSchema = z
     .object({
@@ -30,14 +32,18 @@ const ErrorFieldSchema = z
         message: z.string(),
         details: z.record(z.string(), z.unknown()).optional()
     })
-    .openapi("ErrorField");
+    .openapi("ErrorField", {
+        "x-pomi-schema": { kind: "problem", publicName: "ErrorField" }
+    });
 
 const ApiErrorSchema = z
     .object({
         message: z.string(), // Mensagem resumida geral
         errors: z.array(ErrorFieldSchema)
     })
-    .openapi("ApiError");
+    .openapi("ApiError", {
+        "x-pomi-schema": { kind: "problem", publicName: "ApiError" }
+    });
 
 export type ErrorFieldType = z.infer<typeof ErrorFieldSchema>;
 type ValidationErrorType = z.infer<typeof ApiErrorSchema>;

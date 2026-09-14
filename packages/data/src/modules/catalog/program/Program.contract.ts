@@ -18,7 +18,11 @@ extendZodWithOpenApi(z);
 
 const basePath = [pathSeg.literal("programs")];
 const tags = ["programs"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "programs",
+    operationName: "Programs",
+    pathParameters: { id: "programId" }
+});
 
 const schema = z
     .object({
@@ -37,7 +41,14 @@ const schema = z
             unit: z.string()
         })
     })
-    .openapi("Program");
+    .openapi("Program", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Program",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type ProgramFilter = Filter;
 const programFilterDefinitions = { unitId: filterDefinition.id() };

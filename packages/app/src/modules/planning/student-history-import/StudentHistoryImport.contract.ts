@@ -6,11 +6,28 @@ import {
     pathParam,
     pathSeg,
     ResourceNotFoundProblemSchema,
-    SpecBuilder
+    SpecBuilder,
+    YearPeriodSchema
 } from "@pomi/api-core";
 import z from "zod";
 
 extendZodWithOpenApi(z);
+
+const historyCourseStatusSchema = z
+    .enum([
+        "APPROVED",
+        "APPROVED_BY_ATTENDANCE",
+        "APPROVED_BY_PROFICIENCY",
+        "DROPPED",
+        "FAILED_BY_ATTENDANCE",
+        "SUFFICIENT"
+    ])
+    .openapi("HistoryCourseStatus", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "HistoryCourseStatus"
+        }
+    });
 
 const specsBuilder = new SpecBuilder(
     [
@@ -19,7 +36,12 @@ const specsBuilder = new SpecBuilder(
         pathSeg.literal("course-history")
     ],
     ["student-course-history"],
-    "import"
+    "import",
+    {
+        resource: "studentHistory",
+        operationName: "StudentHistory",
+        pathParameters: { sid: "studentId" }
+    }
 );
 
 const course = z.object({
@@ -28,24 +50,12 @@ const course = z.object({
     grade: z.number().min(0).max(10).nullable(),
     workloadHours: z.number().int().nonnegative().nullable(),
     credits: z.number().int().nonnegative().nullable(),
-    status: z.enum([
-        "APPROVED",
-        "APPROVED_BY_ATTENDANCE",
-        "APPROVED_BY_PROFICIENCY",
-        "DROPPED",
-        "FAILED_BY_ATTENDANCE",
-        "SUFFICIENT"
-    ])
+    status: historyCourseStatusSchema
 });
 
 const semester = z.object({
     year: z.number().int().min(1900).max(9999),
-    yearPeriod: z.enum([
-        "SUMMER",
-        "FIRST_SEMESTER",
-        "WINTER",
-        "SECOND_SEMESTER"
-    ]),
+    yearPeriod: YearPeriodSchema,
     courses: z.array(course)
 });
 
@@ -57,7 +67,12 @@ const body = z
         semesters: z.array(semester).min(1)
     })
     .strict()
-    .openapi("StudentHistoryImportBody");
+    .openapi("StudentHistoryImportBody", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "StudentHistoryImportBody"
+        }
+    });
 
 const warning = z
     .object({
@@ -76,7 +91,12 @@ const summary = z
         warnings: z.array(warning)
     })
     .strict()
-    .openapi("StudentHistoryImportSummary");
+    .openapi("StudentHistoryImportSummary", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "StudentHistoryImportSummary"
+        }
+    });
 
 const importHistory = {
     meta: {

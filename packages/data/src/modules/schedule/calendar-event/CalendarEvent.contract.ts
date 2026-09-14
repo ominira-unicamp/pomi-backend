@@ -18,7 +18,11 @@ extendZodWithOpenApi(z);
 
 const basePath = [pathSeg.literal("calendar-events")];
 const tags = ["calendar-events"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "calendarEvents",
+    operationName: "CalendarEvents",
+    pathParameters: { id: "calendarEventId" }
+});
 
 const dateOutput = z.union([z.string(), z.date()]).pipe(z.coerce.date());
 
@@ -41,7 +45,14 @@ const schema = z
         })
     })
     .strict()
-    .openapi("CalendarEvent");
+    .openapi("CalendarEvent", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "CalendarEvent",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type CalendarEventFilter = Filter;
 const calendarEventFilterDefinitions = {

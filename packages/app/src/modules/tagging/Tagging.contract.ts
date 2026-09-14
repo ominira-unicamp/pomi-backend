@@ -23,7 +23,13 @@ const entityId = z.object({ id }).strict();
 const category = z
     .object({ id: z.number().int(), name: z.string().min(1) })
     .strict()
-    .openapi("Category");
+    .openapi("Category", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Category",
+            identityFields: ["id"]
+        }
+    });
 const tag = z
     .object({
         id: z.number().int(),
@@ -32,7 +38,13 @@ const tag = z
         parentTagId: z.number().int().nullable()
     })
     .strict()
-    .openapi("Tag");
+    .openapi("Tag", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Tag",
+            identityFields: ["id"]
+        }
+    });
 export const relatedCourse = z
     .object({
         id: z.number().int(),
@@ -41,7 +53,13 @@ export const relatedCourse = z
         credits: z.number().int().min(0)
     })
     .strict()
-    .openapi("TagRelatedCourse");
+    .openapi("TagRelatedCourse", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "TagRelatedCourse",
+            identityFields: ["id"]
+        }
+    });
 const categoryBody = z.object({ name: z.string().trim().min(1) }).strict();
 const tagBody = z
     .object({
@@ -70,6 +88,12 @@ export type TagFilter = Filter;
 
 const listCategories = {
     meta: {
+        operationId: "listCategories",
+        sdk: {
+            resource: "categories",
+            method: "list",
+            action: "list" as const
+        },
         method: "get" as const,
         path: categories,
         tags: ["categories"],
@@ -85,6 +109,13 @@ const listCategories = {
 } satisfies IO;
 const getCategory = {
     meta: {
+        operationId: "getCategory",
+        sdk: {
+            resource: "categories",
+            method: "get",
+            action: "get" as const,
+            pathParameters: { id: "categoryId" }
+        },
         method: "get" as const,
         path: [...categories, pathSeg.param("id")],
         tags: ["categories"],
@@ -98,6 +129,12 @@ const getCategory = {
 } satisfies IO;
 const listTags = {
     meta: {
+        operationId: "listTags",
+        sdk: {
+            resource: "tags",
+            method: "list",
+            action: "list" as const
+        },
         method: "get" as const,
         path: tags,
         tags: ["tags"],
@@ -110,7 +147,9 @@ const listTags = {
             filter: tagFilter.optional()
         })
             .strict()
-            .openapi("ListTagsQuery")
+            .openapi("ListTagsQuery", {
+                "x-pomi-schema": { kind: "input", publicName: "ListTagsQuery" }
+            })
     }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(tag), "Tags recuperadas")
@@ -118,6 +157,13 @@ const listTags = {
 } satisfies IO;
 const getTag = {
     meta: {
+        operationId: "getTag",
+        sdk: {
+            resource: "tags",
+            method: "get",
+            action: "get" as const,
+            pathParameters: { id: "tagId" }
+        },
         method: "get" as const,
         path: [...tags, pathSeg.param("id")],
         tags: ["tags"],
@@ -128,6 +174,13 @@ const getTag = {
 } satisfies IO;
 const listCourseTags = {
     meta: {
+        operationId: "listCourseTags",
+        sdk: {
+            resource: "courseTags",
+            method: "listForCourse",
+            action: "list" as const,
+            pathParameters: { courseId: "courseId" }
+        },
         method: "get" as const,
         path: [
             pathSeg.literal("courses"),
@@ -149,6 +202,13 @@ const listCourseTags = {
 } satisfies IO;
 const listTagCourses = {
     meta: {
+        operationId: "listTagCourses",
+        sdk: {
+            resource: "courseTags",
+            method: "listCoursesForTag",
+            action: "list" as const,
+            pathParameters: { id: "tagId" }
+        },
         method: "get" as const,
         path: [...tags, pathSeg.param("id"), pathSeg.literal("courses")],
         tags: ["course-tags"],
@@ -170,6 +230,12 @@ const listTagCourses = {
 
 const createCategory = {
     meta: {
+        operationId: "createCategory",
+        sdk: {
+            resource: "categories",
+            method: "create",
+            action: "create" as const
+        },
         method: "post" as const,
         path: categories,
         tags: ["categories"],
@@ -187,6 +253,13 @@ const createCategory = {
 } satisfies IO;
 const updateCategory = {
     meta: {
+        operationId: "updateCategory",
+        sdk: {
+            resource: "categories",
+            method: "update",
+            action: "update" as const,
+            pathParameters: { id: "categoryId" }
+        },
         method: "put" as const,
         path: [...categories, pathSeg.param("id")],
         tags: ["categories"],
@@ -205,6 +278,13 @@ const updateCategory = {
 } satisfies IO;
 const deleteCategory = {
     meta: {
+        operationId: "deleteCategory",
+        sdk: {
+            resource: "categories",
+            method: "delete",
+            action: "delete" as const,
+            pathParameters: { id: "categoryId" }
+        },
         method: "delete" as const,
         path: [...categories, pathSeg.param("id")],
         tags: ["categories"],
@@ -223,6 +303,12 @@ const deleteCategory = {
 } satisfies IO;
 const createTag = {
     meta: {
+        operationId: "createTag",
+        sdk: {
+            resource: "tags",
+            method: "create",
+            action: "create" as const
+        },
         method: "post" as const,
         path: tags,
         tags: ["tags"],
@@ -241,6 +327,13 @@ const createTag = {
 } satisfies IO;
 const updateTag = {
     meta: {
+        operationId: "updateTag",
+        sdk: {
+            resource: "tags",
+            method: "update",
+            action: "update" as const,
+            pathParameters: { id: "tagId" }
+        },
         method: "put" as const,
         path: [...tags, pathSeg.param("id")],
         tags: ["tags"],
@@ -260,6 +353,13 @@ const updateTag = {
 } satisfies IO;
 const deleteTag = {
     meta: {
+        operationId: "deleteTag",
+        sdk: {
+            resource: "tags",
+            method: "delete",
+            action: "delete" as const,
+            pathParameters: { id: "tagId" }
+        },
         method: "delete" as const,
         path: [...tags, pathSeg.param("id")],
         tags: ["tags"],
@@ -278,6 +378,13 @@ const deleteTag = {
 } satisfies IO;
 const putCourseTag = {
     meta: {
+        operationId: "addCourseTag",
+        sdk: {
+            resource: "courseTags",
+            method: "add",
+            action: "update" as const,
+            pathParameters: { courseId: "courseId", tagId: "tagId" }
+        },
         method: "put" as const,
         path: [
             pathSeg.literal("courses"),
@@ -300,6 +407,13 @@ const putCourseTag = {
 } satisfies IO;
 const deleteCourseTag = {
     meta: {
+        operationId: "removeCourseTag",
+        sdk: {
+            resource: "courseTags",
+            method: "remove",
+            action: "delete" as const,
+            pathParameters: { courseId: "courseId", tagId: "tagId" }
+        },
         method: "delete" as const,
         path: [
             pathSeg.literal("courses"),

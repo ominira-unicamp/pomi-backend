@@ -8,6 +8,12 @@ extendZodWithOpenApi(z);
 
 const unsubscribe = {
     meta: {
+        operationId: "unsubscribeExchangeNotices",
+        sdk: {
+            resource: "exchangeNoticeSubscriptions",
+            method: "unsubscribe",
+            action: "update" as const
+        },
         method: "post" as const,
         path: [
             pathSeg.literal("exchange-notice-subscriptions"),

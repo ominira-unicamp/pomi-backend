@@ -2,6 +2,7 @@ import { type IO, OutputBuilder } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    DayOfWeekSchema,
     equalityOperators,
     type Filter,
     filterDefinition,
@@ -15,7 +16,8 @@ import {
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
     serializeQueryParams,
-    SpecBuilder
+    SpecBuilder,
+    YearPeriodSchema
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -23,20 +25,16 @@ extendZodWithOpenApi(z);
 
 const basePath = [pathSeg.literal("class-schedules")];
 const tags = ["class-schedules"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "classSchedules",
+    operationName: "ClassSchedules",
+    pathParameters: { id: "classScheduleId" }
+});
 
 export const classScheduleDataSchema = z
     .object({
         id: z.number().int(),
-        dayOfWeek: z.enum([
-            "MONDAY",
-            "TUESDAY",
-            "WEDNESDAY",
-            "THURSDAY",
-            "FRIDAY",
-            "SATURDAY",
-            "SUNDAY"
-        ]),
+        dayOfWeek: DayOfWeekSchema,
         start: z.string(),
         end: z.string(),
         roomId: z.number().int(),
@@ -49,15 +47,12 @@ export const classScheduleDataSchema = z
         courseCode: z.string(),
         studyPeriodId: z.number().int(),
         studyPeriodYear: z.number().int(),
-        studyPeriodYearPeriod: z.enum([
-            "SUMMER",
-            "FIRST_SEMESTER",
-            "WINTER",
-            "SECOND_SEMESTER"
-        ])
+        studyPeriodYearPeriod: YearPeriodSchema
     })
     .strict()
-    .openapi("ClassScheduleData");
+    .openapi("ClassScheduleData", {
+        "x-pomi-schema": { kind: "projection", publicName: "ClassScheduleData" }
+    });
 
 export const classScheduleEntity = classScheduleDataSchema
     .extend({
@@ -72,7 +67,28 @@ export const classScheduleEntity = classScheduleDataSchema
             .strict()
     })
     .strict()
-    .openapi("ClassScheduleEntity");
+    .openapi("ClassScheduleEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "ClassSchedule",
+            identityFields: ["id"],
+            transportFields: ["_paths"],
+            relations: {
+                roomId: { resource: "rooms", cardinality: "one" },
+                classId: { resource: "classes", cardinality: "one" },
+                unitId: {
+                    resource: "units",
+                    cardinality: "one",
+                    nullable: true
+                },
+                courseId: { resource: "courses", cardinality: "one" },
+                studyPeriodId: {
+                    resource: "studyPeriods",
+                    cardinality: "one"
+                }
+            }
+        }
+    });
 
 export type ClassScheduleFilterValue = FilterValue;
 export type ClassScheduleFilter = Filter;
@@ -126,10 +142,20 @@ const getClassSchedulesQuery = paginationQuerySchema
         filter: classScheduleFilter.optional()
     })
     .strict()
-    .openapi("GetClassSchedulesQuery");
+    .openapi("GetClassSchedulesQuery", {
+        "x-pomi-schema": { kind: "input", publicName: "GetClassSchedulesQuery" }
+    });
 
-const ClassSchedulePageSchema =
-    getPaginatedSchema(classScheduleEntity).openapi("PageClassSchedules");
+const ClassSchedulePageSchema = getPaginatedSchema(classScheduleEntity).openapi(
+    "PageClassSchedules",
+    {
+        "x-pomi-schema": {
+            kind: "page",
+            publicName: "PageClassSchedules",
+            transportFields: ["_paths"]
+        }
+    }
+);
 
 const get = {
     meta: { ...specsBuilder.get(), authorization: policies.public },

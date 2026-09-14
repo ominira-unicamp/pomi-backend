@@ -10,6 +10,7 @@ import {
     resourceFilterSchema,
     SpecBuilder,
     unpaginatedByDefault,
+    YearPeriodSchema,
     type Filter
 } from "@pomi/api-core";
 import z from "zod";
@@ -22,18 +23,17 @@ export const studyPeriodPaths = {
 
 const basePath = [pathSeg.literal("study-periods")];
 const tags = ["study-periods"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "studyPeriods",
+    operationName: "StudyPeriods",
+    pathParameters: { id: "studyPeriodId" }
+});
 
 const studyPeriodEntity = z
     .object({
         id: z.number().int(),
         year: z.number().int(),
-        yearPeriod: z.enum([
-            "SUMMER",
-            "FIRST_SEMESTER",
-            "WINTER",
-            "SECOND_SEMESTER"
-        ]),
+        yearPeriod: YearPeriodSchema,
         startDate: z.union([z.string(), z.date()]).pipe(z.coerce.date()),
         _paths: z.object({
             classes: z.string(),
@@ -41,7 +41,14 @@ const studyPeriodEntity = z
         })
     })
     .strict()
-    .openapi("StudyPeriodEntity");
+    .openapi("StudyPeriodEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "StudyPeriod",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type StudyPeriodFilter = Filter;
 const studyPeriodFilterDefinitions = {

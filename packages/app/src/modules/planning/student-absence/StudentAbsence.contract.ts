@@ -4,6 +4,7 @@ import { InvalidStudentAbsenceProblem } from "#/modules/planning/student-absence
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    DayOfWeekSchema,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
@@ -14,6 +15,7 @@ import {
     SpecBuilder,
     UniqueConstraintConflictProblemSchema,
     unpaginatedByDefault,
+    YearPeriodSchema,
     type Filter
 } from "@pomi/api-core";
 import z from "zod";
@@ -25,17 +27,13 @@ const basePath = [
     pathSeg.param("sid"),
     pathSeg.literal("absences")
 ];
-const specsBuilder = new SpecBuilder(basePath, ["student-absences"], "id");
+const specsBuilder = new SpecBuilder(basePath, ["student-absences"], "id", {
+    resource: "studentAbsences",
+    operationName: "StudentAbsences",
+    pathParameters: { sid: "studentId", id: "studentAbsenceId" }
+});
 
-const dayOfWeekSchema = z.enum([
-    "MONDAY",
-    "TUESDAY",
-    "WEDNESDAY",
-    "THURSDAY",
-    "FRIDAY",
-    "SATURDAY",
-    "SUNDAY"
-]);
+const dayOfWeekSchema = DayOfWeekSchema;
 
 const absenceEntity = z
     .object({
@@ -47,12 +45,7 @@ const absenceEntity = z
         updatedAt: z.string().datetime(),
         studyPeriodId: z.number().int(),
         studyPeriodYear: z.number().int(),
-        studyPeriodYearPeriod: z.enum([
-            "SUMMER",
-            "FIRST_SEMESTER",
-            "WINTER",
-            "SECOND_SEMESTER"
-        ]),
+        studyPeriodYearPeriod: YearPeriodSchema,
         courseId: z.number().int(),
         courseCode: z.string(),
         classId: z.number().int(),
@@ -72,7 +65,14 @@ const absenceEntity = z
             .strict()
     })
     .strict()
-    .openapi("StudentAbsence");
+    .openapi("StudentAbsence", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "StudentAbsence",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 const absenceBody = z
     .object({
@@ -81,7 +81,12 @@ const absenceBody = z
         date: z.string().date()
     })
     .strict()
-    .openapi("CreateStudentAbsenceBody");
+    .openapi("CreateStudentAbsenceBody", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "CreateStudentAbsenceBody"
+        }
+    });
 
 const studentPath = z.object({
     sid: pathParam.integer()
@@ -114,7 +119,12 @@ const list = {
             filter: absenceFilter.optional()
         })
             .strict()
-            .openapi("ListStudentAbsencesQuery")
+            .openapi("ListStudentAbsencesQuery", {
+                "x-pomi-schema": {
+                    kind: "input",
+                    publicName: "ListStudentAbsencesQuery"
+                }
+            })
     }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(absenceEntity), "Faltas recuperadas com sucesso")

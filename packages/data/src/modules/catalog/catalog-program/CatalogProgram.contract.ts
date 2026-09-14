@@ -19,7 +19,11 @@ extendZodWithOpenApi(z);
 
 const basePath = [pathSeg.literal("catalog-program")];
 const tags = ["catalog-program"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "catalogPrograms",
+    operationName: "CatalogPrograms",
+    pathParameters: { id: "catalogProgramId" }
+});
 
 export const CourseBlockType = {
     mandatory: "mandatory",
@@ -32,26 +36,80 @@ export const CourseRequirementType = {
     specific: "specific"
 } as const;
 
-const courseRequirementSchema = z.object({
-    id: z.number().int(),
-    type: z.enum(CourseRequirementType),
-    courseId: z.number().int().nullable(),
-    courseCode: z.string().nullable(),
-    courseName: z.string().nullable(),
-    prefix: z.string().nullable(),
-    catalogCourseId: z.number().int().nullable(),
-    _paths: z.object({ catalogCourse: z.string().nullable() }).strict()
-});
+const courseRequirementTypeSchema = z
+    .enum(CourseRequirementType)
+    .openapi("CourseRequirementType", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "CourseRequirementType"
+        }
+    });
 
-const electiveBlockSchema = z.object({
-    credits: z.number().int(),
-    courses: z.array(courseRequirementSchema)
-});
+const courseRequirementSchema = z
+    .object({
+        id: z.number().int(),
+        type: courseRequirementTypeSchema,
+        courseId: z.number().int().nullable(),
+        courseCode: z.string().nullable(),
+        courseName: z.string().nullable(),
+        prefix: z.string().nullable(),
+        catalogCourseId: z.number().int().nullable(),
+        _paths: z.object({ catalogCourse: z.string().nullable() }).strict()
+    })
+    .openapi("CourseRequirement", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "CourseRequirement",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
-const courseBlockSetSchema = z.object({
-    mandatory: z.array(courseRequirementSchema),
-    electives: z.array(electiveBlockSchema)
-});
+const electiveBlockSchema = z
+    .object({
+        credits: z.number().int(),
+        courses: z.array(courseRequirementSchema)
+    })
+    .openapi("ElectiveBlock", {
+        "x-pomi-schema": { kind: "value-object", publicName: "ElectiveBlock" }
+    });
+
+const courseBlockSetSchema = z
+    .object({
+        mandatory: z.array(courseRequirementSchema),
+        electives: z.array(electiveBlockSchema)
+    })
+    .openapi("CourseBlockSet", {
+        "x-pomi-schema": { kind: "value-object", publicName: "CourseBlockSet" }
+    });
+
+const catalogProgramModalitySchema = z
+    .object({
+        specializationId: z.number().int(),
+        curriculumSuggestionId: z.number().int().nullable(),
+        code: z.string(),
+        name: z.string(),
+        blocks: courseBlockSetSchema
+    })
+    .openapi("CatalogProgramModality", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "CatalogProgramModality"
+        }
+    });
+
+const catalogProgramLanguageSchema = z
+    .object({
+        languageId: z.number().int(),
+        name: z.string(),
+        blocks: courseBlockSetSchema
+    })
+    .openapi("CatalogProgramLanguage", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "CatalogProgramLanguage"
+        }
+    });
 
 const catalogProgramEntity = z
     .object({
@@ -63,22 +121,8 @@ const catalogProgramEntity = z
         programCode: z.number().int(),
         programName: z.string(),
         base: courseBlockSetSchema,
-        modalities: z.array(
-            z.object({
-                specializationId: z.number().int(),
-                curriculumSuggestionId: z.number().int().nullable(),
-                code: z.string(),
-                name: z.string(),
-                blocks: courseBlockSetSchema
-            })
-        ),
-        languages: z.array(
-            z.object({
-                languageId: z.number().int(),
-                name: z.string(),
-                blocks: courseBlockSetSchema
-            })
-        ),
+        modalities: z.array(catalogProgramModalitySchema),
+        languages: z.array(catalogProgramLanguageSchema),
         _paths: z.object({
             self: z.string(),
             catalog: z.string(),
@@ -87,7 +131,23 @@ const catalogProgramEntity = z
         })
     })
     .strict()
-    .openapi("CatalogProgramEntity");
+    .openapi("CatalogProgramEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "CatalogProgram",
+            identityFields: ["id"],
+            transportFields: ["_paths"],
+            relations: {
+                catalogId: { resource: "catalogs", cardinality: "one" },
+                programId: { resource: "programs", cardinality: "one" },
+                modalities: {
+                    resource: "specializations",
+                    cardinality: "many"
+                },
+                languages: { resource: "languages", cardinality: "many" }
+            }
+        }
+    });
 
 export type CatalogProgramFilter = Filter;
 

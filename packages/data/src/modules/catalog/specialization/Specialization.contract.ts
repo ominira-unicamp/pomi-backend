@@ -18,7 +18,11 @@ extendZodWithOpenApi(z);
 
 const basePath = [pathSeg.literal("specializations")];
 const tags = ["specializations"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "specializations",
+    operationName: "Specializations",
+    pathParameters: { id: "specializationId" }
+});
 const positiveId = z.number().int().positive();
 
 const schema = z
@@ -36,7 +40,14 @@ const schema = z
             program: z.string()
         })
     })
-    .openapi("Specialization");
+    .openapi("Specialization", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Specialization",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type SpecializationFilter = Filter;
 const specializationFilterDefinitions = {

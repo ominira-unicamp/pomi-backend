@@ -1,5 +1,6 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
+import { sdkSchemaMetadata } from "../openapi/SdkSchemaMetadata.js";
 import { AppError } from "./AppError.js";
 
 extendZodWithOpenApi(z);
@@ -15,7 +16,9 @@ export const ProblemFieldSchema = z
         details: z.record(z.string(), z.unknown()).optional()
     })
     .strict()
-    .openapi("ProblemField");
+    .openapi("ProblemField", {
+        "x-pomi-schema": { kind: "problem", publicName: "ProblemField" }
+    });
 
 export const ProblemDetailsSchema = z
     .object({
@@ -26,7 +29,9 @@ export const ProblemDetailsSchema = z
         instance: z.string().optional()
     })
     .strict()
-    .openapi("ProblemDetails");
+    .openapi("ProblemDetails", {
+        "x-pomi-schema": { kind: "problem", publicName: "ProblemDetails" }
+    });
 
 export type ProblemDetails = z.infer<typeof ProblemDetailsSchema>;
 export type ProblemField = z.infer<typeof ProblemFieldSchema>;
@@ -77,7 +82,13 @@ export function defineProblem<
         ...definition.extensions
     })
         .strict()
-        .openapi(definition.schemaName);
+        .openapi(
+            definition.schemaName,
+            sdkSchemaMetadata({
+                kind: "problem",
+                publicName: definition.schemaName
+            })
+        );
 
     return {
         type,
@@ -149,7 +160,12 @@ export const InvalidRequestProblemSchema = ProblemDetailsSchema.extend({
     fields: z.array(ProblemFieldSchema)
 })
     .strict()
-    .openapi("InvalidRequestProblem");
+    .openapi("InvalidRequestProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "InvalidRequestProblem"
+        }
+    });
 
 export const MalformedJsonProblemSchema = ProblemDetailsSchema.extend({
     type: z.literal(problemType("malformed-json")),
@@ -157,7 +173,9 @@ export const MalformedJsonProblemSchema = ProblemDetailsSchema.extend({
     status: z.literal(400)
 })
     .strict()
-    .openapi("MalformedJsonProblem");
+    .openapi("MalformedJsonProblem", {
+        "x-pomi-schema": { kind: "problem", publicName: "MalformedJsonProblem" }
+    });
 
 export const UnauthenticatedProblemSchema = ProblemDetailsSchema.extend({
     type: z.literal(problemType("unauthenticated")),
@@ -165,7 +183,12 @@ export const UnauthenticatedProblemSchema = ProblemDetailsSchema.extend({
     status: z.literal(401)
 })
     .strict()
-    .openapi("UnauthenticatedProblem");
+    .openapi("UnauthenticatedProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "UnauthenticatedProblem"
+        }
+    });
 
 export const ForbiddenProblemSchema = ProblemDetailsSchema.extend({
     type: z.literal(problemType("forbidden")),
@@ -173,7 +196,9 @@ export const ForbiddenProblemSchema = ProblemDetailsSchema.extend({
     status: z.literal(403)
 })
     .strict()
-    .openapi("ForbiddenProblem");
+    .openapi("ForbiddenProblem", {
+        "x-pomi-schema": { kind: "problem", publicName: "ForbiddenProblem" }
+    });
 
 export const ResourceNotFoundProblem = defineProblem({
     schemaName: "ResourceNotFoundProblem",
@@ -212,7 +237,9 @@ export const ConflictProblemSchema = ProblemDetailsSchema.extend({
     status: z.literal(409)
 })
     .strict()
-    .openapi("ConflictProblem");
+    .openapi("ConflictProblem", {
+        "x-pomi-schema": { kind: "problem", publicName: "ConflictProblem" }
+    });
 
 export const UnprocessableEntityProblemSchema = ProblemDetailsSchema.extend({
     type: z.literal(problemType("unprocessable-entity")),
@@ -221,7 +248,12 @@ export const UnprocessableEntityProblemSchema = ProblemDetailsSchema.extend({
     fields: z.array(ProblemFieldSchema).optional()
 })
     .strict()
-    .openapi("UnprocessableEntityProblem");
+    .openapi("UnprocessableEntityProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "UnprocessableEntityProblem"
+        }
+    });
 
 export const PayloadTooLargeProblemSchema = ProblemDetailsSchema.extend({
     type: z.literal(problemType("payload-too-large")),
@@ -229,7 +261,12 @@ export const PayloadTooLargeProblemSchema = ProblemDetailsSchema.extend({
     status: z.literal(413)
 })
     .strict()
-    .openapi("PayloadTooLargeProblem");
+    .openapi("PayloadTooLargeProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "PayloadTooLargeProblem"
+        }
+    });
 
 export const ServiceUnavailableProblemSchema = ProblemDetailsSchema.extend({
     type: z.literal(problemType("service-unavailable")),
@@ -237,7 +274,12 @@ export const ServiceUnavailableProblemSchema = ProblemDetailsSchema.extend({
     status: z.literal(503)
 })
     .strict()
-    .openapi("ServiceUnavailableProblem");
+    .openapi("ServiceUnavailableProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "ServiceUnavailableProblem"
+        }
+    });
 
 export const InternalServerErrorProblemSchema = ProblemDetailsSchema.extend({
     type: z.literal(problemType("internal-server-error")),
@@ -245,7 +287,12 @@ export const InternalServerErrorProblemSchema = ProblemDetailsSchema.extend({
     status: z.literal(500)
 })
     .strict()
-    .openapi("InternalServerErrorProblem");
+    .openapi("InternalServerErrorProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "InternalServerErrorProblem"
+        }
+    });
 
 type ProblemInput = Omit<ProblemDetails, "instance"> & { instance?: string };
 

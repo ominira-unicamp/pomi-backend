@@ -5,6 +5,7 @@ import { Router } from "express";
 
 import { dataControllers } from "#/Controllers.js";
 import {
+    assertOpenApiSdkCoverage,
     enrichSdkSchemaMetadata,
     operationIdFromOpenApiPath,
     queryFilterOperatorMetadata
@@ -36,17 +37,6 @@ const operationMethods = new Set([
     "head",
     "trace"
 ]);
-
-function sdkMetadata(operationId: string) {
-    const match = /^(list|get|create|update|delete)([A-Z].*)$/.exec(
-        operationId
-    );
-    if (!match) return undefined;
-    return {
-        resource: `${match[2][0].toLowerCase()}${match[2].slice(1)}`,
-        action: match[1]
-    };
-}
 
 export function generateDataOpenApiDocument(audience: "public" | "all") {
     const definitions =
@@ -101,8 +91,6 @@ export function generateDataOpenApiDocument(audience: "public" | "all") {
             operationIds.set(operationId, `${method} ${path}`);
             operation.operationId = operationId;
             operation.summary ??= operationId;
-            operation["x-pomi-sdk"] ??= sdkMetadata(operationId);
-
             const policy = dataControllers.authRegistry.rules.find(
                 (rule) =>
                     rule.method.toLowerCase() === method &&
@@ -119,6 +107,7 @@ export function generateDataOpenApiDocument(audience: "public" | "all") {
         version: 1,
         operators: queryFilterOperatorMetadata
     };
+    assertOpenApiSdkCoverage(document);
     return document;
 }
 

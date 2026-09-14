@@ -18,7 +18,11 @@ extendZodWithOpenApi(z);
 
 const basePath = [pathSeg.literal("catalogs")];
 const tags = ["catalogs"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "catalogs",
+    operationName: "Catalogs",
+    pathParameters: { id: "catalogId" }
+});
 
 const catalogEntitySchema = z
     .object({
@@ -33,7 +37,14 @@ const catalogEntitySchema = z
         }),
         _paths: z.object({ self: z.string(), courses: z.string() }).strict()
     })
-    .openapi("Catalog");
+    .openapi("Catalog", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Catalog",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type CatalogFilter = Filter;
 const catalogFilterDefinitions = { year: filterDefinition.integer() };
@@ -46,9 +57,7 @@ const catalogFilter = resourceFilterSchema(
 
 const get = {
     meta: {
-        method: "get",
-        path: basePath.concat([pathSeg.param("id")]),
-        tags,
+        ...specsBuilder.get(),
         authorization: policies.public
     },
     request: z.object({

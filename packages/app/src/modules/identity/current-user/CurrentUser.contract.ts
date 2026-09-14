@@ -14,10 +14,22 @@ const entity = z
         studentId: z.number().int().nullable()
     })
     .strict()
-    .openapi("CurrentUserEntity");
+    .openapi("CurrentUserEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "CurrentUser",
+            identityFields: ["id"]
+        }
+    });
 
 const get = {
     meta: {
+        operationId: "getCurrentUser",
+        sdk: {
+            resource: "currentUser",
+            method: "get",
+            action: "get" as const
+        },
         method: "get" as const,
         path: [pathSeg.literal("me")],
         tags: ["current-user"],

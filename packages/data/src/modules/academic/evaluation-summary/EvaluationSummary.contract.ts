@@ -33,17 +33,32 @@ const course = z
 const professorSummary = metrics
     .extend({ professor })
     .strict()
-    .openapi("ProfessorEvaluationSummary");
+    .openapi("ProfessorEvaluationSummary", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "ProfessorEvaluationSummary"
+        }
+    });
 
 const courseSummary = metrics
     .extend({ course })
     .strict()
-    .openapi("CourseEvaluationSummary");
+    .openapi("CourseEvaluationSummary", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "CourseEvaluationSummary"
+        }
+    });
 
 const pairSummary = metrics
     .extend({ course, professor })
     .strict()
-    .openapi("CourseProfessorEvaluationSummary");
+    .openapi("CourseProfessorEvaluationSummary", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "CourseProfessorEvaluationSummary"
+        }
+    });
 
 const pairFilter = resourceFilterSchema(
     {
@@ -80,6 +95,12 @@ const courseSummaryFilter = resourceFilterSchema(
 
 const professorSummaries = {
     meta: {
+        operationId: "listProfessorEvaluationSummaries",
+        sdk: {
+            resource: "evaluationSummaries",
+            method: "listByProfessor",
+            action: "list" as const
+        },
         method: "get" as const,
         path: [
             pathSeg.literal("professors"),
@@ -98,7 +119,13 @@ const professorSummaries = {
     response: new OutputBuilder()
         .ok(
             getPaginatedSchema(professorSummary).openapi(
-                "PageProfessorEvaluationSummaries"
+                "PageProfessorEvaluationSummaries",
+                {
+                    "x-pomi-schema": {
+                        kind: "page",
+                        publicName: "PageProfessorEvaluationSummaries"
+                    }
+                }
             ),
             "Sumários de avaliações por professor"
         )
@@ -108,6 +135,12 @@ const professorSummaries = {
 
 const courseSummaries = {
     meta: {
+        operationId: "listCourseEvaluationSummaries",
+        sdk: {
+            resource: "evaluationSummaries",
+            method: "listByCourse",
+            action: "list" as const
+        },
         method: "get" as const,
         path: [
             pathSeg.literal("courses"),
@@ -126,7 +159,13 @@ const courseSummaries = {
     response: new OutputBuilder()
         .ok(
             getPaginatedSchema(courseSummary).openapi(
-                "PageCourseEvaluationSummaries"
+                "PageCourseEvaluationSummaries",
+                {
+                    "x-pomi-schema": {
+                        kind: "page",
+                        publicName: "PageCourseEvaluationSummaries"
+                    }
+                }
             ),
             "Sumários de avaliações por disciplina"
         )
@@ -136,6 +175,12 @@ const courseSummaries = {
 
 const pair = {
     meta: {
+        operationId: "getCourseProfessorEvaluationSummary",
+        sdk: {
+            resource: "evaluationSummaries",
+            method: "getByCourseAndProfessor",
+            action: "get" as const
+        },
         method: "get" as const,
         path: [pathSeg.literal("evaluation-summaries")],
         tags: ["evaluation-summaries"],

@@ -15,6 +15,16 @@ import z from "zod";
 extendZodWithOpenApi(z);
 
 const capabilityValues = Object.values(Capabilities) as ["ACADEMIC_WRITE"];
+const authUserStatusSchema = z
+    .enum(["ACTIVE", "DISABLED"])
+    .openapi("AuthUserStatus", {
+        "x-pomi-schema": { kind: "value-object", publicName: "AuthUserStatus" }
+    });
+const authCapabilitySchema = z
+    .enum(capabilityValues)
+    .openapi("AuthCapability", {
+        "x-pomi-schema": { kind: "value-object", publicName: "AuthCapability" }
+    });
 const entity = z
     .object({
         id: z.number().int(),
@@ -22,7 +32,7 @@ const entity = z
         subject: z.string(),
         email: z.string().nullable(),
         displayName: z.string().nullable(),
-        status: z.enum(["ACTIVE", "DISABLED"]),
+        status: authUserStatusSchema,
         roles: z.array(
             z.object({
                 authUserId: z.number().int(),
@@ -37,28 +47,44 @@ const entity = z
         )
     })
     .strict()
-    .openapi("AuthUserEntity");
+    .openapi("AuthUserEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "AuthUser",
+            identityFields: ["id"]
+        }
+    });
 const createBody = z
     .object({
         subject: z.string().min(1),
         displayName: z.string().min(1).max(200),
-        capabilities: z.array(z.enum(capabilityValues)).default([])
+        capabilities: z.array(authCapabilitySchema).default([])
     })
     .strict()
-    .openapi("CreateBotAuthUserBody");
+    .openapi("CreateBotAuthUserBody", {
+        "x-pomi-schema": { kind: "input", publicName: "CreateBotAuthUserBody" }
+    });
 const patchBody = z
     .object({
-        status: z.enum(["ACTIVE", "DISABLED"]).optional(),
+        status: authUserStatusSchema.optional(),
         displayName: z.string().min(1).max(200).optional(),
-        capabilities: z.array(z.enum(capabilityValues)).optional()
+        capabilities: z.array(authCapabilitySchema).optional()
     })
     .strict()
-    .openapi("PatchAuthUserBody");
+    .openapi("PatchAuthUserBody", {
+        "x-pomi-schema": { kind: "input", publicName: "PatchAuthUserBody" }
+    });
 const path = z.object({
     id: pathParam.integer()
 });
 const list = {
     meta: {
+        operationId: "listAuthUsers",
+        sdk: {
+            resource: "authUsers",
+            method: "list",
+            action: "list" as const
+        },
         method: "get" as const,
         path: [pathSeg.literal("admin"), pathSeg.literal("auth-users")],
         tags: ["auth-users"],
@@ -74,6 +100,12 @@ const list = {
 } satisfies IO;
 const create = {
     meta: {
+        operationId: "createAuthUser",
+        sdk: {
+            resource: "authUsers",
+            method: "create",
+            action: "create" as const
+        },
         method: "post" as const,
         path: [pathSeg.literal("admin"), pathSeg.literal("auth-users")],
         tags: ["auth-users"],
@@ -84,6 +116,13 @@ const create = {
 } satisfies IO;
 const patch = {
     meta: {
+        operationId: "updateAuthUser",
+        sdk: {
+            resource: "authUsers",
+            method: "update",
+            action: "update" as const,
+            pathParameters: { id: "authUserId" }
+        },
         method: "patch" as const,
         path: [
             pathSeg.literal("admin"),

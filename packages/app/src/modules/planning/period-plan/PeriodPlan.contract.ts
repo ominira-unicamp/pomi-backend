@@ -4,17 +4,44 @@ import { InvalidPeriodPlanProblem } from "#/modules/planning/period-plan/PeriodP
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    DayOfWeekSchema,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     ResourceNotFoundProblemSchema,
     SpecBuilder,
-    unpaginatedByDefault
+    unpaginatedByDefault,
+    YearPeriodSchema
 } from "@pomi/api-core";
 import z from "zod";
 
 extendZodWithOpenApi(z);
+
+const planningGuideModeSchema = z
+    .enum(["CURRICULUM", "PROGRAM", "NONE"])
+    .openapi("PlanningGuideMode", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "PlanningGuideMode"
+        }
+    });
+const planningCurriculumSourceSchema = z
+    .enum(["SAVED", "SUGGESTION"])
+    .openapi("PlanningCurriculumSource", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "PlanningCurriculumSource"
+        }
+    });
+const planningVisibilitySchema = z
+    .enum(["PRIVATE", "FRIENDS", "PUBLIC"])
+    .openapi("PlanningVisibility", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "PlanningVisibility"
+        }
+    });
 
 const basePath = [
     pathSeg.literal("student"),
@@ -22,12 +49,16 @@ const basePath = [
     pathSeg.literal("period-plannings")
 ];
 const tags = ["period-plannings"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "periodPlannings",
+    operationName: "StudentPeriodPlannings",
+    pathParameters: { id: "periodPlanningId" }
+});
 
 export const guideSchema = z
     .object({
-        mode: z.enum(["CURRICULUM", "PROGRAM", "NONE"]),
-        curriculumSource: z.enum(["SAVED", "SUGGESTION"]).nullable(),
+        mode: planningGuideModeSchema,
+        curriculumSource: planningCurriculumSourceSchema.nullable(),
         curriculumId: z.number().int().nullable(),
         suggestionId: z.number().int().nullable(),
         suggestionCatalogProgramId: z.number().int().nullable().optional(),
@@ -38,7 +69,40 @@ export const guideSchema = z
             .array(z.number().int())
             .transform((arr) => [...new Set(arr)])
     })
-    .strict();
+    .strict()
+    .openapi("PlanningGuide", {
+        "x-pomi-schema": { kind: "value-object", publicName: "PlanningGuide" }
+    });
+
+const periodPlanningProfessorSchema = z
+    .object({
+        id: z.number().int(),
+        name: z.string()
+    })
+    .strict()
+    .openapi("PeriodPlanningProfessor", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "PeriodPlanningProfessor"
+        }
+    });
+
+const periodPlanningScheduleSchema = z
+    .object({
+        id: z.number().int(),
+        dayOfWeek: DayOfWeekSchema,
+        start: z.string(),
+        end: z.string(),
+        roomId: z.number().int(),
+        roomCode: z.string()
+    })
+    .strict()
+    .openapi("PeriodPlanningSchedule", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "PeriodPlanningSchedule"
+        }
+    });
 
 export const periodPlanningClass = z
     .object({
@@ -48,36 +112,16 @@ export const periodPlanningClass = z
         courseId: z.number().int(),
         courseCode: z.string(),
         courseCredits: z.number(),
-        professors: z.array(
-            z
-                .object({
-                    id: z.number().int(),
-                    name: z.string()
-                })
-                .strict()
-        ),
-        classSchedules: z.array(
-            z
-                .object({
-                    id: z.number().int(),
-                    dayOfWeek: z.enum([
-                        "MONDAY",
-                        "TUESDAY",
-                        "WEDNESDAY",
-                        "THURSDAY",
-                        "FRIDAY",
-                        "SATURDAY",
-                        "SUNDAY"
-                    ]),
-                    start: z.string(),
-                    end: z.string(),
-                    roomId: z.number().int(),
-                    roomCode: z.string()
-                })
-                .strict()
-        )
+        professors: z.array(periodPlanningProfessorSchema),
+        classSchedules: z.array(periodPlanningScheduleSchema)
     })
-    .strict();
+    .strict()
+    .openapi("PeriodPlanningClass", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "PeriodPlanningClass"
+        }
+    });
 
 const periodPlanningEntity = z
     .object({
@@ -86,14 +130,9 @@ const periodPlanningEntity = z
         name: z.string(),
         studyPeriodId: z.number().int(),
         studyPeriodYear: z.number().int(),
-        studyPeriodYearPeriod: z.enum([
-            "SUMMER",
-            "FIRST_SEMESTER",
-            "WINTER",
-            "SECOND_SEMESTER"
-        ]),
+        studyPeriodYearPeriod: YearPeriodSchema,
         curriculumId: z.number().int().nullable(),
-        visibility: z.enum(["PRIVATE", "FRIENDS", "PUBLIC"]),
+        visibility: planningVisibilitySchema,
         shareId: z.string().uuid(),
         guide: guideSchema,
         createdAt: z.string().datetime(),
@@ -109,7 +148,27 @@ const periodPlanningEntity = z
             .strict()
     })
     .strict()
-    .openapi("PeriodPlanningEntity");
+    .openapi("PeriodPlanningEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "PeriodPlanning",
+            identityFields: ["id"],
+            transportFields: ["_paths"],
+            relations: {
+                studentId: { resource: "students", cardinality: "one" },
+                studyPeriodId: {
+                    resource: "studyPeriods",
+                    cardinality: "one"
+                },
+                curriculumId: {
+                    resource: "curricula",
+                    cardinality: "one",
+                    nullable: true
+                },
+                classes: { resource: "classes", cardinality: "many" }
+            }
+        }
+    });
 
 const get = {
     meta: {
@@ -118,6 +177,7 @@ const get = {
         sdk: {
             resource: "periodPlannings",
             action: "get" as const,
+            method: "get",
             pathParameters: { sid: "studentId", id: "periodPlanningId" }
         },
         authorization: policies.studentAccess(
@@ -144,6 +204,7 @@ const list = {
         sdk: {
             resource: "periodPlannings",
             action: "list" as const,
+            method: "list",
             pathParameters: { sid: "studentId" }
         },
         authorization: policies.studentAccess(
@@ -175,7 +236,12 @@ export const createBody = z
         classes: z.array(z.number().int()).transform((arr) => new Set(arr))
     })
     .strict()
-    .openapi("CreatePeriodPlanningInput");
+    .openapi("CreatePeriodPlanningInput", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "CreatePeriodPlanningInput"
+        }
+    });
 
 const create = {
     meta: {
@@ -184,6 +250,7 @@ const create = {
         sdk: {
             resource: "periodPlannings",
             action: "create" as const,
+            method: "create",
             pathParameters: { sid: "studentId" }
         },
         authorization: policies.studentAccess(
@@ -213,7 +280,7 @@ const create = {
 export const patchBody = z
     .object({
         name: z.string().trim().min(1).optional(),
-        visibility: z.enum(["PRIVATE", "FRIENDS", "PUBLIC"]).optional(),
+        visibility: planningVisibilitySchema.optional(),
         curriculumId: z.number().int().nullable().optional(),
         guide: guideSchema.optional(),
         classes: z
@@ -228,7 +295,12 @@ export const patchBody = z
             .optional()
     })
     .strict()
-    .openapi("UpdatePeriodPlanningInput");
+    .openapi("UpdatePeriodPlanningInput", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "UpdatePeriodPlanningInput"
+        }
+    });
 
 const patch = {
     meta: {
@@ -237,6 +309,7 @@ const patch = {
         sdk: {
             resource: "periodPlannings",
             action: "update" as const,
+            method: "update",
             pathParameters: { sid: "studentId", id: "periodPlanningId" }
         },
         authorization: policies.studentAccess(
@@ -276,6 +349,7 @@ const remove = {
         sdk: {
             resource: "periodPlannings",
             action: "delete" as const,
+            method: "delete",
             pathParameters: { sid: "studentId", id: "periodPlanningId" }
         },
         authorization: policies.studentAccess(
@@ -295,13 +369,17 @@ const remove = {
         .build()
 } satisfies IO;
 
-function alias<Contract extends IO>(contract: Contract): Contract {
+function alias<Contract extends IO>(
+    contract: Contract,
+    operationId: string
+): Contract {
     return {
         ...contract,
         meta: {
             ...contract.meta,
-            operationId: undefined,
-            sdk: undefined,
+            operationId,
+            deprecated: true,
+            sdk: false,
             path: contract.meta.path.map((segment) =>
                 segment.type === "literal" &&
                 segment.value === "period-plannings"
@@ -320,10 +398,10 @@ export default {
     patch,
     remove,
     aliases: {
-        get: alias(get),
-        list: alias(list),
-        create: alias(create),
-        patch: alias(patch),
-        remove: alias(remove)
+        get: alias(get, "getStudentPeriodPlan"),
+        list: alias(list, "listStudentPeriodPlan"),
+        create: alias(create, "createStudentPeriodPlan"),
+        patch: alias(patch, "updateStudentPeriodPlan"),
+        remove: alias(remove, "deleteStudentPeriodPlan")
     }
 };

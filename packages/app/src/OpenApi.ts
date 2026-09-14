@@ -5,6 +5,7 @@ import { Router } from "express";
 
 import { appControllers } from "#/Controllers.js";
 import {
+    assertOpenApiSdkCoverage,
     enrichSdkSchemaMetadata,
     operationIdFromOpenApiPath,
     queryFilterOperatorMetadata
@@ -117,6 +118,7 @@ export function generateAppOpenApiDocument(audience: "student" | "all") {
         version: 1,
         operators: queryFilterOperatorMetadata
     };
+    assertOpenApiSdkCoverage(document);
     return document;
 }
 

@@ -22,7 +22,11 @@ const basePath = [
     pathSeg.literal("curricula")
 ];
 const tags = ["curricula"];
-const specBuilder = new SpecBuilder(basePath, tags, "id");
+const specBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "curricula",
+    operationName: "StudentCurricula",
+    pathParameters: { sid: "studentId", id: "curriculumId" }
+});
 
 const selection = z
     .object({
@@ -78,7 +82,14 @@ const curriculumEntity = z
             .strict()
     })
     .strict()
-    .openapi("CurriculumEntity");
+    .openapi("CurriculumEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Curriculum",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 const curriculumSummaryEntity = z
     .object({
@@ -97,7 +108,14 @@ const curriculumSummaryEntity = z
             .strict()
     })
     .strict()
-    .openapi("CurriculumSummaryEntity");
+    .openapi("CurriculumSummaryEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "CurriculumSummary",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 const curriculumCourseInput = z
     .object({

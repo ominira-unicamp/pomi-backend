@@ -58,12 +58,12 @@ export type SdkOperationAction =
 export type SdkOperationMetadata = {
     resource: string;
     action: SdkOperationAction;
-    method?: string;
+    method: string;
     pathParameters?: Record<string, string>;
 };
 
 export type SdkSchemaMetadata = {
-    kind?:
+    kind:
         | "entity"
         | "value-object"
         | "projection"
@@ -71,15 +71,27 @@ export type SdkSchemaMetadata = {
         | "page"
         | "problem"
         | "transport";
-    publicName?: string;
+    publicName: string;
     transportFields?: string[];
+    identityFields?: string[];
+    readOnlyFields?: string[];
+    relations?: Record<
+        string,
+        {
+            resource: string;
+            cardinality: "one" | "many";
+            nullable?: boolean;
+        }
+    >;
+    domainExports?: Record<string, string>;
+    generate?: boolean;
 };
 
 export type PaginationMetadata = PaginationPolicy;
 
 export type EndpointContract<Authorization = unknown> = {
     meta: {
-        operationId?: string;
+        operationId: string;
         summary?: string;
         description?: string;
         deprecated?: boolean;
@@ -90,7 +102,7 @@ export type EndpointContract<Authorization = unknown> = {
         queryFeatures?: {
             filter?: boolean;
         };
-        sdk?: SdkOperationMetadata;
+        sdk: SdkOperationMetadata | false;
         pagination?: PaginationMetadata;
     };
     request: EndpointRequestSchema;
@@ -101,14 +113,15 @@ export function assertSdkMetadataConsistency(
     contract: EndpointContract<unknown>
 ) {
     const sdk = contract.meta.sdk;
+    const generatedSdk = sdk === false ? undefined : sdk;
     const pagination = contract.meta.pagination;
     const responseBody = getSuccessfulResponseBody(contract);
     const hasPaginationEnvelope =
         responseBody !== undefined &&
-        schemaHasPath(responseBody, "data") &&
-        schemaHasPath(responseBody, "quantity") &&
-        schemaHasPath(responseBody, "total") &&
-        schemaHasPath(responseBody, "_paths.next");
+        schemaHasPath(responseBody as z.ZodType, "data") &&
+        schemaHasPath(responseBody as z.ZodType, "quantity") &&
+        schemaHasPath(responseBody as z.ZodType, "total") &&
+        schemaHasPath(responseBody as z.ZodType, "_paths.next");
 
     if (responseBody instanceof z.ZodArray) {
         throw new Error(
@@ -118,7 +131,7 @@ export function assertSdkMetadataConsistency(
     if (hasPaginationEnvelope && !pagination) {
         throw new Error("Paginated responses must declare a pagination policy");
     }
-    if (!sdk && !pagination) return;
+    if (!generatedSdk && !pagination) return;
 
     const pathParameters = new Set(
         contract.meta.path.flatMap((segment) =>
@@ -126,12 +139,12 @@ export function assertSdkMetadataConsistency(
         )
     );
     if (
-        sdk?.method !== undefined &&
-        !/^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(sdk.method)
+        generatedSdk?.method !== undefined &&
+        !/^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(generatedSdk.method)
     ) {
-        throw new Error(`Invalid SDK method "${sdk.method}"`);
+        throw new Error(`Invalid SDK method "${generatedSdk.method}"`);
     }
-    for (const parameter of Object.keys(sdk?.pathParameters ?? {})) {
+    for (const parameter of Object.keys(generatedSdk?.pathParameters ?? {})) {
         if (!pathParameters.has(parameter)) {
             throw new Error(
                 `SDK path parameter "${parameter}" does not exist in ${contract.meta.method.toUpperCase()} ${contract.meta.path
@@ -144,7 +157,7 @@ export function assertSdkMetadataConsistency(
             );
         }
     }
-    if (pagination && sdk && sdk.action !== "list") {
+    if (pagination && generatedSdk && generatedSdk.action !== "list") {
         throw new Error("SDK pagination metadata requires action=list");
     }
     if (pagination) {

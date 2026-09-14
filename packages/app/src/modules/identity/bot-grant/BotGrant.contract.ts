@@ -21,12 +21,20 @@ const capabilities = Object.values(StudentCapabilities) as [
     StudentCapability,
     ...StudentCapability[]
 ];
+const studentCapabilitySchema = z
+    .enum(capabilities)
+    .openapi("StudentCapability", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "StudentCapability"
+        }
+    });
 const entity = z
     .object({
         id: z.number().int(),
         studentId: z.number().int(),
         botAuthUserId: z.number().int(),
-        capability: z.enum(capabilities),
+        capability: studentCapabilitySchema,
         createdAt: z.coerce.date(),
         revokedAt: z.coerce.date().nullable(),
         botAuthUser: z.object({
@@ -35,22 +43,42 @@ const entity = z
         })
     })
     .strict()
-    .openapi("BotGrantEntity");
+    .openapi("BotGrantEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "BotGrant",
+            identityFields: ["id"]
+        }
+    });
 
 const bot = z
     .object({ id: z.number().int(), displayName: z.string().nullable() })
     .strict()
-    .openapi("BotIdentityEntity");
+    .openapi("BotIdentityEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "BotIdentity",
+            identityFields: ["id"]
+        }
+    });
 const path = z.object({
     botAuthUserId: pathParam.integer()
 });
 const replaceBody = z
-    .object({ capabilities: z.array(z.enum(capabilities)) })
+    .object({ capabilities: z.array(studentCapabilitySchema) })
     .strict()
-    .openapi("ReplaceBotGrantBody");
+    .openapi("ReplaceBotGrantBody", {
+        "x-pomi-schema": { kind: "input", publicName: "ReplaceBotGrantBody" }
+    });
 
 const listBots = {
     meta: {
+        operationId: "listBots",
+        sdk: {
+            resource: "bots",
+            method: "list",
+            action: "list" as const
+        },
         method: "get" as const,
         path: [pathSeg.literal("bots")],
         tags: ["bot-grants"],
@@ -66,6 +94,12 @@ const listBots = {
 } satisfies IO;
 const list = {
     meta: {
+        operationId: "listBotGrants",
+        sdk: {
+            resource: "botGrants",
+            method: "list",
+            action: "list" as const
+        },
         method: "get" as const,
         path: [pathSeg.literal("me"), pathSeg.literal("bot-grants")],
         tags: ["bot-grants"],
@@ -81,6 +115,13 @@ const list = {
 } satisfies IO;
 const replace = {
     meta: {
+        operationId: "replaceBotGrant",
+        sdk: {
+            resource: "botGrants",
+            method: "replace",
+            action: "update" as const,
+            pathParameters: { botAuthUserId: "botAuthUserId" }
+        },
         method: "put" as const,
         path: [
             pathSeg.literal("me"),

@@ -20,11 +20,22 @@ extendZodWithOpenApi(z);
 
 const basePath = [pathSeg.literal("curriculum-suggestions")];
 const tags = ["curriculum-suggestions"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "curriculumSuggestions",
+    operationName: "CurriculumSuggestions",
+    pathParameters: { id: "curriculumSuggestionId" }
+});
 
 const positiveId = z.number().int().positive();
 const catalogYear = z.number().int().min(1900).max(2100);
-const suggestionType = z.enum(CurriculumSuggestionType);
+const suggestionType = z
+    .enum(CurriculumSuggestionType)
+    .openapi("CurriculumSuggestionType", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "CurriculumSuggestionType"
+        }
+    });
 const specializationSummary = z
     .object({
         id: positiveId,
@@ -41,7 +52,13 @@ const suggestionCourseEntitySchema = z
         credits: z.number().int().min(0)
     })
     .strict()
-    .openapi("CurriculumSuggestionCourseEntity");
+    .openapi("CurriculumSuggestionCourseEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "CurriculumSuggestionCourse",
+            identityFields: ["id"]
+        }
+    });
 
 const semesterSuggestionEntitySchema = z
     .object({
@@ -50,7 +67,9 @@ const semesterSuggestionEntitySchema = z
         courses: z.array(suggestionCourseEntitySchema)
     })
     .strict()
-    .openapi("SemesterSuggestionEntity");
+    .openapi("SemesterSuggestionEntity", {
+        "x-pomi-schema": { kind: "entity", publicName: "SemesterSuggestion" }
+    });
 
 export const curriculumSuggestionDataSchema = z
     .object({
@@ -67,7 +86,12 @@ export const curriculumSuggestionDataSchema = z
         semesters: z.array(semesterSuggestionEntitySchema)
     })
     .strict()
-    .openapi("CurriculumSuggestionData");
+    .openapi("CurriculumSuggestionData", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "CurriculumSuggestionData"
+        }
+    });
 
 export type CurriculumSuggestionFilter = Filter;
 const curriculumSuggestionFilterDefinitions = {
@@ -99,13 +123,25 @@ const curriculumSuggestionEntitySchema = curriculumSuggestionDataSchema
             .strict()
     })
     .strict()
-    .openapi("CurriculumSuggestionEntity");
+    .openapi("CurriculumSuggestionEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "CurriculumSuggestion",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 const listQuerySchema = createPaginationQuerySchema(unpaginatedByDefault, {
     filter: curriculumSuggestionFilter.optional()
 })
     .strict()
-    .openapi("ListCurriculumSuggestionsQuery");
+    .openapi("ListCurriculumSuggestionsQuery", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "ListCurriculumSuggestionsQuery"
+        }
+    });
 
 const get = {
     meta: { ...specsBuilder.get(), authorization: policies.public },

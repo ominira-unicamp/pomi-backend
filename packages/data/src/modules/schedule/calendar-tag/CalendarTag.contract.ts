@@ -18,7 +18,11 @@ extendZodWithOpenApi(z);
 
 const basePath = [pathSeg.literal("calendar-tags")];
 const tags = ["calendar-tags"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "calendarTags",
+    operationName: "CalendarTags",
+    pathParameters: { id: "calendarTagId" }
+});
 
 const schema = z
     .object({
@@ -29,7 +33,14 @@ const schema = z
         })
     })
     .strict()
-    .openapi("CalendarTag");
+    .openapi("CalendarTag", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "CalendarTag",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type CalendarTagFilter = Filter;
 const calendarTagFilterDefinitions = {

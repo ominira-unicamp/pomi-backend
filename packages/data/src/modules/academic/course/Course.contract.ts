@@ -31,7 +31,11 @@ export const coursePaths = {
 
 const basePath = [pathSeg.literal("courses")];
 const tags = ["courses"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "courses",
+    operationName: "Courses",
+    pathParameters: { id: "courseId" }
+});
 
 const courseEntity = z
     .object({
@@ -51,7 +55,14 @@ const courseEntity = z
             .strict()
     })
     .strict()
-    .openapi("CourseEntity");
+    .openapi("CourseEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Course",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type CourseFilterValue = FilterValue;
 export type CourseFilter = Filter;
@@ -90,11 +101,21 @@ const listCourseQuery = createPaginationQuerySchema(coursePagination, {
     filter: courseFilter.optional()
 })
     .strict()
-    .openapi("ListCoursesQuery");
+    .openapi("ListCoursesQuery", {
+        "x-pomi-schema": { kind: "input", publicName: "ListCoursesQuery" }
+    });
 export type ListQueryParams = z.infer<typeof listCourseQuery>;
 
-const PageCoursesSchema =
-    getPaginatedSchema(courseEntity).openapi("PageCourses");
+const PageCoursesSchema = getPaginatedSchema(courseEntity).openapi(
+    "PageCourses",
+    {
+        "x-pomi-schema": {
+            kind: "page",
+            publicName: "PageCourses",
+            transportFields: ["_paths"]
+        }
+    }
+);
 
 const get = {
     meta: {
@@ -104,6 +125,7 @@ const get = {
         sdk: {
             resource: "courses",
             action: "get" as const,
+            method: "get",
             pathParameters: { id: "courseId" }
         }
     },
@@ -122,7 +144,7 @@ const list = {
         operationId: "listCourses",
         authorization: policies.public,
         queryFeatures: { filter: true },
-        sdk: { resource: "courses", action: "list" as const },
+        sdk: { resource: "courses", action: "list" as const, method: "list" },
         pagination: coursePagination
     },
     request: z.object({

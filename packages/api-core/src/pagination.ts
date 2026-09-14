@@ -40,10 +40,9 @@ export const paginatedByDefault = {
     allowAll: false
 } satisfies PaginationPolicy;
 
-export function createPaginationQuerySchema<Shape extends z.ZodRawShape = {}>(
-    policy: PaginationPolicy,
-    shape?: Shape
-) {
+export function createPaginationQuerySchema<
+    Shape extends z.ZodRawShape = Record<never, never>
+>(policy: PaginationPolicy, shape?: Shape) {
     assertPaginationPolicy(policy);
     let numericPageSize = z.coerce.number().int().min(1);
     if (policy.maxPageSize !== undefined) {

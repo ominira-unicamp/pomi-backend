@@ -18,7 +18,11 @@ extendZodWithOpenApi(z);
 
 const basePath = [pathSeg.literal("languages")];
 const tags = ["languages"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "languages",
+    operationName: "Languages",
+    pathParameters: { id: "languageId" }
+});
 
 const schema = z
     .object({
@@ -29,7 +33,14 @@ const schema = z
             self: z.string()
         })
     })
-    .openapi("Language");
+    .openapi("Language", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Language",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type LanguageFilter = Filter;
 const languageFilterDefinitions = {

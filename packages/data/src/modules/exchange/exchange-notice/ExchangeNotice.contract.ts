@@ -17,7 +17,11 @@ import z from "zod";
 extendZodWithOpenApi(z);
 
 const basePath = [pathSeg.literal("exchange-notices")];
-const specsBuilder = new SpecBuilder(basePath, ["exchange-notices"], "id");
+const specsBuilder = new SpecBuilder(basePath, ["exchange-notices"], "id", {
+    resource: "exchangeNotices",
+    operationName: "ExchangeNotices",
+    pathParameters: { id: "exchangeNoticeId" }
+});
 const placeSchema = z
     .object({
         id: z.number().int().positive(),
@@ -25,7 +29,14 @@ const placeSchema = z
         _paths: z.object({ notices: z.string() }).strict()
     })
     .strict()
-    .openapi("ExchangePlace");
+    .openapi("ExchangePlace", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "ExchangePlace",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 const fileSchema = z
     .object({
@@ -34,7 +45,13 @@ const fileSchema = z
         url: z.string().url().nullable()
     })
     .strict()
-    .openapi("ExchangeNoticeFile");
+    .openapi("ExchangeNoticeFile", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "ExchangeNoticeFile",
+            identityFields: ["id"]
+        }
+    });
 
 const schema = z
     .object({
@@ -50,7 +67,14 @@ const schema = z
         _paths: z.object({ self: z.string() }).strict()
     })
     .strict()
-    .openapi("ExchangeNotice");
+    .openapi("ExchangeNotice", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "ExchangeNotice",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type ExchangeNoticeFilter = Filter;
 const exchangeNoticeFilterDefinitions = {

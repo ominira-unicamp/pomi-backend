@@ -14,6 +14,7 @@ import {
     SpecBuilder,
     UniqueConstraintConflictProblemSchema,
     unpaginatedByDefault,
+    YearPeriodSchema,
     type Filter
 } from "@pomi/api-core";
 import z from "zod";
@@ -26,7 +27,11 @@ const basePath = [
     pathSeg.literal("course-attempts")
 ];
 const tags = ["student-course-attempts"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "courseAttempts",
+    operationName: "StudentCourseAttempts",
+    pathParameters: { id: "courseAttemptId" }
+});
 
 export const StudentCourseAttemptStatus = {
     ENROLLED: "ENROLLED",
@@ -40,23 +45,74 @@ export const StudentCourseAttemptStatus = {
     INSUFFICIENT: "INSUFFICIENT"
 } as const;
 
-export const statusSchema = z.enum([
-    "ENROLLED",
-    "DROPPED",
-    "APPROVED",
-    "FAILED_BY_GRADE",
-    "APPROVED_BY_ATTENDANCE",
-    "APPROVED_BY_PROFICIENCY",
-    "FAILED_BY_ATTENDANCE",
-    "SUFFICIENT",
-    "INSUFFICIENT"
-]);
-const evaluationModeSchema = z.enum([
-    "GRADE_AND_ATTENDANCE",
-    "ATTENDANCE",
-    "CONCEPT"
-]);
+export const statusSchema = z
+    .enum([
+        "ENROLLED",
+        "DROPPED",
+        "APPROVED",
+        "FAILED_BY_GRADE",
+        "APPROVED_BY_ATTENDANCE",
+        "APPROVED_BY_PROFICIENCY",
+        "FAILED_BY_ATTENDANCE",
+        "SUFFICIENT",
+        "INSUFFICIENT"
+    ])
+    .openapi("StudentCourseAttemptStatus", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "StudentCourseAttemptStatus"
+        }
+    });
+const evaluationModeSchema = z
+    .enum(["GRADE_AND_ATTENDANCE", "ATTENDANCE", "CONCEPT"])
+    .openapi("CourseEvaluationMode", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "CourseEvaluationMode"
+        }
+    });
 const gradeSchema = z.number().min(0).max(10).nullable();
+
+const courseAttemptCourseSchema = z
+    .object({
+        id: z.number().int(),
+        code: z.string(),
+        name: z.string(),
+        credits: z.number().int(),
+        unit: z.object({ id: z.number().int(), code: z.string() }).nullable()
+    })
+    .openapi("CourseAttemptCourse", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "CourseAttemptCourse"
+        }
+    });
+const courseAttemptStudyPeriodSchema = z
+    .object({
+        id: z.number().int(),
+        year: z.number().int(),
+        yearPeriod: YearPeriodSchema
+    })
+    .openapi("CourseAttemptStudyPeriod", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "CourseAttemptStudyPeriod"
+        }
+    });
+const courseAttemptClassSchema = z
+    .object({
+        id: z.number().int(),
+        code: z.string(),
+        professors: z.array(
+            z.object({ id: z.number().int(), name: z.string() })
+        )
+    })
+    .openapi("CourseAttemptClass", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "CourseAttemptClass"
+        }
+    });
 
 const attemptEntity = z
     .object({
@@ -70,36 +126,9 @@ const attemptEntity = z
         grade: z.number().nullable(),
         createdAt: z.string().datetime(),
         updatedAt: z.string().datetime(),
-        course: z.object({
-            id: z.number().int(),
-            code: z.string(),
-            name: z.string(),
-            credits: z.number().int(),
-            unit: z
-                .object({ id: z.number().int(), code: z.string() })
-                .nullable()
-        }),
-        studyPeriod: z
-            .object({
-                id: z.number().int(),
-                year: z.number().int(),
-                yearPeriod: z.enum([
-                    "SUMMER",
-                    "FIRST_SEMESTER",
-                    "WINTER",
-                    "SECOND_SEMESTER"
-                ])
-            })
-            .nullable(),
-        class: z
-            .object({
-                id: z.number().int(),
-                code: z.string(),
-                professors: z.array(
-                    z.object({ id: z.number().int(), name: z.string() })
-                )
-            })
-            .nullable(),
+        course: courseAttemptCourseSchema,
+        studyPeriod: courseAttemptStudyPeriodSchema.nullable(),
+        class: courseAttemptClassSchema.nullable(),
         _paths: z.object({
             self: z.string(),
             student: z.string(),
@@ -109,7 +138,27 @@ const attemptEntity = z
         })
     })
     .strict()
-    .openapi("StudentCourseAttempt");
+    .openapi("StudentCourseAttempt", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "StudentCourseAttempt",
+            identityFields: ["id"],
+            transportFields: ["_paths"],
+            relations: {
+                course: { resource: "courses", cardinality: "one" },
+                studyPeriod: {
+                    resource: "studyPeriods",
+                    cardinality: "one",
+                    nullable: true
+                },
+                class: {
+                    resource: "classes",
+                    cardinality: "one",
+                    nullable: true
+                }
+            }
+        }
+    });
 
 const attemptBody = z
     .object({
@@ -121,7 +170,12 @@ const attemptBody = z
         grade: gradeSchema.optional()
     })
     .strict()
-    .openapi("CreateStudentCourseAttemptInput");
+    .openapi("CreateStudentCourseAttemptInput", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "CreateStudentCourseAttemptInput"
+        }
+    });
 
 const attemptFilter = resourceFilterSchema(
     {
@@ -152,6 +206,7 @@ const get = {
         sdk: {
             resource: "courseAttempts",
             action: "get" as const,
+            method: "get",
             pathParameters: { sid: "studentId", id: "courseAttemptId" }
         },
         authorization: policies.studentAccess(
@@ -182,6 +237,7 @@ const list = {
         sdk: {
             resource: "courseAttempts",
             action: "list" as const,
+            method: "list",
             pathParameters: { sid: "studentId" }
         },
         authorization: policies.studentAccess(
@@ -199,7 +255,12 @@ const list = {
             filter: attemptFilter.optional()
         })
             .strict()
-            .openapi("ListStudentCourseAttemptsQuery")
+            .openapi("ListStudentCourseAttemptsQuery", {
+                "x-pomi-schema": {
+                    kind: "input",
+                    publicName: "ListStudentCourseAttemptsQuery"
+                }
+            })
     }),
     response: new OutputBuilder()
         .ok(
@@ -216,6 +277,7 @@ const create = {
         sdk: {
             resource: "courseAttempts",
             action: "create" as const,
+            method: "create",
             pathParameters: { sid: "studentId" }
         },
         authorization: policies.studentAccess(
@@ -254,6 +316,7 @@ const patch = {
         sdk: {
             resource: "courseAttempts",
             action: "update" as const,
+            method: "update",
             pathParameters: { sid: "studentId", id: "courseAttemptId" }
         },
         authorization: policies.studentAccess(
@@ -270,7 +333,12 @@ const patch = {
             .omit({ courseId: true })
             .partial()
             .strict()
-            .openapi("UpdateStudentCourseAttemptInput")
+            .openapi("UpdateStudentCourseAttemptInput", {
+                "x-pomi-schema": {
+                    kind: "input",
+                    publicName: "UpdateStudentCourseAttemptInput"
+                }
+            })
     }),
     response: new OutputBuilder()
         .ok(attemptEntity, "Student course attempt updated successfully")
@@ -302,6 +370,7 @@ const remove = {
         sdk: {
             resource: "courseAttempts",
             action: "delete" as const,
+            method: "delete",
             pathParameters: { sid: "studentId", id: "courseAttemptId" }
         },
         authorization: policies.studentAccess(

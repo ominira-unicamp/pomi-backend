@@ -50,7 +50,12 @@ const evaluationBody = z
         difficulty: score
     })
     .strict()
-    .openapi("ProfessorEvaluationBody");
+    .openapi("ProfessorEvaluationBody", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "ProfessorEvaluationBody"
+        }
+    });
 
 const evaluation = evaluationBody
     .extend({
@@ -62,7 +67,13 @@ const evaluation = evaluationBody
         updatedAt: z.string().datetime()
     })
     .strict()
-    .openapi("ProfessorEvaluation");
+    .openapi("ProfessorEvaluation", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "ProfessorEvaluation",
+            identityFields: ["id"]
+        }
+    });
 
 const eligibility = z
     .object({
@@ -70,7 +81,12 @@ const eligibility = z
         evaluation: evaluation.nullable()
     })
     .strict()
-    .openapi("ProfessorEvaluationEligibility");
+    .openapi("ProfessorEvaluationEligibility", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "ProfessorEvaluationEligibility"
+        }
+    });
 
 const pendingEvaluation = z
     .object({
@@ -84,7 +100,12 @@ const pendingEvaluation = z
         professor: z.object({ id: z.number().int(), name: z.string() })
     })
     .strict()
-    .openapi("PendingProfessorEvaluation");
+    .openapi("PendingProfessorEvaluation", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "PendingProfessorEvaluation"
+        }
+    });
 
 const invalidEvaluationResponse = z.discriminatedUnion("type", [
     ReferenceNotFoundProblemSchema,
@@ -128,6 +149,17 @@ const pendingFilter = resourceFilterSchema(
 
 const get = {
     meta: {
+        operationId: "getProfessorEvaluation",
+        sdk: {
+            resource: "professorEvaluations",
+            method: "get",
+            action: "get" as const,
+            pathParameters: {
+                sid: "studentId",
+                classId: "classId",
+                professorId: "professorId"
+            }
+        },
         method: "get" as const,
         path: basePath,
         tags: ["professor-evaluations"],
@@ -145,6 +177,17 @@ const get = {
 
 const put = {
     meta: {
+        operationId: "updateProfessorEvaluation",
+        sdk: {
+            resource: "professorEvaluations",
+            method: "update",
+            action: "update" as const,
+            pathParameters: {
+                sid: "studentId",
+                classId: "classId",
+                professorId: "professorId"
+            }
+        },
         method: "put" as const,
         path: basePath,
         tags: ["professor-evaluations"],
@@ -162,6 +205,13 @@ const put = {
 
 const listPending = {
     meta: {
+        operationId: "listPendingProfessorEvaluations",
+        sdk: {
+            resource: "professorEvaluations",
+            method: "listPending",
+            action: "list" as const,
+            pathParameters: { sid: "studentId" }
+        },
         method: "get" as const,
         path: pendingPath,
         tags: ["professor-evaluations"],
@@ -180,7 +230,12 @@ const listPending = {
             filter: pendingFilter
         })
             .strict()
-            .openapi("ListPendingProfessorEvaluationsQuery")
+            .openapi("ListPendingProfessorEvaluationsQuery", {
+                "x-pomi-schema": {
+                    kind: "input",
+                    publicName: "ListPendingProfessorEvaluationsQuery"
+                }
+            })
     }),
     response: new OutputBuilder()
         .ok(

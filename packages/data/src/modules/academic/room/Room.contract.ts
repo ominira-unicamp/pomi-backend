@@ -22,7 +22,11 @@ export const roomPaths = {
 
 const basePath = [pathSeg.literal("rooms")];
 const tags = ["rooms"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "rooms",
+    operationName: "Rooms",
+    pathParameters: { id: "roomId" }
+});
 
 const roomEntity = z
     .object({
@@ -33,7 +37,14 @@ const roomEntity = z
         })
     })
     .strict()
-    .openapi("RoomEntity");
+    .openapi("RoomEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Room",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type RoomFilter = Filter;
 const roomFilterDefinitions = {

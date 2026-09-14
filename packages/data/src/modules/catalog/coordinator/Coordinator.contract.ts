@@ -29,7 +29,11 @@ export const coordinatorPaths = {
 
 const basePath = [pathSeg.literal("coordinators")];
 const tags = ["coordinators"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "coordinators",
+    operationName: "Coordinators",
+    pathParameters: { id: "coordinatorId" }
+});
 
 const coordinatorEntity = z
     .object({
@@ -41,7 +45,14 @@ const coordinatorEntity = z
             .strict()
     })
     .strict()
-    .openapi("CoordinatorEntity");
+    .openapi("CoordinatorEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Coordinator",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type CoordinatorFilter = Filter;
 const coordinatorFilterDefinitions = {
@@ -56,7 +67,9 @@ const coordinatorFilter = resourceFilterSchema(
 
 const listQuery = createPaginationQuerySchema(unpaginatedByDefault, {
     filter: coordinatorFilter.optional()
-}).openapi("ListCoordinatorsQuery");
+}).openapi("ListCoordinatorsQuery", {
+    "x-pomi-schema": { kind: "input", publicName: "ListCoordinatorsQuery" }
+});
 
 export type ListQueryParams = z.infer<typeof listQuery>;
 

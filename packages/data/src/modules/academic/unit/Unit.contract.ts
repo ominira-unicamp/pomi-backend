@@ -22,7 +22,11 @@ export const unitPaths = {
 
 const basePath = [pathSeg.literal("units")];
 const tags = ["units"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "units",
+    operationName: "Units",
+    pathParameters: { id: "unitId" }
+});
 
 const unitEntity = z
     .object({
@@ -37,7 +41,14 @@ const unitEntity = z
             .strict()
     })
     .strict()
-    .openapi("UnitEntity");
+    .openapi("UnitEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Unit",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type UnitFilter = Filter;
 const unitFilterDefinitions = {

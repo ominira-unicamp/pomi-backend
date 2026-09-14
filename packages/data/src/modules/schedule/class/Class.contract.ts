@@ -10,6 +10,7 @@ import {
     pathSeg,
     resourceFilterSchema,
     SpecBuilder,
+    YearPeriodSchema,
     type Filter
 } from "@pomi/api-core";
 import z from "zod";
@@ -22,7 +23,11 @@ export const classPaths = {
 
 const basePath = [pathSeg.literal("classes")];
 const tags = ["classes"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "classes",
+    operationName: "Classes",
+    pathParameters: { id: "classeId" }
+});
 
 const classEntity = z
     .object({
@@ -33,12 +38,7 @@ const classEntity = z
         studyPeriodId: z.number().int(),
         professorIds: z.array(z.number().int()),
         studyPeriodYear: z.number().int(),
-        studyPeriodYearPeriod: z.enum([
-            "SUMMER",
-            "FIRST_SEMESTER",
-            "WINTER",
-            "SECOND_SEMESTER"
-        ]),
+        studyPeriodYearPeriod: YearPeriodSchema,
         courseCode: z.string(),
         unitId: z.number().int().nullable(),
         unitCode: z.string().nullable(),
@@ -62,7 +62,14 @@ const classEntity = z
             .strict()
     })
     .strict()
-    .openapi("ClassEntity");
+    .openapi("ClassEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Class",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type ClassFilter = Filter;
 const classFilterDefinitions = {
@@ -92,7 +99,9 @@ const classFilter = resourceFilterSchema(
 const listClassesQuery = paginationQuerySchema
     .extend({ filter: classFilter.optional() })
     .strict()
-    .openapi("GetClassesQuery");
+    .openapi("GetClassesQuery", {
+        "x-pomi-schema": { kind: "input", publicName: "GetClassesQuery" }
+    });
 
 const PageClassesSchema = getPaginatedSchema(classEntity);
 

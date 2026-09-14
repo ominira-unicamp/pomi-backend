@@ -3,6 +3,7 @@ import { OutputBuilder, type IO } from "#/Contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    DayOfWeekSchema,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
@@ -17,6 +18,31 @@ import {
 import z from "zod";
 
 extendZodWithOpenApi(z);
+
+const profileVisibilitySchema = z
+    .enum(["PRIVATE", "FRIENDS", "PUBLIC"])
+    .openapi("StudentProfileVisibility", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "StudentProfileVisibility"
+        }
+    });
+const friendshipStatusSchema = z
+    .enum(["PENDING", "ACCEPTED"])
+    .openapi("StudentFriendshipStatus", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "StudentFriendshipStatus"
+        }
+    });
+const friendshipDirectionSchema = z
+    .enum(["INCOMING", "OUTGOING", "NONE"])
+    .openapi("StudentFriendshipDirection", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "StudentFriendshipDirection"
+        }
+    });
 
 const sidPath = z.object({
     sid: pathParam.integer()
@@ -38,15 +64,7 @@ const currentCourse = z
                 z
                     .object({
                         id: z.number().int().positive(),
-                        dayOfWeek: z.enum([
-                            "MONDAY",
-                            "TUESDAY",
-                            "WEDNESDAY",
-                            "THURSDAY",
-                            "FRIDAY",
-                            "SATURDAY",
-                            "SUNDAY"
-                        ]),
+                        dayOfWeek: DayOfWeekSchema,
                         start: z.string(),
                         end: z.string(),
                         roomCode: z.string()
@@ -56,7 +74,9 @@ const currentCourse = z
             .readonly()
     })
     .strict()
-    .openapi("StudentCurrentCourse");
+    .openapi("StudentCurrentCourse", {
+        "x-pomi-schema": { kind: "entity", publicName: "StudentCurrentCourse" }
+    });
 const person = z
     .object({
         publicId: z.string().uuid(),
@@ -79,34 +99,69 @@ const person = z
         _paths: z.object({ self: z.string() }).strict()
     })
     .strict()
-    .openapi("StudentPublicPerson");
+    .openapi("StudentPublicPerson", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "StudentPublicPerson",
+            identityFields: ["publicId"],
+            transportFields: ["_paths"],
+            relations: {
+                currentCourses: { resource: "courses", cardinality: "many" },
+                program: {
+                    resource: "programs",
+                    cardinality: "one",
+                    nullable: true
+                },
+                specialization: {
+                    resource: "specializations",
+                    cardinality: "one",
+                    nullable: true
+                }
+            }
+        }
+    });
 const ownProfile = person
     .extend({
         enabled: z.boolean(),
-        currentCoursesVisibility: z.enum(["PRIVATE", "FRIENDS", "PUBLIC"])
+        currentCoursesVisibility: profileVisibilitySchema
     })
     .strict()
-    .openapi("StudentPublicProfile");
+    .openapi("StudentPublicProfile", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "StudentPublicProfile",
+            identityFields: ["publicId"],
+            transportFields: ["_paths"]
+        }
+    });
 const friendship = z
     .object({
         id: z.number().int(),
-        status: z.enum(["PENDING", "ACCEPTED"]),
-        direction: z.enum(["INCOMING", "OUTGOING", "NONE"]),
+        status: friendshipStatusSchema,
+        direction: friendshipDirectionSchema,
         friend: person,
         createdAt: z.string().datetime(),
         acceptedAt: z.string().datetime().nullable(),
         _paths: z.object({ self: z.string(), friend: z.string() }).strict()
     })
     .strict()
-    .openapi("StudentFriendship");
+    .openapi("StudentFriendship", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "StudentFriendship",
+            identityFields: ["id"],
+            transportFields: ["_paths"],
+            relations: {
+                friend: { resource: "studentSocial", cardinality: "one" }
+            }
+        }
+    });
 const profileBody = z
     .object({
         enabled: z.boolean().optional(),
         displayName: z.string().trim().min(1).max(80).nullable().optional(),
         bio: z.string().trim().max(280).nullable().optional(),
-        currentCoursesVisibility: z
-            .enum(["PRIVATE", "FRIENDS", "PUBLIC"])
-            .optional()
+        currentCoursesVisibility: profileVisibilitySchema.optional()
     })
     .strict();
 const profilePath = [
@@ -147,6 +202,13 @@ export const studentPeoplePagination = {
 
 const getProfile = {
     meta: {
+        operationId: "getStudentPublicProfile",
+        sdk: {
+            resource: "studentSocial",
+            method: "getProfile",
+            action: "get" as const,
+            pathParameters: { sid: "studentId" }
+        },
         method: "get" as const,
         path: profilePath,
         tags: ["student-social"],
@@ -160,6 +222,13 @@ const getProfile = {
 } satisfies IO;
 const updateProfile = {
     meta: {
+        operationId: "updateStudentPublicProfile",
+        sdk: {
+            resource: "studentSocial",
+            method: "updateProfile",
+            action: "update" as const,
+            pathParameters: { sid: "studentId" }
+        },
         method: "patch" as const,
         path: profilePath,
         tags: ["student-social"],
@@ -173,6 +242,7 @@ const updateProfile = {
 } satisfies IO;
 const listPeople = {
     meta: {
+        operationId: "listStudentPeople",
         method: "get" as const,
         path: peoplePath,
         tags: ["student-social"],
@@ -180,6 +250,7 @@ const listPeople = {
         sdk: {
             resource: "studentPeople",
             action: "list" as const,
+            method: "list",
             pathParameters: { sid: "studentId" }
         },
         pagination: studentPeoplePagination
@@ -192,13 +263,25 @@ const listPeople = {
     }),
     response: new OutputBuilder()
         .ok(
-            getPaginatedSchema(person).openapi("StudentPeoplePage"),
+            getPaginatedSchema(person).openapi("StudentPeoplePage", {
+                "x-pomi-schema": {
+                    kind: "page",
+                    publicName: "StudentPeoplePage"
+                }
+            }),
             "Pessoas recuperadas"
         )
         .build()
 } satisfies IO;
 const getPerson = {
     meta: {
+        operationId: "getStudentPerson",
+        sdk: {
+            resource: "studentSocial",
+            method: "getPerson",
+            action: "get" as const,
+            pathParameters: { sid: "studentId", publicId: "publicId" }
+        },
         method: "get" as const,
         path: [...peoplePath, pathSeg.param("publicId")],
         tags: ["student-social"],
@@ -212,6 +295,13 @@ const getPerson = {
 } satisfies IO;
 const listFriendships = {
     meta: {
+        operationId: "listStudentFriendships",
+        sdk: {
+            resource: "studentSocial",
+            method: "listFriendships",
+            action: "list" as const,
+            pathParameters: { sid: "studentId" }
+        },
         method: "get" as const,
         path: friendshipsPath,
         tags: ["student-social"],
@@ -225,7 +315,12 @@ const listFriendships = {
             filter: friendshipFilter.optional()
         })
             .strict()
-            .openapi("ListStudentFriendshipsQuery")
+            .openapi("ListStudentFriendshipsQuery", {
+                "x-pomi-schema": {
+                    kind: "input",
+                    publicName: "ListStudentFriendshipsQuery"
+                }
+            })
     }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(friendship), "Amizades recuperadas")
@@ -233,6 +328,13 @@ const listFriendships = {
 } satisfies IO;
 const createFriendship = {
     meta: {
+        operationId: "createStudentFriendship",
+        sdk: {
+            resource: "studentSocial",
+            method: "createFriendship",
+            action: "create" as const,
+            pathParameters: { sid: "studentId" }
+        },
         method: "post" as const,
         path: friendshipsPath,
         tags: ["student-social"],
@@ -254,6 +356,13 @@ const createFriendship = {
 } satisfies IO;
 const acceptFriendship = {
     meta: {
+        operationId: "acceptStudentFriendship",
+        sdk: {
+            resource: "studentSocial",
+            method: "acceptFriendship",
+            action: "update" as const,
+            pathParameters: { sid: "studentId", id: "friendshipId" }
+        },
         method: "post" as const,
         path: [
             ...friendshipsPath,
@@ -280,6 +389,13 @@ const acceptFriendship = {
 } satisfies IO;
 const removeFriendship = {
     meta: {
+        operationId: "deleteStudentFriendship",
+        sdk: {
+            resource: "studentSocial",
+            method: "removeFriendship",
+            action: "delete" as const,
+            pathParameters: { sid: "studentId", id: "friendshipId" }
+        },
         method: "delete" as const,
         path: [...friendshipsPath, pathSeg.param("id")],
         tags: ["student-social"],

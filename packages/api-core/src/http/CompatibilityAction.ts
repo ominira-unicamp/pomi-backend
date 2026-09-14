@@ -19,7 +19,7 @@ import { sendProblem } from "./problemResponse.js";
 
 export type CompatibilityContract = {
     meta: {
-        operationId?: string;
+        operationId: string;
         summary?: string;
         description?: string;
         deprecated?: boolean;
@@ -30,7 +30,7 @@ export type CompatibilityContract = {
         queryFeatures?: {
             filter?: boolean;
         };
-        sdk?: SdkOperationMetadata;
+        sdk: SdkOperationMetadata | false;
         pagination?: PaginationMetadata;
     };
     request: EndpointRequestSchema;

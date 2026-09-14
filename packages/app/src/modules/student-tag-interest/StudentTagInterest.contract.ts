@@ -37,10 +37,23 @@ const tag = z
         parentTagId: z.number().int().positive().nullable()
     })
     .strict()
-    .openapi("StudentTagInterest");
+    .openapi("StudentTagInterest", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "StudentTagInterest",
+            identityFields: ["id"]
+        }
+    });
 
 const list = {
     meta: {
+        operationId: "listStudentTagInterests",
+        sdk: {
+            resource: "studentTagInterests",
+            method: "list",
+            action: "list" as const,
+            pathParameters: { sid: "studentId" }
+        },
         method: "get" as const,
         path: studentPath,
         tags: ["student-tag-interests"],
@@ -61,6 +74,13 @@ const list = {
 
 const put = {
     meta: {
+        operationId: "updateStudentTagInterest",
+        sdk: {
+            resource: "studentTagInterests",
+            method: "update",
+            action: "update" as const,
+            pathParameters: { sid: "studentId", tagId: "tagId" }
+        },
         method: "put" as const,
         path: studentTagPath,
         tags: ["student-tag-interests"],
@@ -78,6 +98,13 @@ const put = {
 
 const remove = {
     meta: {
+        operationId: "deleteStudentTagInterest",
+        sdk: {
+            resource: "studentTagInterests",
+            method: "delete",
+            action: "delete" as const,
+            pathParameters: { sid: "studentId", tagId: "tagId" }
+        },
         method: "delete" as const,
         path: studentTagPath,
         tags: ["student-tag-interests"],

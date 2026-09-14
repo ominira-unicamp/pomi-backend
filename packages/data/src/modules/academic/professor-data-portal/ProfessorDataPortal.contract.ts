@@ -22,7 +22,12 @@ const profileBase = [pathSeg.literal("professor-data-portal-profiles")];
 const profileSpecs = new SpecBuilder(
     profileBase,
     ["professor-data-portal"],
-    "id"
+    "id",
+    {
+        resource: "professorDataPortalProfiles",
+        operationName: "ProfessorDataPortalProfiles",
+        pathParameters: { id: "profileId" }
+    }
 );
 const idPath = z.object({
     id: pathParam.positiveInteger()
@@ -37,7 +42,9 @@ const careerReference = z
         progressionOrder: z.number().int()
     })
     .strict()
-    .openapi("CareerReference");
+    .openapi("CareerReference", {
+        "x-pomi-schema": { kind: "entity", publicName: "CareerReference" }
+    });
 const position = z
     .object({
         id: profileId,
@@ -49,14 +56,26 @@ const position = z
         careerReference: careerReference.nullable()
     })
     .strict()
-    .openapi("ProfessorPosition");
+    .openapi("ProfessorPosition", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "ProfessorPosition",
+            identityFields: ["id"]
+        }
+    });
 const unit = z
     .object({ id: profileId, code: z.string(), name: z.string() })
     .strict();
 const department = z
     .object({ id: profileId, name: z.string(), unitId: profileId })
     .strict()
-    .openapi("Department");
+    .openapi("Department", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Department",
+            identityFields: ["id"]
+        }
+    });
 const identifier = z
     .object({ id: profileId, system: z.string(), externalId: z.string() })
     .strict();
@@ -104,7 +123,14 @@ const profile = z
         _paths: z.object({ self: z.string(), professor: z.string() }).strict()
     })
     .strict()
-    .openapi("ProfessorDataPortalProfile");
+    .openapi("ProfessorDataPortalProfile", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "ProfessorDataPortalProfile",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 export const profileSummary = profile
     .pick({
         id: true,
@@ -118,7 +144,13 @@ export const profileSummary = profile
         position: true,
         _paths: true
     })
-    .openapi("ProfessorDataPortalProfileSummary");
+    .openapi("ProfessorDataPortalProfileSummary", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "ProfessorDataPortalProfileSummary",
+            transportFields: ["_paths"]
+        }
+    });
 
 export type ProfileFilter = Filter;
 const profileFilterDefinitions = {
@@ -196,11 +228,18 @@ const profileGet = {
 const simpleList = (
     path: string,
     tag: string,
+    resource: string,
+    operationName: string,
+    identifierName: string,
     schema: z.ZodTypeAny,
     filter?: z.ZodType<Filter>
 ) => ({
     meta: {
-        ...new SpecBuilder([pathSeg.literal(path)], [tag], "id").list(),
+        ...new SpecBuilder([pathSeg.literal(path)], [tag], "id", {
+            resource,
+            operationName,
+            pathParameters: { id: identifierName }
+        }).list(),
         authorization: policies.public,
         ...(filter ? { queryFeatures: { filter: true } } : {}),
         pagination: unpaginatedByDefault
@@ -216,9 +255,20 @@ const simpleList = (
         .badRequest()
         .build()
 });
-const simpleGet = (path: string, tag: string, schema: z.ZodTypeAny) => ({
+const simpleGet = (
+    path: string,
+    tag: string,
+    resource: string,
+    operationName: string,
+    identifierName: string,
+    schema: z.ZodTypeAny
+) => ({
     meta: {
-        ...new SpecBuilder([pathSeg.literal(path)], [tag], "id").get(),
+        ...new SpecBuilder([pathSeg.literal(path)], [tag], "id", {
+            resource,
+            operationName,
+            pathParameters: { id: identifierName }
+        }).get(),
         authorization: policies.public
     },
     request: z.object({ path: idPath }),
@@ -233,18 +283,30 @@ export const departmentSchema = department;
 export const keywordSchema = z
     .object({ id: profileId, name: z.string() })
     .strict()
-    .openapi("Keyword");
+    .openapi("Keyword", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Keyword",
+            identityFields: ["id"]
+        }
+    });
 export const coauthorSchema = z
     .object({ id: profileId, name: z.string() })
     .strict()
-    .openapi("Coauthor");
+    .openapi("Coauthor", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Coauthor",
+            identityFields: ["id"]
+        }
+    });
 const keywordList = {
     meta: {
-        ...new SpecBuilder(
-            [pathSeg.literal("keywords")],
-            ["keywords"],
-            "id"
-        ).list(),
+        ...new SpecBuilder([pathSeg.literal("keywords")], ["keywords"], "id", {
+            resource: "keywords",
+            operationName: "Keywords",
+            pathParameters: { id: "keywordId" }
+        }).list(),
         authorization: policies.public,
         queryFeatures: { filter: true },
         pagination: paginatedByDefault
@@ -267,7 +329,12 @@ const coauthorList = {
         ...new SpecBuilder(
             [pathSeg.literal("coauthors")],
             ["coauthors"],
-            "id"
+            "id",
+            {
+                resource: "coauthors",
+                operationName: "Coauthors",
+                pathParameters: { id: "coauthorId" }
+            }
         ).list(),
         authorization: policies.public,
         queryFeatures: { filter: true },
@@ -292,26 +359,60 @@ export default {
         list: simpleList(
             "professor-positions",
             "professor-positions",
+            "professorPositions",
+            "ProfessorPositions",
+            "professorPositionId",
             position,
             positionFilter
         ),
-        get: simpleGet("professor-positions", "professor-positions", position)
+        get: simpleGet(
+            "professor-positions",
+            "professor-positions",
+            "professorPositions",
+            "ProfessorPositions",
+            "professorPositionId",
+            position
+        )
     },
     departments: {
         list: simpleList(
             "departments",
             "departments",
+            "departments",
+            "Departments",
+            "departmentId",
             department,
             departmentFilter
         ),
-        get: simpleGet("departments", "departments", department)
+        get: simpleGet(
+            "departments",
+            "departments",
+            "departments",
+            "Departments",
+            "departmentId",
+            department
+        )
     },
     keywords: {
         list: keywordList,
-        get: simpleGet("keywords", "keywords", keywordSchema)
+        get: simpleGet(
+            "keywords",
+            "keywords",
+            "keywords",
+            "Keywords",
+            "keywordId",
+            keywordSchema
+        )
     },
     coauthors: {
         list: coauthorList,
-        get: simpleGet("coauthors", "coauthors", coauthorSchema)
+        get: simpleGet(
+            "coauthors",
+            "coauthors",
+            "coauthors",
+            "Coauthors",
+            "coauthorId",
+            coauthorSchema
+        )
     }
 };

@@ -31,7 +31,20 @@ export const catalogCoursePaths = {
 
 const basePath = [pathSeg.literal("catalog-courses")];
 const tags = ["catalog-courses"];
-const specsBuilder = new SpecBuilder(basePath, tags, "id");
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "catalogCourses",
+    operationName: "CatalogCourses",
+    pathParameters: { id: "catalogCourseId" }
+});
+
+const courseOfferingKindSchema = z
+    .enum(["FULL", "PARTIAL", "SPECIAL"])
+    .openapi("CourseOfferingKind", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "CourseOfferingKind"
+        }
+    });
 
 const offeringPeriodValues = [
     "ALL_PERIODS",
@@ -41,7 +54,12 @@ const offeringPeriodValues = [
 ] as const;
 const offeringPeriod = z
     .enum(offeringPeriodValues)
-    .openapi("CourseOfferingPeriod");
+    .openapi("CourseOfferingPeriod", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "CourseOfferingPeriod"
+        }
+    });
 
 const coordinator = z
     .object({
@@ -68,7 +86,7 @@ const workload = z
 const prerequisiteItem = z
     .object({
         code: z.string().min(1),
-        kind: z.enum(["FULL", "PARTIAL", "SPECIAL"]),
+        kind: courseOfferingKindSchema,
         courseId: z.number().int().nullable()
     })
     .strict();
@@ -133,13 +151,25 @@ const catalogCourseEntity = z
             .strict()
     })
     .strict()
-    .openapi("CatalogCourseEntity");
+    .openapi("CatalogCourseEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "CatalogCourse",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 const listQuery = createPaginationQuerySchema(unpaginatedByDefault, {
     filter: catalogCourseFilter.optional()
 })
     .strict()
-    .openapi("ListCatalogCoursesQuery");
+    .openapi("ListCatalogCoursesQuery", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "ListCatalogCoursesQuery"
+        }
+    });
 
 export type ListQueryParams = z.infer<typeof listQuery>;
 

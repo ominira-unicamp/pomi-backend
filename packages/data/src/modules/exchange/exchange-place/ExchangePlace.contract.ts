@@ -18,7 +18,12 @@ extendZodWithOpenApi(z);
 const specsBuilder = new SpecBuilder(
     [pathSeg.literal("exchange-places")],
     ["exchange-places"],
-    "id"
+    "id",
+    {
+        resource: "exchangePlaces",
+        operationName: "ExchangePlaces",
+        pathParameters: { id: "exchangePlaceId" }
+    }
 );
 
 const schema = z
@@ -28,7 +33,13 @@ const schema = z
         _paths: z.object({ notices: z.string() }).strict()
     })
     .strict()
-    .openapi("ExchangePlaceListItem");
+    .openapi("ExchangePlaceListItem", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "ExchangePlaceListItem",
+            transportFields: ["_paths"]
+        }
+    });
 
 export type ExchangePlaceFilter = Filter;
 const exchangePlaceFilterDefinitions = {

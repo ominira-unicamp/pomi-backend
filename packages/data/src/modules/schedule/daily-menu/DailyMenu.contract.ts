@@ -17,20 +17,42 @@ import z from "zod";
 extendZodWithOpenApi(z);
 
 const basePath = [pathSeg.literal("daily-menus")];
-const specsBuilder = new SpecBuilder(basePath, ["daily-menus"], "id");
+const specsBuilder = new SpecBuilder(basePath, ["daily-menus"], "id", {
+    resource: "dailyMenus",
+    operationName: "DailyMenus",
+    pathParameters: { id: "dailyMenuId" }
+});
+
+const mealPeriodSchema = z.enum(["LUNCH", "DINNER"]).openapi("MealPeriod", {
+    "x-pomi-schema": { kind: "value-object", publicName: "MealPeriod" }
+});
+const mealDietSchema = z.enum(["TRADITIONAL", "VEGAN"]).openapi("MealDiet", {
+    "x-pomi-schema": { kind: "value-object", publicName: "MealDiet" }
+});
+const mealStatusSchema = z
+    .enum(["AVAILABLE", "NOT_REGISTERED"])
+    .openapi("MealStatus", {
+        "x-pomi-schema": { kind: "value-object", publicName: "MealStatus" }
+    });
 const mealSchema = z
     .object({
         id: z.number().int().positive(),
-        period: z.enum(["LUNCH", "DINNER"]),
-        diet: z.enum(["TRADITIONAL", "VEGAN"]),
-        status: z.enum(["AVAILABLE", "NOT_REGISTERED"]),
+        period: mealPeriodSchema,
+        diet: mealDietSchema,
+        status: mealStatusSchema,
         mainDish: z.string().nullable(),
         items: z.array(z.string()),
         observations: z.array(z.string()),
         serviceNotes: z.array(z.string())
     })
     .strict()
-    .openapi("Meal");
+    .openapi("Meal", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Meal",
+            identityFields: ["id"]
+        }
+    });
 
 const schema = z
     .object({
@@ -42,7 +64,14 @@ const schema = z
         _paths: z.object({ self: z.string() }).strict()
     })
     .strict()
-    .openapi("DailyMenu");
+    .openapi("DailyMenu", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "DailyMenu",
+            identityFields: ["id"],
+            transportFields: ["_paths"]
+        }
+    });
 
 export type DailyMenuFilter = Filter;
 const dailyMenuFilterDefinitions = {

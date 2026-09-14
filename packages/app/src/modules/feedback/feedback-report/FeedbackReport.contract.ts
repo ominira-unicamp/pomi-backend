@@ -40,6 +40,33 @@ export const feedbackAcademicResourceTypes = [
     "CALENDAR_EVENT"
 ] as const;
 
+const feedbackFeatureKeySchema = z
+    .enum(feedbackFeatureKeys)
+    .openapi("FeedbackFeatureKey", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "FeedbackFeatureKey"
+        }
+    });
+const feedbackAcademicResourceTypeSchema = z
+    .enum(feedbackAcademicResourceTypes)
+    .openapi("FeedbackAcademicResourceType", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "FeedbackAcademicResourceType"
+        }
+    });
+const feedbackKindSchema = z
+    .enum(["BUG", "SUGGESTION", "DATA_ISSUE"])
+    .openapi("FeedbackKind", {
+        "x-pomi-schema": { kind: "value-object", publicName: "FeedbackKind" }
+    });
+const feedbackStatusSchema = z
+    .enum(["OPEN", "IN_PROGRESS", "CLOSED"])
+    .openapi("FeedbackStatus", {
+        "x-pomi-schema": { kind: "value-object", publicName: "FeedbackStatus" }
+    });
+
 const feedbackPath = [pathSeg.literal("feedback-reports")];
 const studentFeedbackPath = [
     pathSeg.literal("student"),
@@ -57,22 +84,24 @@ const target = z
         z
             .object({
                 type: z.literal("FEATURE"),
-                featureKey: z.enum(feedbackFeatureKeys)
+                featureKey: feedbackFeatureKeySchema
             })
             .strict(),
         z
             .object({
                 type: z.literal("ACADEMIC_RESOURCE"),
-                academicResourceType: z.enum(feedbackAcademicResourceTypes),
+                academicResourceType: feedbackAcademicResourceTypeSchema,
                 academicResourceId: z.number().int().positive()
             })
             .strict()
     ])
-    .openapi("FeedbackReportTarget");
+    .openapi("FeedbackReportTarget", {
+        "x-pomi-schema": { kind: "entity", publicName: "FeedbackReportTarget" }
+    });
 
 const body = z
     .object({
-        kind: z.enum(["BUG", "SUGGESTION", "DATA_ISSUE"]),
+        kind: feedbackKindSchema,
         target,
         title: z.string().trim().min(5).max(160),
         description: z.string().trim().min(20).max(5000),
@@ -83,18 +112,28 @@ const body = z
             .optional()
     })
     .strict()
-    .openapi("CreateFeedbackReportBody");
+    .openapi("CreateFeedbackReportBody", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "CreateFeedbackReportBody"
+        }
+    });
 
 const accepted = z
     .object({ createdAt: z.string().datetime() })
     .strict()
-    .openapi("FeedbackReportAccepted");
+    .openapi("FeedbackReportAccepted", {
+        "x-pomi-schema": {
+            kind: "projection",
+            publicName: "FeedbackReportAccepted"
+        }
+    });
 
-const status = z.enum(["OPEN", "IN_PROGRESS", "CLOSED"]);
+const status = feedbackStatusSchema;
 const report = z
     .object({
         id: z.number().int(),
-        kind: z.enum(["BUG", "SUGGESTION", "DATA_ISSUE"]),
+        kind: feedbackKindSchema,
         target,
         title: z.string(),
         description: z.string(),
@@ -106,7 +145,13 @@ const report = z
         updatedAt: z.string().datetime()
     })
     .strict()
-    .openapi("FeedbackReport");
+    .openapi("FeedbackReport", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "FeedbackReport",
+            identityFields: ["id"]
+        }
+    });
 
 const idPath = z.object({
     id: pathParam.positiveInteger()
@@ -124,10 +169,22 @@ const adminPatchBody = z
             message: "Informe o status ou a mensagem administrativa."
         }
     )
-    .openapi("PatchFeedbackReportBody");
+    .openapi("PatchFeedbackReportBody", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "PatchFeedbackReportBody"
+        }
+    });
 
 const listStudent = {
     meta: {
+        operationId: "listStudentFeedbackReports",
+        sdk: {
+            resource: "feedbackReports",
+            method: "listForStudent",
+            action: "list" as const,
+            pathParameters: { sid: "studentId" }
+        },
         method: "get" as const,
         path: studentFeedbackPath,
         tags: ["feedback-reports"],
@@ -148,6 +205,12 @@ const listStudent = {
 
 const listAdmin = {
     meta: {
+        operationId: "listFeedbackReports",
+        sdk: {
+            resource: "feedbackReports",
+            method: "list",
+            action: "list" as const
+        },
         method: "get" as const,
         path: [pathSeg.literal("admin"), pathSeg.literal("feedback-reports")],
         tags: ["feedback-reports"],
@@ -164,6 +227,13 @@ const listAdmin = {
 
 const patchAdmin = {
     meta: {
+        operationId: "updateFeedbackReport",
+        sdk: {
+            resource: "feedbackReports",
+            method: "update",
+            action: "update" as const,
+            pathParameters: { id: "feedbackReportId" }
+        },
         method: "patch" as const,
         path: [
             pathSeg.literal("admin"),
@@ -186,6 +256,12 @@ const patchAdmin = {
 
 const createAnonymous = {
     meta: {
+        operationId: "createFeedbackReport",
+        sdk: {
+            resource: "feedbackReports",
+            method: "create",
+            action: "create" as const
+        },
         method: "post" as const,
         path: feedbackPath,
         tags: ["feedback-reports"],
@@ -213,6 +289,13 @@ const createAnonymous = {
 
 const createForStudent = {
     meta: {
+        operationId: "createStudentFeedbackReport",
+        sdk: {
+            resource: "feedbackReports",
+            method: "createForStudent",
+            action: "create" as const,
+            pathParameters: { sid: "studentId" }
+        },
         method: "post" as const,
         path: studentFeedbackPath,
         tags: ["feedback-reports"],

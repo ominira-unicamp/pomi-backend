@@ -46,13 +46,20 @@ router.get("/calendar", getCalendar);
 const registry = new OpenAPIRegistry();
 
 registry.registerPath({
-    method: "get",
-    path: "/calendar",
-    tags: ["calendar"],
-    request: {
+    "method": "get",
+    "path": "/calendar",
+    "tags": ["calendar"],
+    "operationId": "getCalendarFeed",
+    "summary": "Get public iCalendar feed",
+    "x-pomi-sdk": {
+        resource: "calendar",
+        method: "getFeed",
+        action: "get"
+    },
+    "request": {
         query: calendarQuerySchema
     },
-    responses: {
+    "responses": {
         200: {
             description: "Public iCalendar feed",
             content: {

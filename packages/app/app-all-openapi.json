@@ -333,6 +333,200 @@
           "publicName": "ReplaceBotGrantBody"
         }
       },
+      "AuthUserEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthUserStatus"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "authUserId": {
+                  "type": "integer"
+                },
+                "role": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "authUserId",
+                "role"
+              ]
+            }
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "authUserId": {
+                  "type": "integer"
+                },
+                "capability": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "authUserId",
+                "capability"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "issuer",
+          "subject",
+          "email",
+          "displayName",
+          "status",
+          "roles",
+          "capabilities"
+        ],
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "entity",
+          "publicName": "AuthUser",
+          "identityFields": [
+            "id"
+          ]
+        }
+      },
+      "AuthUserStatus": {
+        "type": "string",
+        "enum": [
+          "ACTIVE",
+          "DISABLED"
+        ],
+        "x-pomi-schema": {
+          "kind": "value-object",
+          "publicName": "AuthUserStatus"
+        }
+      },
+      "CreateBotAuthUserBody": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 1
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthCapability"
+            },
+            "default": []
+          }
+        },
+        "required": [
+          "subject",
+          "displayName"
+        ],
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input",
+          "publicName": "CreateBotAuthUserBody"
+        }
+      },
+      "AuthCapability": {
+        "type": "string",
+        "enum": [
+          "ACADEMIC_WRITE"
+        ],
+        "x-pomi-schema": {
+          "kind": "value-object",
+          "publicName": "AuthCapability"
+        }
+      },
+      "AdminIdentityManagedByCliProblem": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "urn:pomi:problem:admin-identity-managed-by-cli"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "enum": [
+              "Identidade administrada pela linha de comando"
+            ]
+          },
+          "status": {
+            "type": "number",
+            "enum": [
+              403
+            ]
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail"
+        ],
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "problem",
+          "publicName": "AdminIdentityManagedByCliProblem"
+        }
+      },
+      "PatchAuthUserBody": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/AuthUserStatus"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthCapability"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input",
+          "publicName": "PatchAuthUserBody"
+        }
+      },
       "StudentEntity": {
         "type": "object",
         "properties": {
@@ -3580,6 +3774,24 @@
           "publicName": "FeedbackStatus"
         }
       },
+      "PatchFeedbackReportBody": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/FeedbackStatus"
+          },
+          "adminMessage": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 5000
+          }
+        },
+        "additionalProperties": false,
+        "x-pomi-schema": {
+          "kind": "input",
+          "publicName": "PatchFeedbackReportBody"
+        }
+      },
       "ExchangeNoticeSubscription": {
         "type": "object",
         "properties": {
@@ -4171,6 +4383,296 @@
         ]
       }
     },
+    "/admin/auth-users": {
+      "get": {
+        "tags": [
+          "auth-users"
+        ],
+        "operationId": "listAuthUsers",
+        "summary": "List AuthUsers",
+        "x-pomi-sdk": {
+          "resource": "authUsers",
+          "method": "list",
+          "action": "list"
+        },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Identidades recuperadas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AuthUserEntity"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados da requisição inválidos",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Não foi possível concluir a ação",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "auth-users"
+        ],
+        "operationId": "createAuthUser",
+        "summary": "Create AuthUser",
+        "x-pomi-sdk": {
+          "resource": "authUsers",
+          "method": "create",
+          "action": "create"
+        },
+        "requestBody": {
+          "description": "Request body",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBotAuthUserBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bot criado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserEntity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados da requisição inválidos",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Não foi possível concluir a ação",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/auth-users/{id}": {
+      "patch": {
+        "tags": [
+          "auth-users"
+        ],
+        "operationId": "updateAuthUser",
+        "summary": "Update AuthUser",
+        "x-pomi-sdk": {
+          "resource": "authUsers",
+          "method": "update",
+          "action": "update",
+          "pathParameters": {
+            "id": "authUserId"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "description": "Request body",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchAuthUserBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Identidade atualizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserEntity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados da requisição inválidos",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Identidade administrada pela linha de comando",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminIdentityManagedByCliProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Identidade não encontrada",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Não foi possível concluir a ação",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
     "/students/{id}": {
       "get": {
         "tags": [
@@ -4449,6 +4951,139 @@
       }
     },
     "/students": {
+      "get": {
+        "tags": [
+          "students"
+        ],
+        "operationId": "listStudents",
+        "summary": "List Students",
+        "x-pomi-sdk": {
+          "resource": "students",
+          "method": "list",
+          "action": "list"
+        },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of students retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StudentEntity"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados da requisição inválidos",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Não foi possível concluir a ação",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "students"
@@ -9670,6 +10305,226 @@
         ]
       }
     },
+    "/admin/feedback-reports": {
+      "get": {
+        "tags": [
+          "feedback-reports"
+        ],
+        "operationId": "listFeedbackReports",
+        "summary": "List FeedbackReports",
+        "x-pomi-sdk": {
+          "resource": "feedbackReports",
+          "method": "list",
+          "action": "list"
+        },
+        "x-pomi-pagination": {
+          "defaultMode": "all",
+          "defaultPageSize": 20,
+          "allowAll": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number. The first page is 1."
+            },
+            "required": false,
+            "description": "Page number. The first page is 1.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ],
+              "description": "Number of items per page, or \"all\" to return every item."
+            },
+            "required": false,
+            "description": "Number of items per page, or \"all\" to return every item.",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Solicitações recuperadas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FeedbackReport"
+                      }
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "_paths": {
+                      "type": "object",
+                      "properties": {
+                        "firstPage": {
+                          "type": "string"
+                        },
+                        "lastPage": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "prev": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "firstPage",
+                        "lastPage",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "quantity",
+                    "total",
+                    "_paths"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados da requisição inválidos",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Não foi possível concluir a ação",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/feedback-reports/{id}": {
+      "patch": {
+        "tags": [
+          "feedback-reports"
+        ],
+        "operationId": "updateFeedbackReport",
+        "summary": "Update FeedbackReport",
+        "x-pomi-sdk": {
+          "resource": "feedbackReports",
+          "method": "update",
+          "action": "update",
+          "pathParameters": {
+            "id": "feedbackReportId"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "description": "Request body",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchFeedbackReportBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Solicitação atualizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados da requisição inválidos",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Solicitação não encontrada",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Não foi possível concluir a ação",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
     "/student/{sid}/exchange-notice-subscription": {
       "get": {
         "tags": [
@@ -11752,6 +12607,9 @@
     },
     {
       "name": "bot-grants"
+    },
+    {
+      "name": "auth-users"
     },
     {
       "name": "students"

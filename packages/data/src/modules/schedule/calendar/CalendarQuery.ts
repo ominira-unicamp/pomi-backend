@@ -21,7 +21,9 @@ export const calendarQuerySchema = resourceFilterSchema(
     calendarFilterDefinitions,
     "calendar feed",
     "Structured calendar feed filters. Use bracket notation such as filter[tagId]=1."
-).openapi("CalendarFeedQuery");
+).openapi("CalendarFeedQuery", {
+    "x-pomi-schema": { kind: "input", publicName: "CalendarFeedQuery" }
+});
 
 export type CalendarFeedQuery = z.infer<typeof calendarQuerySchema>;
 

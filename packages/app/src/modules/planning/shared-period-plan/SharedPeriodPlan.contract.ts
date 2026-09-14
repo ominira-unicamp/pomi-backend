@@ -11,6 +11,7 @@ import {
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
     SpecBuilder,
+    YearPeriodSchema,
     type Filter,
     type PaginationPolicy
 } from "@pomi/api-core";
@@ -18,19 +19,23 @@ import z from "zod";
 
 extendZodWithOpenApi(z);
 
+const sharedPlanningVisibilitySchema = z
+    .enum(["FRIENDS", "PUBLIC"])
+    .openapi("SharedPlanningVisibility", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "SharedPlanningVisibility"
+        }
+    });
+
 const sharedPeriodPlanning = z
     .object({
         shareId: z.string().uuid(),
         name: z.string(),
-        visibility: z.enum(["FRIENDS", "PUBLIC"]),
+        visibility: sharedPlanningVisibilitySchema,
         studyPeriodId: z.number().int(),
         studyPeriodYear: z.number().int(),
-        studyPeriodYearPeriod: z.enum([
-            "SUMMER",
-            "FIRST_SEMESTER",
-            "WINTER",
-            "SECOND_SEMESTER"
-        ]),
+        studyPeriodYearPeriod: YearPeriodSchema,
         owner: z
             .object({
                 publicId: z.string().uuid(),
@@ -43,10 +48,25 @@ const sharedPeriodPlanning = z
         updatedAt: z.string().datetime()
     })
     .strict()
-    .openapi("SharedPeriodPlanning");
+    .openapi("SharedPeriodPlanning", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "SharedPeriodPlanning",
+            identityFields: ["shareId"],
+            relations: {
+                classes: { resource: "classes", cardinality: "many" }
+            }
+        }
+    });
 const sharedPeriodPlanningPage = getPaginatedSchema(
     sharedPeriodPlanning
-).openapi("SharedPeriodPlanningPage");
+).openapi("SharedPeriodPlanningPage", {
+    "x-pomi-schema": {
+        kind: "page",
+        publicName: "SharedPeriodPlanningPage",
+        transportFields: ["_paths"]
+    }
+});
 
 export const sharedPeriodPlanningPagination = {
     defaultMode: "page",
@@ -82,7 +102,12 @@ const publicQuery = createPaginationQuerySchema(
     }
 )
     .strict()
-    .openapi("ListPublicSharedPeriodPlanningsQuery");
+    .openapi("ListPublicSharedPeriodPlanningsQuery", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "ListPublicSharedPeriodPlanningsQuery"
+        }
+    });
 const sidPath = z.object({
     sid: pathParam.integer()
 });
@@ -90,12 +115,17 @@ const sharePath = z.object({ shareId: z.string().uuid() });
 
 const listPublic = {
     meta: {
+        operationId: "listPublicSharedPeriodPlannings",
         method: "get" as const,
         path: publicPath,
         tags: ["shared-period-plannings"],
         authorization: policies.public,
         queryFeatures: { filter: true },
-        sdk: { resource: "sharedPeriodPlannings", action: "list" as const },
+        sdk: {
+            resource: "sharedPeriodPlannings",
+            action: "list" as const,
+            method: "list"
+        },
         pagination: sharedPeriodPlanningPagination
     },
     request: z.object({ query: publicQuery }),
@@ -106,6 +136,13 @@ const listPublic = {
 
 const getPublic = {
     meta: {
+        operationId: "getPublicSharedPeriodPlanning",
+        sdk: {
+            resource: "sharedPeriodPlannings",
+            method: "getPublic",
+            action: "get" as const,
+            pathParameters: { shareId: "shareId" }
+        },
         method: "get" as const,
         path: [...publicPath, pathSeg.param("shareId")],
         tags: ["shared-period-plannings"],
@@ -124,6 +161,7 @@ const getPublic = {
 
 const listForStudent = {
     meta: {
+        operationId: "listStudentSharedPeriodPlannings",
         method: "get" as const,
         path: studentPath,
         tags: ["shared-period-plannings"],
@@ -135,6 +173,7 @@ const listForStudent = {
         sdk: {
             resource: "studentSharedPeriodPlannings",
             action: "list" as const,
+            method: "list",
             pathParameters: { sid: "studentId" }
         },
         pagination: sharedPeriodPlanningPagination
@@ -145,7 +184,12 @@ const listForStudent = {
             filter: studentFilter.optional()
         })
             .strict()
-            .openapi("ListStudentSharedPeriodPlanningsQuery")
+            .openapi("ListStudentSharedPeriodPlanningsQuery", {
+                "x-pomi-schema": {
+                    kind: "input",
+                    publicName: "ListStudentSharedPeriodPlanningsQuery"
+                }
+            })
     }),
     response: new OutputBuilder()
         .ok(
@@ -157,6 +201,13 @@ const listForStudent = {
 
 const getForStudent = {
     meta: {
+        operationId: "getStudentSharedPeriodPlanning",
+        sdk: {
+            resource: "sharedPeriodPlannings",
+            method: "getForStudent",
+            action: "get" as const,
+            pathParameters: { sid: "studentId", shareId: "shareId" }
+        },
         method: "get" as const,
         path: [...studentPath, pathSeg.param("shareId")],
         tags: ["shared-period-plannings"],
@@ -185,6 +236,11 @@ export default {
     specsBuilder: new SpecBuilder(
         publicPath,
         ["shared-period-plannings"],
-        "shareId"
+        "shareId",
+        {
+            resource: "sharedPeriodPlannings",
+            operationName: "PublicSharedPeriodPlannings",
+            pathParameters: { shareId: "shareId" }
+        }
     )
 };
