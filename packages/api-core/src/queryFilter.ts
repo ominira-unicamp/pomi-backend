@@ -1,6 +1,8 @@
 import qs from "qs";
 import z from "zod";
 
+import { isSortTerms, serializeSort } from "./sorting.js";
+
 export const queryFilterOperators = [
     "eq",
     "ne",
@@ -344,6 +346,9 @@ export function serializeQueryParams(query: Record<string, unknown>) {
         serializableQuery.filter = queryFilterToObject(
             serializableQuery.filter
         );
+    }
+    if (isSortTerms(serializableQuery.sort)) {
+        serializableQuery.sort = serializeSort(serializableQuery.sort);
     }
 
     return qs.stringify(serializableQuery, {

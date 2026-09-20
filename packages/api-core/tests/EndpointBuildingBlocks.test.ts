@@ -9,6 +9,7 @@ import {
     collectionQuery,
     defineEndpoint,
     defineResource,
+    defineSort,
     openApiFromEndpoint,
     pathSeg,
     request,
@@ -68,6 +69,37 @@ test("resource factories produce regular endpoint contracts", () => {
             path: { ownerId: 3 },
             query: { page: 2, includeArchived: true }
         }
+    );
+});
+
+test("collection queries compose sorting as an optional capability", () => {
+    const sorting = defineSort({
+        resourceName: "items",
+        sortableFields: ["name"] as const,
+        defaultSort: [{ field: "name", direction: "asc" }],
+        tieBreakers: [{ field: "id", direction: "asc" }]
+    });
+    const query = collectionQuery({ pagination, sort: sorting });
+    const list = items.list({
+        authorization: { kind: "public" as const },
+        item: z.object({ id: z.number().int() }),
+        pagination,
+        request: request({
+            path: z.object({ ownerId: z.coerce.number().int() }),
+            query
+        })
+    });
+
+    assert.deepEqual(list.meta.queryFeatures, {
+        filter: false,
+        sort: true
+    });
+    assert.deepEqual(
+        list.request.parse({
+            path: { ownerId: "3" },
+            query: { sort: "name:desc" }
+        }).query.sort,
+        [{ field: "name", direction: "desc" }]
     );
 });
 

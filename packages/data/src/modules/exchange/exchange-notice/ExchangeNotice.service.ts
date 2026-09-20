@@ -2,13 +2,17 @@ import type {
     ExchangeNoticeFilter,
     ExchangeNoticeFilterName
 } from "#/modules/exchange/exchange-notice/ExchangeNotice.contract.js";
-import IO from "#/modules/exchange/exchange-notice/ExchangeNotice.contract.js";
+import IO, {
+    exchangeNoticeSort
+} from "#/modules/exchange/exchange-notice/ExchangeNotice.contract.js";
 import exchangeNoticeEntity from "#/modules/exchange/exchange-notice/ExchangeNotice.entity.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type Result
@@ -70,6 +74,35 @@ export type ExchangeNoticeService = {
     >;
 };
 
+const nullable = (direction: "asc" | "desc") => ({
+    sort: direction,
+    nulls: "last" as const
+});
+const exchangeNoticeOrderBy = {
+    "registrationEnd": (direction) => ({
+        registrationEnd: nullable(direction)
+    }),
+    "registrationStart": (direction) => ({
+        registrationStart: nullable(direction)
+    }),
+    "number": (direction) => ({ number: nullable(direction) }),
+    "issuer": (direction) => ({ issuer: nullable(direction) }),
+    "title": (direction) => ({ title: nullable(direction) }),
+    "place.name": (direction) => ({ place: { name: direction } }),
+    "id": (direction) => ({ id: direction })
+} satisfies Record<
+    | "registrationEnd"
+    | "registrationStart"
+    | "number"
+    | "issuer"
+    | "title"
+    | "place.name"
+    | "id",
+    (
+        direction: "asc" | "desc"
+    ) => MyPrisma.ExchangeNoticeOrderByWithRelationInput
+>;
+
 export function createExchangeNoticeService({
     prisma
 }: {
@@ -81,11 +114,10 @@ export function createExchangeNoticeService({
             const notices = await prisma.exchangeNotice.findMany({
                 ...exchangeNoticeEntity.prismaSelection,
                 where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                orderBy: [
-                    { registrationEnd: { sort: "desc", nulls: "last" } },
-                    { registrationStart: { sort: "desc", nulls: "last" } },
-                    { id: "desc" }
-                ]
+                orderBy: compileSort(
+                    resolveSort(query.sort, exchangeNoticeSort),
+                    exchangeNoticeOrderBy
+                )
             });
             return notices
                 .map(exchangeNoticeEntity.build)

@@ -2,12 +2,14 @@ import { OutputBuilder, type IO } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     paginatedByDefault,
     paginationQuerySchema,
     pathSeg,
     resourceFilterSchema,
+    resourceSortSchema,
     type Filter
 } from "@pomi/api-core";
 import z from "zod";
@@ -93,6 +95,35 @@ const courseSummaryFilter = resourceFilterSchema(
     "Structured course summary filters. Use filter[courseCode]=MC102."
 );
 
+export const professorSummarySort = defineSort({
+    resourceName: "professor evaluation summaries",
+    sortableFields: [
+        "professor.name",
+        "responseCount",
+        "wouldTakeAgain",
+        "fairness",
+        "clarity",
+        "difficulty"
+    ] as const,
+    defaultSort: [{ field: "professor.name", direction: "asc" }],
+    tieBreakers: [{ field: "professor.id", direction: "asc" }]
+});
+
+export const courseSummarySort = defineSort({
+    resourceName: "course evaluation summaries",
+    sortableFields: [
+        "course.code",
+        "course.name",
+        "responseCount",
+        "wouldTakeAgain",
+        "fairness",
+        "clarity",
+        "difficulty"
+    ] as const,
+    defaultSort: [{ field: "course.code", direction: "asc" }],
+    tieBreakers: [{ field: "course.id", direction: "asc" }]
+});
+
 const professorSummaries = {
     meta: {
         operationId: "listProfessorEvaluationSummaries",
@@ -108,12 +139,13 @@ const professorSummaries = {
         ],
         tags: ["evaluation-summaries"],
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: paginatedByDefault
     },
     request: z.object({
         query: paginationQuerySchema.extend({
-            filter: professorSummaryFilter.optional()
+            filter: professorSummaryFilter.optional(),
+            sort: resourceSortSchema(professorSummarySort).optional()
         })
     }),
     response: new OutputBuilder()
@@ -148,12 +180,13 @@ const courseSummaries = {
         ],
         tags: ["evaluation-summaries"],
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: paginatedByDefault
     },
     request: z.object({
         query: paginationQuerySchema.extend({
-            filter: courseSummaryFilter.optional()
+            filter: courseSummaryFilter.optional(),
+            sort: resourceSortSchema(courseSummarySort).optional()
         })
     }),
     response: new OutputBuilder()

@@ -4,11 +4,13 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     comparisonOperators,
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
+    resourceSortSchema,
     SpecBuilder,
     unpaginatedByDefault,
     type Filter
@@ -100,6 +102,23 @@ const exchangeNoticeFilter = resourceFilterSchema(
     "Structured exchange notice filters. Use bracket notation such as filter[registrationEnd][gte]=2026-01-01."
 );
 
+export const exchangeNoticeSort = defineSort({
+    resourceName: "exchange notices",
+    sortableFields: [
+        "registrationEnd",
+        "registrationStart",
+        "number",
+        "issuer",
+        "title",
+        "place.name"
+    ] as const,
+    defaultSort: [
+        { field: "registrationEnd", direction: "desc" },
+        { field: "registrationStart", direction: "desc" }
+    ],
+    tieBreakers: [{ field: "id", direction: "desc" }]
+});
+
 const get = {
     meta: { ...specsBuilder.get(), authorization: policies.public },
     request: z.object({
@@ -113,6 +132,7 @@ const get = {
 
 const listQuery = createPaginationQuerySchema(unpaginatedByDefault, {
     filter: exchangeNoticeFilter.optional(),
+    sort: resourceSortSchema(exchangeNoticeSort).optional(),
     q: z.string().trim().min(1).optional()
 }).strict();
 
@@ -120,7 +140,7 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({ query: listQuery }),

@@ -159,3 +159,53 @@ test("rejects a filter on an endpoint that does not declare support", async () =
         instance: "/items"
     });
 });
+
+test("rejects sorting on an endpoint that does not declare support", async () => {
+    const { response, recorded } = responseRecorder();
+    let called = false;
+    const handler = buildEndpointHandler(
+        {
+            ...contract,
+            meta: {
+                ...contract.meta,
+                method: "get" as const,
+                path: [pathSeg.literal("items")]
+            },
+            request: z.object({ query: z.object({}) })
+        },
+        async () => {
+            called = true;
+            return { status: 201 as const, body: { name: "unreachable" } };
+        },
+        () => ({})
+    );
+
+    await handler(
+        {
+            body: {},
+            query: { sort: "name:asc" },
+            params: {},
+            headers: {},
+            path: "/items"
+        } as unknown as Request,
+        response
+    );
+
+    assert.equal(called, false);
+    assert.equal(recorded.status, 400);
+    assert.deepEqual(recorded.body, {
+        type: "urn:pomi:problem:invalid-request",
+        title: "Dados da requisição inválidos",
+        status: 400,
+        detail: "Revise os campos informados e tente novamente.",
+        fields: [
+            {
+                code: "SORT_UNSUPPORTED_ENDPOINT",
+                path: ["query", "sort"],
+                message: "Este endpoint não aceita ordenação.",
+                details: { feature: "sort" }
+            }
+        ],
+        instance: "/items"
+    });
+});

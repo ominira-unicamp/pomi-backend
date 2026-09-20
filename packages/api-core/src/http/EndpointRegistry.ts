@@ -7,6 +7,7 @@ import { pathSegmentToExpressPath } from "../PathSegment.js";
 import {
     assertQueryFeatureConsistency,
     assertSdkMetadataConsistency,
+    assertSortFeatureConsistency,
     type EndpointContract,
     type EndpointRegistry
 } from "./EndpointContract.js";
@@ -43,6 +44,7 @@ export function createEndpointRegistries<
 
     for (const [name, contract] of Object.entries(options.contracts)) {
         assertQueryFeatureConsistency(contract);
+        assertSortFeatureConsistency(contract);
         assertSdkMetadataConsistency(contract);
         if (contract.meta.sdk) {
             const sdkOperation = `${contract.meta.sdk.resource}.${contract.meta.sdk.method ?? contract.meta.sdk.action}`;

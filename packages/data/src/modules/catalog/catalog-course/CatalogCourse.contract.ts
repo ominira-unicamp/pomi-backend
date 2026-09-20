@@ -3,12 +3,14 @@ import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     equalityOperators,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
+    resourceSortSchema,
     serializeQueryParams,
     SpecBuilder,
     unpaginatedByDefault,
@@ -116,6 +118,16 @@ const catalogCourseFilter = resourceFilterSchema(
     "Structured catalog course filters. Use bracket notation such as filter[unit][code]=IC."
 );
 
+export const catalogCourseSort = defineSort({
+    resourceName: "catalog courses",
+    sortableFields: ["catalogYear", "code", "name", "credits"] as const,
+    defaultSort: [
+        { field: "catalogYear", direction: "desc" },
+        { field: "code", direction: "asc" }
+    ],
+    tieBreakers: [{ field: "id", direction: "asc" }]
+});
+
 const prerequisites = z
     .object({
         any: z.array(z.object({ all: z.array(prerequisiteItem) }).strict())
@@ -161,7 +173,8 @@ const catalogCourseEntity = z
     });
 
 const listQuery = createPaginationQuerySchema(unpaginatedByDefault, {
-    filter: catalogCourseFilter.optional()
+    filter: catalogCourseFilter.optional(),
+    sort: resourceSortSchema(catalogCourseSort).optional()
 })
     .strict()
     .openapi("ListCatalogCoursesQuery", {
@@ -177,7 +190,7 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({ query: listQuery }),

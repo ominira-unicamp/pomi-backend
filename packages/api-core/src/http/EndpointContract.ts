@@ -106,6 +106,7 @@ export type EndpointContract<Authorization = unknown> = {
         authorization: Authorization;
         queryFeatures?: {
             filter?: boolean;
+            sort?: boolean;
         };
         sdk: SdkOperationMetadata | false;
         pagination?: PaginationMetadata;
@@ -250,6 +251,27 @@ export function assertQueryFeatureConsistency(
 
     throw new Error(
         `Inconsistent filter capability for ${operation}: expected ${expected}, found ${actual}`
+    );
+}
+
+export function assertSortFeatureConsistency(
+    contract: EndpointContract<unknown>
+) {
+    const querySchema = contract.request.shape.query;
+    const queryShape = zodObjectShape(querySchema);
+    const hasSortSchema =
+        queryShape !== undefined && Object.hasOwn(queryShape, "sort");
+    const sortEnabled = contract.meta.queryFeatures?.sort === true;
+
+    if (hasSortSchema === sortEnabled) return;
+
+    const operation = `${contract.meta.method.toUpperCase()} ${contract.meta.path
+        .map((segment) =>
+            segment.type === "literal" ? segment.value : `:${segment.name}`
+        )
+        .join("/")}`;
+    throw new Error(
+        `Inconsistent sort capability for ${operation}: query schema and queryFeatures.sort must match`
     );
 }
 

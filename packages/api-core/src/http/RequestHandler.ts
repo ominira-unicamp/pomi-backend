@@ -6,6 +6,7 @@ import {
     withProblemInstance
 } from "../errors/ProblemDetails.js";
 import { unsupportedQueryFilterField } from "../queryFilter.js";
+import { unsupportedQuerySortField } from "../sorting.js";
 import { ZodToApiError } from "../Validation.js";
 import type {
     EndpointContract,
@@ -57,6 +58,16 @@ export function buildEndpointHandler<
             return sendProblem(
                 response,
                 invalidRequestProblem([unsupportedFilter], request.path)
+            );
+        }
+        const unsupportedSort = unsupportedQuerySortField(
+            request.query,
+            contract.meta.queryFeatures
+        );
+        if (unsupportedSort) {
+            return sendProblem(
+                response,
+                invalidRequestProblem([unsupportedSort], request.path)
             );
         }
         const parsed = contract.request.safeParse({

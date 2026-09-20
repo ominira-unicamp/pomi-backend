@@ -1,7 +1,10 @@
 import IO, {
     catalogCoursePaths
 } from "#/modules/catalog/catalog-course/CatalogCourse.contract.js";
-import { catalogCourseFilterWhere } from "#/modules/catalog/catalog-course/CatalogCourse.service.js";
+import {
+    catalogCourseFilterWhere,
+    createCatalogCourseService
+} from "#/modules/catalog/catalog-course/CatalogCourse.service.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -32,6 +35,16 @@ test("validates and coerces catalog course filters", () => {
             operator: "eq",
             values: ["ALL_PERIODS"]
         }
+    ]);
+});
+
+test("parses catalog course sorting in client priority order", () => {
+    const parsed = IO.list.request.parse({
+        query: { sort: "credits:desc,code:asc" }
+    });
+    assert.deepEqual(parsed.query.sort, [
+        { field: "credits", direction: "desc" },
+        { field: "code", direction: "asc" }
     ]);
 });
 
@@ -86,6 +99,81 @@ test("preserves catalog course filters in pagination paths", () => {
     assert.equal(params.get("filter[unit][code]"), "IC");
     assert.equal(params.get("page"), "2");
     assert.equal(params.get("pageSize"), "10");
+});
+
+test("preserves catalog course sorting in pagination paths", () => {
+    const path = catalogCoursePaths.list({
+        sort: [
+            { field: "credits", direction: "desc" },
+            { field: "code", direction: "asc" }
+        ],
+        page: 2,
+        pageSize: 10
+    });
+    assert.equal(
+        new URL(path, "https://pomi.test").searchParams.get("sort"),
+        "credits:desc,code:asc"
+    );
+});
+
+test("compiles catalog course sorting before Prisma pagination", async () => {
+    const queries: unknown[] = [];
+    const service = createCatalogCourseService({
+        prisma: {
+            catalogCourse: {
+                count: async () => 0,
+                findMany: async (query: unknown) => {
+                    queries.push(query);
+                    return [];
+                }
+            }
+        } as never
+    });
+
+    await service.list({
+        page: 2,
+        pageSize: 10,
+        sort: [
+            { field: "credits", direction: "desc" },
+            { field: "name", direction: "asc" }
+        ]
+    });
+    await service.list({});
+
+    assert.deepEqual(
+        queries[0] as { orderBy: unknown; skip: number; take: number },
+        {
+            include: {
+                catalog: { select: { id: true, year: true } },
+                course: { select: { id: true, code: true, credits: true } },
+                coordinator: { select: { id: true, name: true } },
+                prerequisites: {
+                    include: {
+                        items: {
+                            select: {
+                                code: true,
+                                kind: true,
+                                courseId: true
+                            }
+                        }
+                    }
+                }
+            },
+            orderBy: [
+                { course: { credits: "desc" } },
+                { name: "asc" },
+                { id: "asc" }
+            ],
+            skip: 10,
+            take: 10,
+            where: {}
+        }
+    );
+    assert.deepEqual((queries[1] as { orderBy: unknown }).orderBy, [
+        { catalog: { year: "desc" } },
+        { course: { code: "asc" } },
+        { id: "asc" }
+    ]);
 });
 
 test("rejects the removed flat catalog course query parameters", () => {

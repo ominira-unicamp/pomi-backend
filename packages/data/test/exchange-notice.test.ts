@@ -71,6 +71,16 @@ test("declara endpoints públicos e valida intervalos de inscrição", () => {
     );
 });
 
+test("valida ordenação de editais com campos aninhados", () => {
+    const parsed = IO.list.request.parse({
+        query: { sort: "place.name:asc,registrationEnd:desc" }
+    });
+    assert.deepEqual(parsed.query.sort, [
+        { field: "place.name", direction: "asc" },
+        { field: "registrationEnd", direction: "desc" }
+    ]);
+});
+
 test("lista editais com os dados públicos completos", async () => {
     let query: unknown;
     const service = createExchangeNoticeService({
@@ -151,6 +161,33 @@ test("combina filtros estruturados e busca normalizada", async () => {
             { registrationEnd: { gt: new Date("2026-09-01") } }
         ]
     });
+});
+
+test("compila ordenação de editais mantendo nulos por último", async () => {
+    let query: unknown;
+    const service = createExchangeNoticeService({
+        prisma: {
+            exchangeNotice: {
+                findMany: async (value: unknown) => {
+                    query = value;
+                    return [notice];
+                }
+            }
+        } as never
+    });
+
+    await service.list({
+        sort: [
+            { field: "registrationEnd", direction: "asc" },
+            { field: "place.name", direction: "desc" }
+        ]
+    });
+
+    assert.deepEqual((query as { orderBy: unknown }).orderBy, [
+        { registrationEnd: { sort: "asc", nulls: "last" } },
+        { place: { name: "desc" } },
+        { id: "desc" }
+    ]);
 });
 
 test("lista locais em ordem de nome com caminho para seus editais", async () => {

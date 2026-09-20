@@ -6,6 +6,7 @@ import {
     getPaginatedSchema
 } from "../pagination.js";
 import { pathSeg, type PathSegment } from "../PathSegment.js";
+import { resourceSortSchema, type SortDefinition } from "../sorting.js";
 import { ResponseSchemaBuilder } from "./ApiResponse.js";
 import type {
     EndpointContract,
@@ -60,6 +61,54 @@ export function collectionQuery<
 >(options: {
     pagination: PaginationPolicy;
     filter: Filter;
+    sort: SortDefinition;
+    additional?: Shape;
+}): ReturnType<
+    typeof paginatedQueryWithFilter<
+        Shape & {
+            sort: z.ZodOptional<ReturnType<typeof resourceSortSchema>>;
+        },
+        Filter
+    >
+>;
+export function collectionQuery<Shape extends z.ZodRawShape>(options: {
+    pagination: PaginationPolicy;
+    sort: SortDefinition;
+    additional?: Shape;
+}): ReturnType<
+    typeof paginatedQuery<
+        Shape & {
+            sort: z.ZodOptional<ReturnType<typeof resourceSortSchema>>;
+        }
+    >
+>;
+export function collectionQuery<
+    Shape extends z.ZodRawShape,
+    Filter extends z.ZodType
+>(options: {
+    filter: Filter;
+    sort: SortDefinition;
+    additional?: Shape;
+}): ReturnType<
+    typeof filteredQuery<
+        Shape & {
+            sort: z.ZodOptional<ReturnType<typeof resourceSortSchema>>;
+        },
+        Filter
+    >
+>;
+export function collectionQuery<Shape extends z.ZodRawShape>(options: {
+    sort: SortDefinition;
+    additional?: Shape;
+}): z.ZodObject<
+    Shape & { sort: z.ZodOptional<ReturnType<typeof resourceSortSchema>> }
+>;
+export function collectionQuery<
+    Shape extends z.ZodRawShape,
+    Filter extends z.ZodType
+>(options: {
+    pagination: PaginationPolicy;
+    filter: Filter;
     additional?: Shape;
 }): ReturnType<typeof paginatedQueryWithFilter<Shape, Filter>>;
 export function collectionQuery<Shape extends z.ZodRawShape>(options: {
@@ -82,23 +131,32 @@ export function collectionQuery<
 >(options: {
     pagination?: PaginationPolicy;
     filter?: Filter;
+    sort?: SortDefinition;
     additional?: Shape;
 }) {
+    const additional = {
+        ...(options.sort
+            ? {
+                  sort: resourceSortSchema(options.sort).optional()
+              }
+            : {}),
+        ...(options.additional ?? ({} as Shape))
+    };
     if (options.pagination && options.filter) {
         return paginatedQueryWithFilter(
             options.pagination,
             options.filter,
-            options.additional
+            additional
         );
     }
     if (options.pagination) {
-        return paginatedQuery(options.pagination, options.additional);
+        return paginatedQuery(options.pagination, additional);
     }
     if (options.filter) {
-        return filteredQuery(options.filter, options.additional);
+        return filteredQuery(options.filter, additional);
     }
     const shape = {
-        ...(options.additional ?? ({} as Shape))
+        ...additional
     };
     return z.object(shape);
 }
@@ -248,6 +306,10 @@ export function defineResource(definition: ResourceDefinition) {
                 query && "shape" in query
                     ? Object.hasOwn(query.shape as object, "filter")
                     : false;
+            const sort =
+                query && "shape" in query
+                    ? Object.hasOwn(query.shape as object, "sort")
+                    : false;
             const endpointResponse =
                 options.response ??
                 responses()
@@ -263,7 +325,10 @@ export function defineResource(definition: ResourceDefinition) {
                     path: definition.collectionPath,
                     tags: [definition.tag],
                     authorization: options.authorization,
-                    queryFeatures: { filter },
+                    queryFeatures: {
+                        filter,
+                        ...(sort ? { sort: true } : {})
+                    },
                     pagination: options.pagination,
                     ...operationMetadata(
                         definition,

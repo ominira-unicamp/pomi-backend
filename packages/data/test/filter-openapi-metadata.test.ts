@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+    defineSort,
     filterDefinition,
-    resourceFilterOpenApiMetadata
+    resourceFilterOpenApiMetadata,
+    sortOpenApiMetadata
 } from "@pomi/api-core";
 
 test("describes resource filters for OpenAPI consumers", () => {
@@ -32,5 +34,22 @@ test("describes resource filters for OpenAPI consumers", () => {
         maxExpressions: 20,
         maxDepth: 3,
         maxParameters: 100
+    });
+});
+
+test("describes sortable fields and defaults for OpenAPI consumers", () => {
+    const metadata = sortOpenApiMetadata(
+        defineSort({
+            resourceName: "courses",
+            sortableFields: ["code", "unit.name"] as const,
+            defaultSort: [{ field: "code", direction: "asc" }],
+            tieBreakers: [{ field: "id", direction: "asc" }]
+        })
+    );
+
+    assert.deepEqual(metadata, {
+        version: 1,
+        fields: ["code", "unit.name"],
+        default: "code:asc"
     });
 });

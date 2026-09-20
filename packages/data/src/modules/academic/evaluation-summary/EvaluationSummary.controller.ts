@@ -30,7 +30,7 @@ const professorSummaries: Actions["professorSummaries"] = async (
     input
 ) => {
     const summaries = await ctx.evaluationSummaryService.listProfessorSummaries(
-        input.query.filter
+        input.query
     );
     const pagination = resolvePagination(input.query, paginatedByDefault);
     return ApiResponse.ok(
@@ -50,7 +50,7 @@ const professorSummaries: Actions["professorSummaries"] = async (
 
 const courseSummaries: Actions["courseSummaries"] = async (ctx, input) => {
     const summaries = await ctx.evaluationSummaryService.listCourseSummaries(
-        input.query.filter
+        input.query
     );
     const pagination = resolvePagination(input.query, paginatedByDefault);
     return ApiResponse.ok(

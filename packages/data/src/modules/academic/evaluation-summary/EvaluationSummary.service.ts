@@ -1,6 +1,16 @@
-import IO from "#/modules/academic/evaluation-summary/EvaluationSummary.contract.js";
-import type { Filter } from "@pomi/api-core";
-import { err, ok, ResourceNotFoundProblem, type Result } from "@pomi/api-core";
+import IO, {
+    courseSummarySort,
+    professorSummarySort
+} from "#/modules/academic/evaluation-summary/EvaluationSummary.contract.js";
+import {
+    compareBySort,
+    err,
+    ok,
+    resolveSort,
+    ResourceNotFoundProblem,
+    type Filter,
+    type Result
+} from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import z from "zod";
 
@@ -16,6 +26,12 @@ type Metrics = {
 type ProfessorSummary = z.infer<typeof IO.professorSummary>;
 type CourseSummary = z.infer<typeof IO.courseSummary>;
 type PairSummary = z.infer<typeof IO.pairSummary>;
+type ProfessorSummaryQuery = z.infer<
+    typeof IO.professorSummaries.request.shape.query
+>;
+type CourseSummaryQuery = z.infer<
+    typeof IO.courseSummaries.request.shape.query
+>;
 
 type Aggregate = {
     _count: { _all: number };
@@ -61,8 +77,10 @@ function isPublished(metrics: Metrics) {
 }
 
 export type EvaluationSummaryService = {
-    listProfessorSummaries(filter?: Filter): Promise<ProfessorSummary[]>;
-    listCourseSummaries(filter?: Filter): Promise<CourseSummary[]>;
+    listProfessorSummaries(
+        input: ProfessorSummaryQuery
+    ): Promise<ProfessorSummary[]>;
+    listCourseSummaries(input: CourseSummaryQuery): Promise<CourseSummary[]>;
     getPairSummary(
         filter: Filter
     ): Promise<
@@ -76,7 +94,7 @@ export function createEvaluationSummaryService({
     prisma: PrismaClient;
 }): EvaluationSummaryService {
     return {
-        async listProfessorSummaries(filter) {
+        async listProfessorSummaries(input) {
             const aggregates = await prisma.professorEvaluation.groupBy({
                 by: ["professorId"],
                 _count: { _all: true },
@@ -95,7 +113,7 @@ export function createEvaluationSummaryService({
                 .filter(({ metrics }) => isPublished(metrics));
             if (published.length === 0) return [];
 
-            const professorFilter = filter?.find(
+            const professorFilter = input.filter?.find(
                 (expression) => expression.path[0] === "professorId"
             );
             const professors = await prisma.professor.findMany({
@@ -104,8 +122,7 @@ export function createEvaluationSummaryService({
                         ? Number(professorFilter.values[0])
                         : { in: published.map((item) => item.professorId) }
                 },
-                select: { id: true, name: true },
-                orderBy: [{ name: "asc" }, { id: "asc" }]
+                select: { id: true, name: true }
             });
             const metricsByProfessorId = new Map(
                 published.map(({ professorId, metrics }) => [
@@ -113,12 +130,36 @@ export function createEvaluationSummaryService({
                     metrics
                 ])
             );
-            return professors.map((professor) => ({
-                professor,
-                ...metricsByProfessorId.get(professor.id)!
-            }));
+            return professors
+                .map((professor) => ({
+                    professor,
+                    ...metricsByProfessorId.get(professor.id)!
+                }))
+                .sort(
+                    compareBySort(
+                        resolveSort(input.sort, professorSummarySort),
+                        {
+                            "professor.name": (left, right) =>
+                                left.professor.name.localeCompare(
+                                    right.professor.name
+                                ),
+                            "responseCount": (left, right) =>
+                                left.responseCount - right.responseCount,
+                            "wouldTakeAgain": (left, right) =>
+                                left.wouldTakeAgain - right.wouldTakeAgain,
+                            "fairness": (left, right) =>
+                                left.fairness - right.fairness,
+                            "clarity": (left, right) =>
+                                left.clarity - right.clarity,
+                            "difficulty": (left, right) =>
+                                left.difficulty - right.difficulty,
+                            "professor.id": (left, right) =>
+                                left.professor.id - right.professor.id
+                        }
+                    )
+                );
         },
-        async listCourseSummaries(filter) {
+        async listCourseSummaries(input) {
             const aggregates = await prisma.professorEvaluation.groupBy({
                 by: ["classId"],
                 _count: { _all: true },
@@ -151,10 +192,10 @@ export function createEvaluationSummaryService({
                 courseMetrics.push(metricsFromAggregate(aggregate));
                 metricsByCourseId.set(course.id, courseMetrics);
             }
-            const courseIdFilter = filter?.find(
+            const courseIdFilter = input.filter?.find(
                 (expression) => expression.path[0] === "courseId"
             );
-            const courseCodeFilter = filter?.find(
+            const courseCodeFilter = input.filter?.find(
                 (expression) => expression.path[0] === "courseCode"
             );
             return [...metricsByCourseId.entries()]
@@ -174,9 +215,24 @@ export function createEvaluationSummaryService({
                             summary.course.code === courseCodeFilter.values[0])
                 )
                 .sort(
-                    (left, right) =>
-                        left.course.code.localeCompare(right.course.code) ||
-                        left.course.id - right.course.id
+                    compareBySort(resolveSort(input.sort, courseSummarySort), {
+                        "course.code": (left, right) =>
+                            left.course.code.localeCompare(right.course.code),
+                        "course.name": (left, right) =>
+                            left.course.name.localeCompare(right.course.name),
+                        "responseCount": (left, right) =>
+                            left.responseCount - right.responseCount,
+                        "wouldTakeAgain": (left, right) =>
+                            left.wouldTakeAgain - right.wouldTakeAgain,
+                        "fairness": (left, right) =>
+                            left.fairness - right.fairness,
+                        "clarity": (left, right) =>
+                            left.clarity - right.clarity,
+                        "difficulty": (left, right) =>
+                            left.difficulty - right.difficulty,
+                        "course.id": (left, right) =>
+                            left.course.id - right.course.id
+                    })
                 );
         },
         async getPairSummary(filter) {

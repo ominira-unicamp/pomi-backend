@@ -27,6 +27,7 @@ export * from "./queryFilterDefinitions.js";
 export * from "./queryFilterWhere.js";
 export * from "./Result.js";
 export * from "./server.js";
+export * from "./sorting.js";
 export * from "./SpecBuilder.js";
 export * from "./telemetry/logger.js";
 export * from "./telemetry/metrics.js";

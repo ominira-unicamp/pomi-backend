@@ -259,3 +259,34 @@ test("fails during composition when filter capability has no query schema", () =
         /expected nenhum schema de filter na query/
     );
 });
+
+test("fails during composition when sort capability and query schema diverge", () => {
+    const sortContract = {
+        list: {
+            meta: {
+                method: "get" as const,
+                path: [pathSeg.literal("items")],
+                tags: ["items"],
+                authorization: { kind: "public" as const },
+                queryFeatures: { sort: true },
+                operationId: "listSortedItems",
+                sdk: false
+            },
+            request: z.object({ query: z.object({}) }),
+            response: new ResponseSchemaBuilder()
+                .ok(z.string(), "Items")
+                .build()
+        }
+    };
+
+    assert.throws(
+        () =>
+            createEndpointRegistries({
+                contracts: sortContract,
+                actions: { list: async () => ApiResponse.ok([]) },
+                createContext: () => ({}),
+                registerAuthorization: () => undefined
+            }),
+        /Inconsistent sort capability/
+    );
+});

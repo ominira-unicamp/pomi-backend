@@ -2,15 +2,19 @@ import type {
     CatalogCourseFilter,
     CatalogCourseFilterName
 } from "#/modules/catalog/catalog-course/CatalogCourse.contract.js";
-import IO from "#/modules/catalog/catalog-course/CatalogCourse.contract.js";
+import IO, {
+    catalogCourseSort
+} from "#/modules/catalog/catalog-course/CatalogCourse.contract.js";
 import catalogCourseEntity from "#/modules/catalog/catalog-course/CatalogCourse.entity.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaPaginationParams,
     prismaWhereFor,
     resolvePagination,
+    resolveSort,
     ResourceNotFoundProblem,
     unpaginatedByDefault,
     type FilterWhereBuilder,
@@ -60,6 +64,19 @@ export type CatalogCourseService = {
     >;
 };
 
+const catalogCourseOrderBy = {
+    catalogYear: (direction) => ({ catalog: { year: direction } }),
+    code: (direction) => ({ course: { code: direction } }),
+    name: (direction) => ({ name: direction }),
+    credits: (direction) => ({ course: { credits: direction } }),
+    id: (direction) => ({ id: direction })
+} satisfies Record<
+    "catalogYear" | "code" | "name" | "credits" | "id",
+    (
+        direction: "asc" | "desc"
+    ) => MyPrisma.CatalogCourseOrderByWithRelationInput
+>;
+
 export function createCatalogCourseService({
     prisma
 }: {
@@ -76,11 +93,10 @@ export function createCatalogCourseService({
                 ...prismaPaginationParams(pagination),
                 ...catalogCourseEntity.selection,
                 where,
-                orderBy: [
-                    { catalog: { year: "desc" } },
-                    { course: { code: "asc" } },
-                    { id: "asc" }
-                ]
+                orderBy: compileSort(
+                    resolveSort(query.sort, catalogCourseSort),
+                    catalogCourseOrderBy
+                )
             });
             return {
                 items: courses.map(catalogCourseEntity.build),
