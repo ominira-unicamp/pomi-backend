@@ -27,8 +27,3 @@ packages/db/prisma/seed.json
 data/
 !packages/data/
 bun.lock
-test
-packages/*/test/
-packages/*/test/**
-packages/injection/test/**
-packages/data/test/**

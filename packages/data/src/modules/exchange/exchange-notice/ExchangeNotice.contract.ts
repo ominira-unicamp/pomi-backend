@@ -2,6 +2,7 @@ import { OutputBuilder, type IO } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    comparisonOperators,
     createPaginationQuerySchema,
     filterDefinition,
     getPaginatedSchema,
@@ -78,10 +79,18 @@ const schema = z
 
 export type ExchangeNoticeFilter = Filter;
 const exchangeNoticeFilterDefinitions = {
-    placeId: filterDefinition.id({ positive: true }),
+    number: filterDefinition.code(),
+    issuer: filterDefinition.code(),
+    title: filterDefinition.code(),
+    placeId: filterDefinition.id({
+        positive: true,
+        operators: ["eq", "ne", "in"]
+    }),
     placeName: filterDefinition.code({ operators: ["eq"] }),
-    registrationStart: filterDefinition.date({ operators: ["gte", "lte"] }),
-    registrationEnd: filterDefinition.date({ operators: ["gte", "lte"] })
+    registrationStart: filterDefinition.date({
+        operators: comparisonOperators
+    }),
+    registrationEnd: filterDefinition.date({ operators: comparisonOperators })
 };
 export type ExchangeNoticeFilterName =
     keyof typeof exchangeNoticeFilterDefinitions;
@@ -103,7 +112,8 @@ const get = {
 } satisfies IO;
 
 const listQuery = createPaginationQuerySchema(unpaginatedByDefault, {
-    filter: exchangeNoticeFilter.optional()
+    filter: exchangeNoticeFilter.optional(),
+    q: z.string().trim().min(1).optional()
 }).strict();
 
 const list = {
