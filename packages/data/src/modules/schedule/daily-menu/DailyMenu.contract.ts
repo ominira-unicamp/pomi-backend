@@ -3,11 +3,13 @@ import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
+    resourceSortSchema,
     SpecBuilder,
     unpaginatedByDefault,
     type Filter
@@ -83,6 +85,12 @@ const dailyMenuFilter = resourceFilterSchema(
     "daily menus",
     "Structured daily menu filters. Use bracket notation such as filter[date][gte]=2026-08-20."
 );
+export const dailyMenuSort = defineSort({
+    resourceName: "daily menus",
+    sortableFields: ["date", "createdAt", "updatedAt"] as const,
+    defaultSort: [{ field: "date", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 
 const get = {
     meta: { ...specsBuilder.get(), authorization: policies.public },
@@ -96,14 +104,15 @@ const get = {
 } satisfies IO;
 
 const listQuery = createPaginationQuerySchema(unpaginatedByDefault, {
-    filter: dailyMenuFilter.optional()
+    filter: dailyMenuFilter.optional(),
+    sort: resourceSortSchema(dailyMenuSort).optional()
 }).strict();
 
 const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({ query: listQuery }),

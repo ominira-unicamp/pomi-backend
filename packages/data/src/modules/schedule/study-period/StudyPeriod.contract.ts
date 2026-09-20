@@ -3,11 +3,13 @@ import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
+    resourceSortSchema,
     SpecBuilder,
     unpaginatedByDefault,
     YearPeriodSchema,
@@ -67,6 +69,12 @@ const studyPeriodFilter = resourceFilterSchema(
     "study periods",
     "Structured study period filters. Use bracket notation such as filter[year]=2025."
 );
+export const studyPeriodSort = defineSort({
+    resourceName: "study periods",
+    sortableFields: ["id", "year", "yearPeriod", "startDate"] as const,
+    defaultSort: [{ field: "id", direction: "asc" }] as const,
+    tieBreakers: [] as const
+});
 
 const get = {
     meta: { ...specsBuilder.get(), authorization: policies.public },
@@ -85,12 +93,13 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         query: createPaginationQuerySchema(unpaginatedByDefault, {
-            filter: studyPeriodFilter.optional()
+            filter: studyPeriodFilter.optional(),
+            sort: resourceSortSchema(studyPeriodSort).optional()
         }).strict()
     }),
     response: new OutputBuilder()

@@ -30,7 +30,7 @@ const actions: Actions = {
     listCategories: async (ctx, input) =>
         ApiResponse.ok(
             buildArrayPaginationResponse(
-                await ctx.taggingService.listCategories(),
+                await ctx.taggingService.listCategories(input.query),
                 input.query,
                 unpaginatedByDefault,
                 "/categories"
@@ -54,7 +54,10 @@ const actions: Actions = {
         respond(await ctx.taggingService.getTag(input.path.id), ApiResponse.ok),
     listCourseTags: async (ctx, input) =>
         respond(
-            await ctx.taggingService.listCourseTags(input.path.courseId),
+            await ctx.taggingService.listCourseTags(
+                input.path.courseId,
+                input.query
+            ),
             (items) =>
                 ApiResponse.ok(
                     buildArrayPaginationResponse(
@@ -67,11 +70,7 @@ const actions: Actions = {
         ),
     listTagCourses: async (ctx, input) =>
         respond(
-            await ctx.taggingService.listTagCourses(
-                input.path.id,
-                input.query.page ?? 1,
-                input.query.pageSize ?? 20
-            ),
+            await ctx.taggingService.listTagCourses(input.path.id, input.query),
             (value) =>
                 ApiResponse.ok(
                     buildPaginationResponse<typeof relatedCourse>(

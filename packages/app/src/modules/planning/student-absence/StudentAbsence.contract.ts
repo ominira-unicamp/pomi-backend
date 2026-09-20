@@ -5,6 +5,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
     DayOfWeekSchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
@@ -12,6 +13,7 @@ import {
     ReferenceNotFoundProblemSchema,
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
+    resourceSortSchema,
     SpecBuilder,
     UniqueConstraintConflictProblemSchema,
     unpaginatedByDefault,
@@ -102,6 +104,18 @@ const absenceFilter = resourceFilterSchema(
     { courseAttemptId: 42 }
 );
 export type StudentAbsenceFilter = Filter;
+export const studentAbsenceSort = defineSort({
+    resourceName: "student absences",
+    sortableFields: [
+        "date",
+        "courseCode",
+        "classCode",
+        "start",
+        "createdAt"
+    ] as const,
+    defaultSort: [{ field: "date", direction: "desc" }] as const,
+    tieBreakers: [{ field: "id", direction: "desc" }] as const
+});
 
 const list = {
     meta: {
@@ -110,13 +124,14 @@ const list = {
             "sid",
             StudentCapabilities.HISTORY_READ
         ),
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         path: studentPath,
         query: createPaginationQuerySchema(unpaginatedByDefault, {
-            filter: absenceFilter.optional()
+            filter: absenceFilter.optional(),
+            sort: resourceSortSchema(studentAbsenceSort).optional()
         })
             .strict()
             .openapi("ListStudentAbsencesQuery", {

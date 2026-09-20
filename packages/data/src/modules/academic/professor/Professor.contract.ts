@@ -2,6 +2,7 @@ import { OutputBuilder, type IO } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     paginatedByDefault,
@@ -9,6 +10,7 @@ import {
     pathParam,
     pathSeg,
     resourceFilterSchema,
+    resourceSortSchema,
     SpecBuilder,
     type Filter
 } from "@pomi/api-core";
@@ -56,8 +58,18 @@ const professorFilter = resourceFilterSchema(
     "Structured professor filters. Use bracket notation such as filter[classId]=1."
 );
 
+export const professorSort = defineSort({
+    resourceName: "professors",
+    sortableFields: ["name"] as const,
+    defaultSort: [{ field: "name", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
+
 const listProfessorsQuery = paginationQuerySchema
-    .extend({ filter: professorFilter.optional() })
+    .extend({
+        filter: professorFilter.optional(),
+        sort: resourceSortSchema(professorSort).optional()
+    })
     .strict()
     .openapi("ListProfessorsQuery", {
         "x-pomi-schema": { kind: "input", publicName: "ListProfessorsQuery" }
@@ -91,7 +103,7 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: paginatedByDefault
     },
     request: z.object({

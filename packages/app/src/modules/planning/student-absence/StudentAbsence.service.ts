@@ -1,4 +1,6 @@
-import IO from "#/modules/planning/student-absence/StudentAbsence.contract.js";
+import IO, {
+    studentAbsenceSort
+} from "#/modules/planning/student-absence/StudentAbsence.contract.js";
 import absenceEntity from "#/modules/planning/student-absence/StudentAbsence.entity.js";
 import {
     duplicateStudentAbsenceProblem,
@@ -9,9 +11,11 @@ import {
 } from "#/modules/planning/student-absence/StudentAbsence.problems.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     type FilterWhereBuilder,
     type Result
 } from "@pomi/api-core";
@@ -80,7 +84,25 @@ export function createStudentAbsenceService({
                         ...filterWhere
                     ]
                 },
-                orderBy: [{ date: "desc" }, { id: "desc" }]
+                orderBy: compileSort(
+                    resolveSort(input.sort, studentAbsenceSort),
+                    {
+                        date: (direction) => ({ date: direction }),
+                        courseCode: (direction) => ({
+                            studentCourseAttempt: {
+                                course: { code: direction }
+                            }
+                        }),
+                        classCode: (direction) => ({
+                            classSchedule: { class: { code: direction } }
+                        }),
+                        start: (direction) => ({
+                            classSchedule: { start: direction }
+                        }),
+                        createdAt: (direction) => ({ createdAt: direction }),
+                        id: (direction) => ({ id: direction })
+                    }
+                )
             });
             return absences.map(absenceEntity.build);
         },

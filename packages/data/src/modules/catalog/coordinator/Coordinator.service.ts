@@ -2,15 +2,19 @@ import type {
     CoordinatorFilter,
     CoordinatorFilterName
 } from "#/modules/catalog/coordinator/Coordinator.contract.js";
-import IO from "#/modules/catalog/coordinator/Coordinator.contract.js";
+import IO, {
+    coordinatorSort
+} from "#/modules/catalog/coordinator/Coordinator.contract.js";
 import coordinatorEntity from "#/modules/catalog/coordinator/Coordinator.entity.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaPaginationParams,
     prismaWhereFor,
     resolvePagination,
+    resolveSort,
     ResourceNotFoundProblem,
     unpaginatedByDefault,
     type FilterWhereBuilder,
@@ -69,7 +73,10 @@ export function createCoordinatorService({
                 ...prismaPaginationParams(pagination),
                 ...coordinatorEntity.selection,
                 where,
-                orderBy: [{ name: "asc" }, { id: "asc" }]
+                orderBy: compileSort(resolveSort(query.sort, coordinatorSort), {
+                    name: (direction) => ({ name: direction }),
+                    id: (direction) => ({ id: direction })
+                })
             });
             return {
                 items: coordinators.map(coordinatorEntity.build),

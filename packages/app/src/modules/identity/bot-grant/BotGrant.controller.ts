@@ -18,7 +18,7 @@ const actions: Actions = {
     listBots: async (ctx, input) =>
         ApiResponse.ok(
             buildArrayPaginationResponse(
-                await ctx.botGrantService.listBots(),
+                await ctx.botGrantService.listBots(input.query),
                 input.query,
                 unpaginatedByDefault,
                 "/bots"
@@ -27,7 +27,7 @@ const actions: Actions = {
     list: async (ctx, input) =>
         ApiResponse.ok(
             buildArrayPaginationResponse(
-                await ctx.botGrantService.list(ctx.principal!),
+                await ctx.botGrantService.list(ctx.principal!, input.query),
                 input.query,
                 unpaginatedByDefault,
                 "/me/bot-grants"

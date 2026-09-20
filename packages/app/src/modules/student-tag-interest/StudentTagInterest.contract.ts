@@ -3,10 +3,12 @@ import { type IO, OutputBuilder } from "#/Contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
+    resourceSortSchema,
     unpaginatedByDefault
 } from "@pomi/api-core";
 import z from "zod";
@@ -44,6 +46,12 @@ const tag = z
             identityFields: ["id"]
         }
     });
+export const studentTagInterestSort = defineSort({
+    resourceName: "student tag interests",
+    sortableFields: ["name"] as const,
+    defaultSort: [{ field: "name", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 
 const list = {
     meta: {
@@ -61,11 +69,14 @@ const list = {
             "sid",
             StudentCapabilities.PROFILE_READ
         ),
+        queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         path: studentId,
-        query: createPaginationQuerySchema(unpaginatedByDefault)
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            sort: resourceSortSchema(studentTagInterestSort).optional()
+        })
     }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(tag), "Interesses por tags recuperados")

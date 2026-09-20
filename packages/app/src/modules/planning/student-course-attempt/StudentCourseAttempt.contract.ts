@@ -4,6 +4,7 @@ import { InvalidStudentCourseAttemptProblem } from "#/modules/planning/student-c
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
@@ -11,6 +12,7 @@ import {
     ReferenceNotFoundProblemSchema,
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
+    resourceSortSchema,
     SpecBuilder,
     UniqueConstraintConflictProblemSchema,
     unpaginatedByDefault,
@@ -198,6 +200,18 @@ const attemptFilter = resourceFilterSchema(
     { status: "APPROVED" }
 );
 export type StudentCourseAttemptFilter = Filter;
+export const studentCourseAttemptSort = defineSort({
+    resourceName: "student course attempts",
+    sortableFields: [
+        "createdAt",
+        "updatedAt",
+        "courseCode",
+        "status",
+        "grade"
+    ] as const,
+    defaultSort: [{ field: "createdAt", direction: "desc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 
 const get = {
     meta: {
@@ -244,7 +258,7 @@ const list = {
             "sid",
             StudentCapabilities.HISTORY_READ
         ),
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
@@ -252,7 +266,8 @@ const list = {
             sid: pathParam.integer()
         }),
         query: createPaginationQuerySchema(unpaginatedByDefault, {
-            filter: attemptFilter.optional()
+            filter: attemptFilter.optional(),
+            sort: resourceSortSchema(studentCourseAttemptSort).optional()
         })
             .strict()
             .openapi("ListStudentCourseAttemptsQuery", {

@@ -16,7 +16,7 @@ const actions: Actions = {
     list: async (ctx, input) =>
         ApiResponse.ok(
             buildArrayPaginationResponse(
-                await ctx.authUserService.list(),
+                await ctx.authUserService.list(input.query),
                 input.query,
                 unpaginatedByDefault,
                 "/admin/auth-users"

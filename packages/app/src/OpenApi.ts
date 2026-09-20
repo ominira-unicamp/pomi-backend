@@ -120,6 +120,7 @@ export function generateAppOpenApiDocument(audience: "student" | "all") {
 }
 
 const router = Router();
+router.get("/", (_req: Request, res: Response) => res.redirect("/docs"));
 router.get("/student-openapi.json", (_req: Request, res: Response) =>
     res.json(generateAppOpenApiDocument("student"))
 );

@@ -2,13 +2,15 @@ import type {
     ProgramFilter,
     ProgramFilterName
 } from "#/modules/catalog/program/Program.contract.js";
-import IO from "#/modules/catalog/program/Program.contract.js";
+import IO, { programSort } from "#/modules/catalog/program/Program.contract.js";
 import programEntity from "#/modules/catalog/program/Program.entity.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type Result
@@ -51,7 +53,14 @@ export function createProgramService({
                 await prisma.program.findMany({
                     ...programEntity.prismaSelection,
                     where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: { name: "asc" }
+                    orderBy: compileSort(resolveSort(query.sort, programSort), {
+                        code: (direction) => ({ code: direction }),
+                        name: (direction) => ({ name: direction }),
+                        unitCode: (direction) => ({
+                            unit: { code: direction }
+                        }),
+                        id: (direction) => ({ id: direction })
+                    })
                 })
             ).map(programEntity.build);
         },

@@ -1,16 +1,19 @@
 import { AuthRoles, type Capability, type Principal } from "#/auth.js";
-import IO from "#/modules/identity/auth-user/AuthUser.contract.js";
+import IO, {
+    authUserSort
+} from "#/modules/identity/auth-user/AuthUser.contract.js";
 import authUserEntity from "#/modules/identity/auth-user/AuthUser.entity.js";
 import {
     adminIdentityManagedByCliProblem,
     authUserNotFoundProblem,
     type AuthUserProblem
 } from "#/modules/identity/auth-user/AuthUser.problems.js";
-import { err, ok, type Result } from "@pomi/api-core";
+import { compileSort, err, ok, resolveSort, type Result } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import z from "zod";
 
 type AuthUser = z.infer<typeof IO.schemas.entity>;
+type ListQuery = z.infer<typeof IO.list.request>["query"];
 
 type CreateInput = {
     subject: string;
@@ -23,7 +26,7 @@ type PatchInput = {
     capabilities?: Capability[];
 };
 export type AuthUserService = {
-    list(): Promise<AuthUser[]>;
+    list(query: ListQuery): Promise<AuthUser[]>;
     create(principal: Principal, input: CreateInput): Promise<AuthUser>;
     patch(
         id: number,
@@ -36,11 +39,21 @@ export function createAuthUserService({
     prisma: PrismaClient;
 }): AuthUserService {
     return {
-        async list() {
+        async list(query) {
             return (
                 await prisma.authUser.findMany({
                     ...authUserEntity.prismaSelection,
-                    orderBy: { id: "asc" }
+                    orderBy: compileSort(
+                        resolveSort(query.sort, authUserSort),
+                        {
+                            id: (direction) => ({ id: direction }),
+                            displayName: (direction) => ({
+                                displayName: direction
+                            }),
+                            email: (direction) => ({ email: direction }),
+                            status: (direction) => ({ status: direction })
+                        }
+                    )
                 })
             ).map(authUserEntity.build);
         },

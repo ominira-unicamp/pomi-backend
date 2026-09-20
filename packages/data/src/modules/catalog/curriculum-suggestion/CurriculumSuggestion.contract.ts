@@ -3,12 +3,14 @@ import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
+    resourceSortSchema,
     SpecBuilder,
     unpaginatedByDefault,
     type Filter
@@ -111,6 +113,23 @@ const curriculumSuggestionFilter = resourceFilterSchema(
     "curriculum suggestions",
     "Structured curriculum suggestion filters. Use bracket notation such as filter[catalogYear]=2025."
 );
+export const curriculumSuggestionSort = defineSort({
+    resourceName: "curriculum suggestions",
+    sortableFields: [
+        "catalogYear",
+        "programCode",
+        "programName",
+        "code",
+        "name",
+        "type"
+    ] as const,
+    defaultSort: [
+        { field: "catalogYear", direction: "desc" },
+        { field: "programCode", direction: "desc" },
+        { field: "code", direction: "asc" }
+    ] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 
 const curriculumSuggestionEntitySchema = curriculumSuggestionDataSchema
     .extend({
@@ -133,7 +152,8 @@ const curriculumSuggestionEntitySchema = curriculumSuggestionDataSchema
     });
 
 const listQuerySchema = createPaginationQuerySchema(unpaginatedByDefault, {
-    filter: curriculumSuggestionFilter.optional()
+    filter: curriculumSuggestionFilter.optional(),
+    sort: resourceSortSchema(curriculumSuggestionSort).optional()
 })
     .strict()
     .openapi("ListCurriculumSuggestionsQuery", {
@@ -165,7 +185,7 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({ query: listQuerySchema }),

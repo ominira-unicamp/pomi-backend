@@ -19,7 +19,7 @@ export const periodPlanActions: Actions = {
     list: async (ctx, input) =>
         ApiResponse.ok(
             buildArrayPaginationResponse(
-                await ctx.periodPlanService.list(input.path.sid),
+                await ctx.periodPlanService.list(input.path.sid, input.query),
                 input.query,
                 unpaginatedByDefault,
                 `/student/${input.path.sid}/period-plannings`

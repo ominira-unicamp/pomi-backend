@@ -1,14 +1,17 @@
 import {
     classScheduleDataSchema,
+    classScheduleSort,
     type ClassScheduleFilterName,
     type ClassScheduleListInput
 } from "#/modules/schedule/class-schedule/ClassSchedule.contract.js";
 import { classScheduleNotFoundProblem } from "#/modules/schedule/class-schedule/ClassSchedule.problems.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     type FilterWhereBuilder,
     type Result
 } from "@pomi/api-core";
@@ -128,7 +131,29 @@ export function createClassScheduleService({
                     take: input.pageSize,
                     ...prismaClassScheduleFieldSelection,
                     where,
-                    orderBy: { id: "asc" }
+                    orderBy: compileSort(
+                        resolveSort(input.sort, classScheduleSort),
+                        {
+                            id: (direction) => ({ id: direction }),
+                            dayOfWeek: (direction) => ({
+                                dayOfWeek: direction
+                            }),
+                            start: (direction) => ({ start: direction }),
+                            end: (direction) => ({ end: direction }),
+                            roomCode: (direction) => ({
+                                room: { code: direction }
+                            }),
+                            classCode: (direction) => ({
+                                class: { code: direction }
+                            }),
+                            courseCode: (direction) => ({
+                                class: { course: { code: direction } }
+                            }),
+                            studyPeriodYear: (direction) => ({
+                                class: { studyPeriod: { year: direction } }
+                            })
+                        }
+                    )
                 })
             ]);
             return {

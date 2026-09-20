@@ -3,14 +3,16 @@ import { type IO, OutputBuilder } from "#/Contract.js";
 import { InvalidPeriodPlanProblem } from "#/modules/planning/period-plan/PeriodPlan.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
-    collectionQuery,
+    createPaginationQuerySchema,
     DayOfWeekSchema,
     defineResource,
+    defineSort,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     ResourceNotFoundProblemSchema,
+    resourceSortSchema,
     unpaginatedByDefault,
     YearPeriodSchema
 } from "@pomi/api-core";
@@ -174,6 +176,25 @@ const periodPlanningEntity = z
         }
     });
 
+export const periodPlanningSort = defineSort({
+    resourceName: "student period plannings",
+    sortableFields: [
+        "updatedAt",
+        "name",
+        "studyPeriodYear",
+        "studyPeriodYearPeriod",
+        "visibility"
+    ] as const,
+    defaultSort: [{ field: "updatedAt", direction: "desc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
+export const periodPlanningListQuery = createPaginationQuerySchema(
+    unpaginatedByDefault,
+    {
+        sort: resourceSortSchema(periodPlanningSort).optional()
+    }
+);
+
 const get = periodPlannings.get({
     operationId: "getStudentPeriodPlannings",
     authorization: policies.studentAccess(
@@ -202,7 +223,7 @@ const list = periodPlannings.list({
     pagination: unpaginatedByDefault,
     request: z.object({
         path: z.object({ sid: pathParam.integer() }),
-        query: collectionQuery({ pagination: unpaginatedByDefault })
+        query: periodPlanningListQuery
     }),
     response: new OutputBuilder()
         .ok(

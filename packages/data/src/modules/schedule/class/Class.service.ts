@@ -2,13 +2,15 @@ import type {
     ClassFilter,
     ClassFilterName
 } from "#/modules/schedule/class/Class.contract.js";
-import IO from "#/modules/schedule/class/Class.contract.js";
+import IO, { classSort } from "#/modules/schedule/class/Class.contract.js";
 import classEntity from "#/modules/schedule/class/Class.entity.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type Result
@@ -63,7 +65,16 @@ export function createClassService({
                 prisma.class.findMany({
                     ...classEntity.prismaSelection,
                     where,
-                    orderBy: { id: "asc" },
+                    orderBy: compileSort(resolveSort(query.sort, classSort), {
+                        id: (direction) => ({ id: direction }),
+                        classCode: (direction) => ({ code: direction }),
+                        courseCode: (direction) => ({
+                            course: { code: direction }
+                        }),
+                        studyPeriodYear: (direction) => ({
+                            studyPeriod: { year: direction }
+                        })
+                    }),
                     skip: ((query.page ?? 1) - 1) * (query.pageSize ?? 20),
                     take: query.pageSize ?? 20
                 })

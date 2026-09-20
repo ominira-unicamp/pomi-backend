@@ -3872,6 +3872,26 @@
             "description": "Number of items per page, or \"all\" to return every item.",
             "name": "pageSize",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "displayName:asc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "displayName"
+              ],
+              "default": "displayName:asc"
+            },
+            "name": "sort",
+            "in": "query"
           }
         ],
         "responses": {
@@ -4006,6 +4026,28 @@
             "required": false,
             "description": "Number of items per page, or \"all\" to return every item.",
             "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "createdAt:desc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "createdAt",
+                "capability",
+                "botDisplayName"
+              ],
+              "default": "createdAt:desc"
+            },
+            "name": "sort",
             "in": "query"
           }
         ],
@@ -5037,6 +5079,28 @@
             "description": "Number of items per page, or \"all\" to return every item.",
             "name": "pageSize",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "isFavorite:desc,updatedAt:desc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "isFavorite",
+                "updatedAt",
+                "name"
+              ],
+              "default": "isFavorite:desc,updatedAt:desc"
+            },
+            "name": "sort",
+            "in": "query"
           }
         ],
         "responses": {
@@ -5655,6 +5719,30 @@
             "description": "Number of items per page, or \"all\" to return every item.",
             "name": "pageSize",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "updatedAt:desc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "updatedAt",
+                "name",
+                "studyPeriodYear",
+                "studyPeriodYearPeriod",
+                "visibility"
+              ],
+              "default": "updatedAt:desc"
+            },
+            "name": "sort",
+            "in": "query"
           }
         ],
         "responses": {
@@ -6144,6 +6232,30 @@
             "description": "Number of items per page, or \"all\" to return every item.",
             "name": "pageSize",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "updatedAt:desc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "updatedAt",
+                "name",
+                "studyPeriodYear",
+                "studyPeriodYearPeriod",
+                "visibility"
+              ],
+              "default": "updatedAt:desc"
+            },
+            "name": "sort",
+            "in": "query"
           }
         ],
         "responses": {
@@ -6429,6 +6541,28 @@
             },
             "name": "filter",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "updatedAt:desc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "updatedAt",
+                "name",
+                "studyPeriodYear"
+              ],
+              "default": "updatedAt:desc"
+            },
+            "name": "sort",
+            "in": "query"
           }
         ],
         "responses": {
@@ -6650,6 +6784,28 @@
               }
             },
             "name": "filter",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "updatedAt:desc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "updatedAt",
+                "name",
+                "studyPeriodYear"
+              ],
+              "default": "updatedAt:desc"
+            },
+            "name": "sort",
             "in": "query"
           }
         ],
@@ -7146,6 +7302,29 @@
               }
             },
             "name": "filter",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "courseCode:asc,classCode:asc,professorName:asc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "courseCode",
+                "courseName",
+                "classCode",
+                "professorName"
+              ],
+              "default": "courseCode:asc,classCode:asc,professorName:asc"
+            },
+            "name": "sort",
             "in": "query"
           }
         ],
@@ -7746,6 +7925,30 @@
             },
             "name": "filter",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "createdAt:desc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "createdAt",
+                "updatedAt",
+                "courseCode",
+                "status",
+                "grade"
+              ],
+              "default": "createdAt:desc"
+            },
+            "name": "sort",
+            "in": "query"
           }
         ],
         "responses": {
@@ -8151,6 +8354,30 @@
               }
             },
             "name": "filter",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "date:desc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "date",
+                "courseCode",
+                "classCode",
+                "start",
+                "createdAt"
+              ],
+              "default": "date:desc"
+            },
+            "name": "sort",
             "in": "query"
           }
         ],
@@ -8659,6 +8886,26 @@
             "required": false,
             "name": "query",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "displayName:asc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "displayName"
+              ],
+              "default": "displayName:asc"
+            },
+            "name": "sort",
+            "in": "query"
           }
         ],
         "responses": {
@@ -8956,6 +9203,27 @@
               }
             },
             "name": "filter",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "updatedAt:desc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "updatedAt",
+                "status"
+              ],
+              "default": "updatedAt:desc"
+            },
+            "name": "sort",
             "in": "query"
           }
         ],
@@ -9584,6 +9852,30 @@
             "description": "Number of items per page, or \"all\" to return every item.",
             "name": "pageSize",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "createdAt:desc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "createdAt",
+                "updatedAt",
+                "status",
+                "kind",
+                "title"
+              ],
+              "default": "createdAt:desc"
+            },
+            "name": "sort",
+            "in": "query"
           }
         ],
         "responses": {
@@ -9935,6 +10227,26 @@
             "required": false,
             "description": "Number of items per page, or \"all\" to return every item.",
             "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "name:asc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "name"
+              ],
+              "default": "name:asc"
+            },
+            "name": "sort",
             "in": "query"
           }
         ],
@@ -10539,6 +10851,27 @@
             },
             "name": "filter",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "name:asc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "name",
+                "categoryId"
+              ],
+              "default": "name:asc"
+            },
+            "name": "sort",
+            "in": "query"
           }
         ],
         "responses": {
@@ -11063,6 +11396,27 @@
             "description": "Number of items per page, or \"all\" to return every item.",
             "name": "pageSize",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "name:asc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "name",
+                "categoryId"
+              ],
+              "default": "name:asc"
+            },
+            "name": "sort",
+            "in": "query"
           }
         ],
         "responses": {
@@ -11208,6 +11562,28 @@
             "required": false,
             "description": "Number of items per page.",
             "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "code:asc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "code",
+                "name",
+                "credits"
+              ],
+              "default": "code:asc"
+            },
+            "name": "sort",
             "in": "query"
           }
         ],
@@ -11518,6 +11894,26 @@
             "required": false,
             "description": "Number of items per page, or \"all\" to return every item.",
             "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+              "example": "name:asc"
+            },
+            "required": false,
+            "description": "Ordered comma-separated field:direction terms. Earlier terms have higher priority.",
+            "style": "form",
+            "explode": false,
+            "x-pomi-sort": {
+              "version": 1,
+              "fields": [
+                "name"
+              ],
+              "default": "name:asc"
+            },
+            "name": "sort",
             "in": "query"
           }
         ],

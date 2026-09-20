@@ -108,6 +108,7 @@ export function generateDataOpenApiDocument(audience: "public" | "all") {
 }
 
 const router = Router();
+router.get("/", (_req: Request, res: Response) => res.redirect("/docs"));
 router.get("/public-openapi.json", (_req: Request, res: Response) =>
     res.json(generateDataOpenApiDocument("public"))
 );

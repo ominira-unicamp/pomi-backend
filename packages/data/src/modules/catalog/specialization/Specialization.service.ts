@@ -2,13 +2,17 @@ import type {
     SpecializationFilter,
     SpecializationFilterName
 } from "#/modules/catalog/specialization/Specialization.contract.js";
-import IO from "#/modules/catalog/specialization/Specialization.contract.js";
+import IO, {
+    specializationSort
+} from "#/modules/catalog/specialization/Specialization.contract.js";
 import specializationEntity from "#/modules/catalog/specialization/Specialization.entity.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type Result
@@ -60,7 +64,20 @@ export function createSpecializationService({
                 await prisma.specialization.findMany({
                     ...specializationEntity.prismaSelection,
                     where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: [{ program: { code: "asc" } }, { name: "asc" }]
+                    orderBy: compileSort(
+                        resolveSort(query.sort, specializationSort),
+                        {
+                            programCode: (direction) => ({
+                                program: { code: direction }
+                            }),
+                            programName: (direction) => ({
+                                program: { name: direction }
+                            }),
+                            code: (direction) => ({ code: direction }),
+                            name: (direction) => ({ name: direction }),
+                            id: (direction) => ({ id: direction })
+                        }
+                    )
                 })
             ).map(specializationEntity.build);
         },

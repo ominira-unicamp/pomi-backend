@@ -3,10 +3,12 @@ import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathSeg,
     resourceFilterSchema,
+    resourceSortSchema,
     SpecBuilder,
     unpaginatedByDefault,
     type Filter
@@ -53,17 +55,24 @@ const exchangePlaceFilter = resourceFilterSchema(
     "exchange places",
     "Structured exchange place filters. Use bracket notation such as filter[name]=França."
 );
+export const exchangePlaceSort = defineSort({
+    resourceName: "exchange places",
+    sortableFields: ["name"] as const,
+    defaultSort: [{ field: "name", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 
 const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         query: createPaginationQuerySchema(unpaginatedByDefault, {
-            filter: exchangePlaceFilter.optional()
+            filter: exchangePlaceFilter.optional(),
+            sort: resourceSortSchema(exchangePlaceSort).optional()
         }).strict()
     }),
     response: new OutputBuilder()

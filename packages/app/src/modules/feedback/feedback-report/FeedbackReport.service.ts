@@ -1,18 +1,22 @@
 import type { FeedbackRateLimiter } from "#/modules/feedback/feedback-report/FeedbackRateLimiter.js";
-import IO from "#/modules/feedback/feedback-report/FeedbackReport.contract.js";
+import IO, {
+    feedbackReportSort
+} from "#/modules/feedback/feedback-report/FeedbackReport.contract.js";
 import {
     feedbackRateLimitProblem,
     feedbackReferenceNotFoundProblem,
     feedbackReportNotFoundProblem,
     type FeedbackReportProblem
 } from "#/modules/feedback/feedback-report/FeedbackReport.problems.js";
-import { err, ok, type Result } from "@pomi/api-core";
+import { compileSort, err, ok, resolveSort, type Result } from "@pomi/api-core";
 import type { FeedbackReportStatus, PrismaClient } from "@pomi/db";
 import z from "zod";
 
 type Input = z.infer<typeof IO.body>;
 type Report = z.infer<typeof IO.schemas.report>;
 type AdminPatchInput = z.infer<typeof IO.patchAdmin.request>["body"];
+type StudentListQuery = z.infer<typeof IO.listStudent.request>["query"];
+type AdminListQuery = z.infer<typeof IO.listAdmin.request>["query"];
 type Receipt = { createdAt: string };
 
 function buildReport(report: {
@@ -196,8 +200,11 @@ export type FeedbackReportService = {
             >
         >
     >;
-    listForStudent(studentId: number): Promise<Report[]>;
-    listForAdmin(): Promise<Report[]>;
+    listForStudent(
+        studentId: number,
+        query: StudentListQuery
+    ): Promise<Report[]>;
+    listForAdmin(query: AdminListQuery): Promise<Report[]>;
     patchAdmin(
         id: number,
         input: AdminPatchInput
@@ -252,18 +259,38 @@ export function createFeedbackReportService({
         async createForStudent(studentId, input) {
             return create(input, studentId);
         },
-        async listForStudent(studentId) {
+        async listForStudent(studentId, query) {
             const reports = await prisma.feedbackReport.findMany({
                 where: { reporterStudentId: studentId },
                 select: reportSelection,
-                orderBy: { createdAt: "desc" }
+                orderBy: compileSort(
+                    resolveSort(query.sort, feedbackReportSort),
+                    {
+                        createdAt: (direction) => ({ createdAt: direction }),
+                        updatedAt: (direction) => ({ updatedAt: direction }),
+                        status: (direction) => ({ status: direction }),
+                        kind: (direction) => ({ kind: direction }),
+                        title: (direction) => ({ title: direction }),
+                        id: (direction) => ({ id: direction })
+                    }
+                )
             });
             return reports.map(buildReport);
         },
-        async listForAdmin() {
+        async listForAdmin(query) {
             const reports = await prisma.feedbackReport.findMany({
                 select: reportSelection,
-                orderBy: { createdAt: "desc" }
+                orderBy: compileSort(
+                    resolveSort(query.sort, feedbackReportSort),
+                    {
+                        createdAt: (direction) => ({ createdAt: direction }),
+                        updatedAt: (direction) => ({ updatedAt: direction }),
+                        status: (direction) => ({ status: direction }),
+                        kind: (direction) => ({ kind: direction }),
+                        title: (direction) => ({ title: direction }),
+                        id: (direction) => ({ id: direction })
+                    }
+                )
             });
             return reports.map(buildReport);
         },

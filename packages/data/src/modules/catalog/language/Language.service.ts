@@ -2,13 +2,17 @@ import type {
     LanguageFilter,
     LanguageFilterName
 } from "#/modules/catalog/language/Language.contract.js";
-import IO from "#/modules/catalog/language/Language.contract.js";
+import IO, {
+    languageSort
+} from "#/modules/catalog/language/Language.contract.js";
 import languageEntity from "#/modules/catalog/language/Language.entity.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type Result
@@ -50,7 +54,13 @@ export function createLanguageService({
                 await prisma.language.findMany({
                     ...languageEntity.prismaSelection,
                     where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: { name: "asc" }
+                    orderBy: compileSort(
+                        resolveSort(query.sort, languageSort),
+                        {
+                            name: (direction) => ({ name: direction }),
+                            id: (direction) => ({ id: direction })
+                        }
+                    )
                 })
             ).map(languageEntity.build);
         },

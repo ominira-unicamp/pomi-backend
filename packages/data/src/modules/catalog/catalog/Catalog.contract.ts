@@ -3,11 +3,13 @@ import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
+    resourceSortSchema,
     SpecBuilder,
     unpaginatedByDefault,
     type Filter
@@ -54,6 +56,12 @@ const catalogFilter = resourceFilterSchema(
     "catalogs",
     "Structured catalog filters. Use bracket notation such as filter[year]=2025."
 );
+export const catalogSort = defineSort({
+    resourceName: "catalogs",
+    sortableFields: ["year"] as const,
+    defaultSort: [{ field: "year", direction: "desc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 
 const get = {
     meta: {
@@ -75,12 +83,13 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         query: createPaginationQuerySchema(unpaginatedByDefault, {
-            filter: catalogFilter.optional()
+            filter: catalogFilter.optional(),
+            sort: resourceSortSchema(catalogSort).optional()
         }).strict()
     }),
     response: new OutputBuilder()

@@ -39,7 +39,10 @@ const createForStudent: Actions["createForStudent"] = async (ctx, input) =>
 const listStudent: Actions["listStudent"] = async (ctx, input) =>
     ApiResponse.ok(
         buildArrayPaginationResponse(
-            await ctx.feedbackReportService.listForStudent(input.path.sid),
+            await ctx.feedbackReportService.listForStudent(
+                input.path.sid,
+                input.query
+            ),
             input.query,
             unpaginatedByDefault,
             `/student/${input.path.sid}/feedback-reports`
@@ -49,7 +52,7 @@ const listStudent: Actions["listStudent"] = async (ctx, input) =>
 const listAdmin: Actions["listAdmin"] = async (ctx, input) =>
     ApiResponse.ok(
         buildArrayPaginationResponse(
-            await ctx.feedbackReportService.listForAdmin(),
+            await ctx.feedbackReportService.listForAdmin(input.query),
             input.query,
             unpaginatedByDefault,
             "/admin/feedback-reports"

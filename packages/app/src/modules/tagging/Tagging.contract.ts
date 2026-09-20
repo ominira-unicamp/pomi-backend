@@ -3,6 +3,7 @@ import { OutputBuilder, type IO } from "#/Contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     paginatedByDefault,
@@ -10,6 +11,7 @@ import {
     pathSeg,
     ReferenceNotFoundProblemSchema,
     resourceFilterSchema,
+    resourceSortSchema,
     UniqueConstraintConflictProblemSchema,
     unpaginatedByDefault,
     type Filter
@@ -85,6 +87,24 @@ const tagFilter = resourceFilterSchema(
     { categoryId: 1 }
 );
 export type TagFilter = Filter;
+export const categorySort = defineSort({
+    resourceName: "categories",
+    sortableFields: ["name"] as const,
+    defaultSort: [{ field: "name", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
+export const tagSort = defineSort({
+    resourceName: "tags",
+    sortableFields: ["name", "categoryId"] as const,
+    defaultSort: [{ field: "name", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
+export const tagCourseSort = defineSort({
+    resourceName: "tag courses",
+    sortableFields: ["code", "name", "credits"] as const,
+    defaultSort: [{ field: "code", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 
 const listCategories = {
     meta: {
@@ -98,10 +118,13 @@ const listCategories = {
         path: categories,
         tags: ["categories"],
         authorization: policies.public,
+        queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
-        query: createPaginationQuerySchema(unpaginatedByDefault).strict()
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            sort: resourceSortSchema(categorySort).optional()
+        }).strict()
     }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(category), "Categorias recuperadas")
@@ -139,12 +162,13 @@ const listTags = {
         path: tags,
         tags: ["tags"],
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         query: createPaginationQuerySchema(unpaginatedByDefault, {
-            filter: tagFilter.optional()
+            filter: tagFilter.optional(),
+            sort: resourceSortSchema(tagSort).optional()
         })
             .strict()
             .openapi("ListTagsQuery", {
@@ -189,11 +213,14 @@ const listCourseTags = {
         ],
         tags: ["course-tags"],
         authorization: policies.public,
+        queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         path: coursePath,
-        query: createPaginationQuerySchema(unpaginatedByDefault)
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            sort: resourceSortSchema(tagSort).optional()
+        })
     }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(tag), "Tags da disciplina recuperadas")
@@ -213,11 +240,14 @@ const listTagCourses = {
         path: [...tags, pathSeg.param("id"), pathSeg.literal("courses")],
         tags: ["course-tags"],
         authorization: policies.public,
+        queryFeatures: { sort: true },
         pagination: paginatedByDefault
     },
     request: z.object({
         path: entityId,
-        query: paginationQuerySchema.strict()
+        query: paginationQuerySchema
+            .extend({ sort: resourceSortSchema(tagCourseSort).optional() })
+            .strict()
     }),
     response: new OutputBuilder()
         .ok(

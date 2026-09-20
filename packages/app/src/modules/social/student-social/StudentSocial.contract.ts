@@ -4,12 +4,14 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
     DayOfWeekSchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
+    resourceSortSchema,
     UniqueConstraintConflictProblemSchema,
     unpaginatedByDefault,
     type Filter,
@@ -191,6 +193,18 @@ const friendshipFilter = resourceFilterSchema(
     "Structured friendship filters. Use filter[status]=PENDING or filter[direction]=INCOMING.",
     { status: "PENDING" }
 );
+export const studentPeopleSort = defineSort({
+    resourceName: "student people",
+    sortableFields: ["displayName"] as const,
+    defaultSort: [{ field: "displayName", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
+export const studentFriendshipSort = defineSort({
+    resourceName: "student friendships",
+    sortableFields: ["updatedAt", "status"] as const,
+    defaultSort: [{ field: "updatedAt", direction: "desc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 export type StudentFriendshipFilter = Filter;
 
 export const studentPeoplePagination = {
@@ -247,6 +261,7 @@ const listPeople = {
         path: peoplePath,
         tags: ["student-social"],
         authorization: read,
+        queryFeatures: { sort: true },
         sdk: {
             resource: "studentPeople",
             action: "list" as const,
@@ -258,7 +273,8 @@ const listPeople = {
     request: z.object({
         path: sidPath,
         query: createPaginationQuerySchema(studentPeoplePagination, {
-            query: z.string().trim().min(1).optional()
+            query: z.string().trim().min(1).optional(),
+            sort: resourceSortSchema(studentPeopleSort).optional()
         })
     }),
     response: new OutputBuilder()
@@ -306,13 +322,14 @@ const listFriendships = {
         path: friendshipsPath,
         tags: ["student-social"],
         authorization: read,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         path: sidPath,
         query: createPaginationQuerySchema(unpaginatedByDefault, {
-            filter: friendshipFilter.optional()
+            filter: friendshipFilter.optional(),
+            sort: resourceSortSchema(studentFriendshipSort).optional()
         })
             .strict()
             .openapi("ListStudentFriendshipsQuery", {

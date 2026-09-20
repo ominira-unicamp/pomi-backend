@@ -1,4 +1,6 @@
-import IO from "#/modules/planning/student-course-attempt/StudentCourseAttempt.contract.js";
+import IO, {
+    studentCourseAttemptSort
+} from "#/modules/planning/student-course-attempt/StudentCourseAttempt.contract.js";
 import attemptEntity from "#/modules/planning/student-course-attempt/StudentCourseAttempt.entity.js";
 import {
     activeStudentCourseAttemptProblem,
@@ -9,9 +11,11 @@ import {
 } from "#/modules/planning/student-course-attempt/StudentCourseAttempt.problems.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     scalarFilter,
     type FilterExpression,
     type FilterWhereBuilder,
@@ -324,7 +328,19 @@ export function createStudentCourseAttemptService({
             const attempts = await prisma.studentCourseAttempt.findMany({
                 ...attemptEntity.prismaSelection,
                 where: { AND: [{ studentId }, ...filterWhere] },
-                orderBy: [{ createdAt: "desc" }]
+                orderBy: compileSort(
+                    resolveSort(input.sort, studentCourseAttemptSort),
+                    {
+                        createdAt: (direction) => ({ createdAt: direction }),
+                        updatedAt: (direction) => ({ updatedAt: direction }),
+                        courseCode: (direction) => ({
+                            course: { code: direction }
+                        }),
+                        status: (direction) => ({ status: direction }),
+                        grade: (direction) => ({ grade: direction }),
+                        id: (direction) => ({ id: direction })
+                    }
+                )
             });
             return attempts.map(attemptEntity.build);
         },

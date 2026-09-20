@@ -1,5 +1,7 @@
 import IO, {
-    studentPeoplePagination
+    studentFriendshipSort,
+    studentPeoplePagination,
+    studentPeopleSort
 } from "#/modules/social/student-social/StudentSocial.contract.js";
 import {
     socialConflictProblem,
@@ -7,11 +9,13 @@ import {
 } from "#/modules/social/student-social/StudentSocial.problems.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaPaginationParams,
     prismaWhereFor,
     resolvePagination,
+    resolveSort,
     type FilterExpression,
     type FilterWhereBuilder,
     type ResolvedPagination,
@@ -380,11 +384,16 @@ export function createStudentSocialService({
                 prisma.student.findMany({
                     where,
                     select: personSelection,
-                    orderBy: [
-                        { publicDisplayName: "asc" },
-                        { name: "asc" },
-                        { id: "asc" }
-                    ],
+                    orderBy: compileSort(
+                        resolveSort(input.sort, studentPeopleSort),
+                        {
+                            displayName: (direction) => [
+                                { publicDisplayName: direction },
+                                { name: direction }
+                            ],
+                            id: (direction) => ({ id: direction })
+                        }
+                    ).flat(),
                     ...prismaPaginationParams(pagination)
                 }),
                 prisma.student.count({ where })
@@ -482,7 +491,14 @@ export function createStudentSocialService({
                     ]
                 },
                 ...friendshipSelection,
-                orderBy: [{ updatedAt: "desc" }, { id: "asc" }]
+                orderBy: compileSort(
+                    resolveSort(input.sort, studentFriendshipSort),
+                    {
+                        updatedAt: (direction) => ({ updatedAt: direction }),
+                        status: (direction) => ({ status: direction }),
+                        id: (direction) => ({ id: direction })
+                    }
+                )
             });
             return rows.map((row) => buildFriendship(row, studentId));
         },

@@ -2,12 +2,14 @@ import type {
     RoomFilter,
     RoomFilterName
 } from "#/modules/academic/room/Room.contract.js";
-import IO from "#/modules/academic/room/Room.contract.js";
+import IO, { roomSort } from "#/modules/academic/room/Room.contract.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type Result
@@ -46,7 +48,10 @@ export function createRoomService({
             return (
                 await prisma.room.findMany({
                     where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: [{ code: "asc" }, { id: "asc" }]
+                    orderBy: compileSort(resolveSort(query.sort, roomSort), {
+                        code: (direction) => ({ code: direction }),
+                        id: (direction) => ({ id: direction })
+                    })
                 })
             ).map((room) => ({
                 ...room,

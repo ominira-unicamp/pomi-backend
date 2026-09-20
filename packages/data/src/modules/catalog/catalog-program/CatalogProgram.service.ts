@@ -2,14 +2,18 @@ import type {
     CatalogProgramFilter,
     CatalogProgramFilterName
 } from "#/modules/catalog/catalog-program/CatalogProgram.contract.js";
-import IO from "#/modules/catalog/catalog-program/CatalogProgram.contract.js";
+import IO, {
+    catalogProgramSort
+} from "#/modules/catalog/catalog-program/CatalogProgram.contract.js";
 import catalogProgramEntity from "#/modules/catalog/catalog-program/CatalogProgram.entity.js";
 import { catalogProgramNotFoundProblem } from "#/modules/catalog/catalog-program/CatalogProgram.problems.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     type FilterWhereBuilder,
     type Result
 } from "@pomi/api-core";
@@ -58,14 +62,26 @@ export function createCatalogProgramService({
     prisma: PrismaClient;
 }): CatalogProgramService {
     return {
-        async list({ filter }) {
+        async list({ filter, sort }) {
             const filterWhere = catalogProgramFilterWhere(filter);
             const where: MyPrisma.CatalogProgramWhereInput =
                 filterWhere.length > 0 ? { AND: filterWhere } : {};
             const catalogPrograms = await prisma.catalogProgram.findMany({
                 ...catalogProgramEntity.prismaSelection,
                 where,
-                orderBy: { id: "asc" }
+                orderBy: compileSort(resolveSort(sort, catalogProgramSort), {
+                    id: (direction) => ({ id: direction }),
+                    catalogYear: (direction) => ({
+                        catalog: { year: direction }
+                    }),
+                    programCode: (direction) => ({
+                        program: { code: direction }
+                    }),
+                    programName: (direction) => ({
+                        program: { name: direction }
+                    }),
+                    title: (direction) => ({ title: direction })
+                })
             });
             return catalogPrograms.map(catalogProgramEntity.build);
         },

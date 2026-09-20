@@ -19,7 +19,7 @@ const respond = createResultResponder(studentProblemResponses);
 const list: Actions["list"] = async (ctx, input) =>
     ApiResponse.ok(
         buildArrayPaginationResponse(
-            await ctx.studentService.list(),
+            await ctx.studentService.list(input.query),
             input.query,
             unpaginatedByDefault,
             "/students"

@@ -3,11 +3,13 @@ import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
+    resourceSortSchema,
     SpecBuilder,
     unpaginatedByDefault,
     type Filter
@@ -62,6 +64,15 @@ const specializationFilter = resourceFilterSchema(
     "specializations",
     "Structured specialization filters. Use bracket notation such as filter[programId]=1."
 );
+export const specializationSort = defineSort({
+    resourceName: "specializations",
+    sortableFields: ["programCode", "programName", "code", "name"] as const,
+    defaultSort: [
+        { field: "programCode", direction: "asc" },
+        { field: "name", direction: "asc" }
+    ] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 
 const get = {
     meta: { ...specsBuilder.get(), authorization: policies.public },
@@ -80,12 +91,13 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         query: createPaginationQuerySchema(unpaginatedByDefault, {
-            filter: specializationFilter.optional()
+            filter: specializationFilter.optional(),
+            sort: resourceSortSchema(specializationSort).optional()
         }).strict()
     }),
     response: new OutputBuilder()

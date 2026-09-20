@@ -1,5 +1,6 @@
 import {
     curriculumSuggestionDataSchema,
+    curriculumSuggestionSort,
     type CurriculumSuggestionFilter,
     type CurriculumSuggestionFilterName,
     type ListCurriculumSuggestionsQuery
@@ -7,10 +8,12 @@ import {
 import curriculumSuggestionEntity from "#/modules/catalog/curriculum-suggestion/CurriculumSuggestion.entity.js";
 import { curriculumSuggestionNotFoundProblem } from "#/modules/catalog/curriculum-suggestion/CurriculumSuggestion.problems.js";
 import {
+    compareBySort,
     compileFilterWhere,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     type FilterWhereBuilder,
     type Result
 } from "@pomi/api-core";
@@ -77,15 +80,26 @@ export function createCurriculumSuggestionService({
                 ...curriculumSuggestionEntity.prismaSelection,
                 where: filterWhere.length > 0 ? { AND: filterWhere } : {}
             });
-            return suggestions
-                .map(curriculumSuggestionEntity.build)
-                .sort(
-                    (left, right) =>
-                        right.catalogYear - left.catalogYear ||
-                        left.programCode - right.programCode ||
-                        left.code.localeCompare(right.code) ||
-                        left.id - right.id
-                );
+            return suggestions.map(curriculumSuggestionEntity.build).sort(
+                compareBySort(
+                    resolveSort(input.sort, curriculumSuggestionSort),
+                    {
+                        catalogYear: (left, right) =>
+                            left.catalogYear - right.catalogYear,
+                        programCode: (left, right) =>
+                            left.programCode - right.programCode,
+                        programName: (left, right) =>
+                            left.programName.localeCompare(right.programName),
+                        code: (left, right) =>
+                            left.code.localeCompare(right.code),
+                        name: (left, right) =>
+                            left.name.localeCompare(right.name),
+                        type: (left, right) =>
+                            left.type.localeCompare(right.type),
+                        id: (left, right) => left.id - right.id
+                    }
+                )
+            );
         },
         async getById(id) {
             const suggestion = await prisma.curriculumSuggestion.findUnique({

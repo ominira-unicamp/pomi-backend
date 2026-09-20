@@ -1,9 +1,17 @@
-import IO from "#/modules/academic/professor-data-portal/ProfessorDataPortal.contract.js";
+import IO, {
+    coauthorSort,
+    departmentSort,
+    keywordSort,
+    positionSort,
+    profileSort
+} from "#/modules/academic/professor-data-portal/ProfessorDataPortal.contract.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type Filter,
     type FilterWhereBuilder,
@@ -216,7 +224,10 @@ export function createProfessorDataPortalService({
                 prisma.professorDataPortalProfile.findMany({
                     where,
                     include: profileInclude,
-                    orderBy: [{ name: "asc" }, { id: "asc" }],
+                    orderBy: compileSort(resolveSort(query.sort, profileSort), {
+                        name: (direction) => ({ name: direction }),
+                        id: (direction) => ({ id: direction })
+                    }),
                     skip: ((query.page ?? 1) - 1) * (query.pageSize ?? 20),
                     take: query.pageSize ?? 20
                 })
@@ -239,7 +250,11 @@ export function createProfessorDataPortalService({
             const values = await prisma.academicPosition.findMany({
                 where: filterWhere.length > 0 ? { AND: filterWhere } : {},
                 include: { careerReference: true },
-                orderBy: { canonicalKey: "asc" }
+                orderBy: compileSort(resolveSort(query.sort, positionSort), {
+                    canonicalKey: (direction) => ({ canonicalKey: direction }),
+                    role: (direction) => ({ role: direction }),
+                    id: (direction) => ({ id: direction })
+                })
             });
             return values.map(buildPosition);
         },
@@ -258,7 +273,10 @@ export function createProfessorDataPortalService({
             );
             return prisma.department.findMany({
                 where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                orderBy: [{ name: "asc" }, { id: "asc" }]
+                orderBy: compileSort(resolveSort(query.sort, departmentSort), {
+                    name: (direction) => ({ name: direction }),
+                    id: (direction) => ({ id: direction })
+                })
             });
         },
         async getDepartment(id) {
@@ -277,7 +295,10 @@ export function createProfessorDataPortalService({
                 prisma.keyword.count({ where }),
                 prisma.keyword.findMany({
                     where,
-                    orderBy: [{ name: "asc" }, { id: "asc" }],
+                    orderBy: compileSort(resolveSort(query.sort, keywordSort), {
+                        name: (direction) => ({ name: direction }),
+                        id: (direction) => ({ id: direction })
+                    }),
                     skip: ((query.page ?? 1) - 1) * (query.pageSize ?? 20),
                     take: query.pageSize ?? 20
                 })
@@ -303,7 +324,13 @@ export function createProfessorDataPortalService({
                 prisma.coauthor.count({ where }),
                 prisma.coauthor.findMany({
                     where,
-                    orderBy: [{ name: "asc" }, { id: "asc" }],
+                    orderBy: compileSort(
+                        resolveSort(query.sort, coauthorSort),
+                        {
+                            name: (direction) => ({ name: direction }),
+                            id: (direction) => ({ id: direction })
+                        }
+                    ),
                     skip: ((query.page ?? 1) - 1) * (query.pageSize ?? 20),
                     take: query.pageSize ?? 20
                 })

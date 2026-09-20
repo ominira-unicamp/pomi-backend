@@ -1,7 +1,9 @@
 import IO, {
     createBody,
     guideSchema,
-    patchBody
+    patchBody,
+    periodPlanningListQuery,
+    periodPlanningSort
 } from "#/modules/planning/period-plan/PeriodPlan.contract.js";
 import periodPlanningEntity from "#/modules/planning/period-plan/PeriodPlan.entity.js";
 import {
@@ -9,17 +11,25 @@ import {
     periodPlanNotFoundProblem,
     type PeriodPlanProblem
 } from "#/modules/planning/period-plan/PeriodPlan.problems.js";
-import { err, ok, type ProblemField, type Result } from "@pomi/api-core";
+import {
+    compileSort,
+    err,
+    ok,
+    resolveSort,
+    type ProblemField,
+    type Result
+} from "@pomi/api-core";
 import { studyPeriodCode, type PrismaClient } from "@pomi/db";
 import z from "zod";
 
 type PeriodPlan = z.infer<typeof IO.schema>;
+type ListQuery = z.infer<typeof periodPlanningListQuery>;
 type GuideInput = z.infer<typeof guideSchema>;
 export type CreatePeriodPlanInput = z.infer<typeof createBody>;
 export type PatchPeriodPlanInput = z.infer<typeof patchBody>;
 
 export type PeriodPlanService = {
-    list(studentId: number): Promise<PeriodPlan[]>;
+    list(studentId: number, query: ListQuery): Promise<PeriodPlan[]>;
     getById(
         studentId: number,
         id: number
@@ -293,12 +303,30 @@ export function createPeriodPlanService({
     prisma: PrismaClient;
 }): PeriodPlanService {
     return {
-        async list(studentId) {
+        async list(studentId, query) {
             return (
                 await prisma.periodPlanning.findMany({
                     ...periodPlanningEntity.prismaSelection,
                     where: { studentId },
-                    orderBy: { updatedAt: "desc" }
+                    orderBy: compileSort(
+                        resolveSort(query.sort, periodPlanningSort),
+                        {
+                            updatedAt: (direction) => ({
+                                updatedAt: direction
+                            }),
+                            name: (direction) => ({ name: direction }),
+                            studyPeriodYear: (direction) => ({
+                                studyPeriod: { year: direction }
+                            }),
+                            studyPeriodYearPeriod: (direction) => ({
+                                studyPeriod: { yearPeriod: direction }
+                            }),
+                            visibility: (direction) => ({
+                                visibility: direction
+                            }),
+                            id: (direction) => ({ id: direction })
+                        }
+                    )
                 })
             ).map(periodPlanningEntity.build);
         },

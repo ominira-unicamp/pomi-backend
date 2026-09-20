@@ -2,13 +2,17 @@ import type {
     DailyMenuFilter,
     DailyMenuFilterName
 } from "#/modules/schedule/daily-menu/DailyMenu.contract.js";
-import IO from "#/modules/schedule/daily-menu/DailyMenu.contract.js";
+import IO, {
+    dailyMenuSort
+} from "#/modules/schedule/daily-menu/DailyMenu.contract.js";
 import dailyMenuEntity from "#/modules/schedule/daily-menu/DailyMenu.entity.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type Result
@@ -53,7 +57,12 @@ export function createDailyMenuService({
             const dailyMenus = await prisma.dailyMenu.findMany({
                 ...dailyMenuEntity.prismaSelection,
                 where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                orderBy: [{ date: "asc" }, { id: "asc" }]
+                orderBy: compileSort(resolveSort(query.sort, dailyMenuSort), {
+                    date: (direction) => ({ date: direction }),
+                    createdAt: (direction) => ({ createdAt: direction }),
+                    updatedAt: (direction) => ({ updatedAt: direction }),
+                    id: (direction) => ({ id: direction })
+                })
             });
             return dailyMenus.map(dailyMenuEntity.build);
         },

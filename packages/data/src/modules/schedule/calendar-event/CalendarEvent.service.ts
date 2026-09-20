@@ -2,13 +2,17 @@ import type {
     CalendarEventFilter,
     CalendarEventFilterName
 } from "#/modules/schedule/calendar-event/CalendarEvent.contract.js";
-import IO from "#/modules/schedule/calendar-event/CalendarEvent.contract.js";
+import IO, {
+    calendarEventSort
+} from "#/modules/schedule/calendar-event/CalendarEvent.contract.js";
 import calendarEventEntity from "#/modules/schedule/calendar-event/CalendarEvent.entity.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type Result
@@ -68,11 +72,19 @@ export function createCalendarEventService({
                 await prisma.calendarEvent.findMany({
                     ...calendarEventEntity.prismaSelection,
                     where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: [
-                        { startDate: "asc" },
-                        { endDate: "asc" },
-                        { id: "asc" }
-                    ]
+                    orderBy: compileSort(
+                        resolveSort(query.sort, calendarEventSort),
+                        {
+                            startDate: (direction) => ({
+                                startDate: direction
+                            }),
+                            endDate: (direction) => ({ endDate: direction }),
+                            description: (direction) => ({
+                                description: direction
+                            }),
+                            id: (direction) => ({ id: direction })
+                        }
+                    )
                 })
             ).map(calendarEventEntity.build);
         },

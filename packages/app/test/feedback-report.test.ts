@@ -73,7 +73,7 @@ test("lists a student's feedback reports", async () => {
     });
 
     await assert.doesNotReject(async () => {
-        const reports = await service.listForStudent(7);
+        const reports = await service.listForStudent(7, {});
         assert.equal(reports[0]?.status, "OPEN");
         assert.equal(reports[0]?.reporterStudentId, 7);
     });

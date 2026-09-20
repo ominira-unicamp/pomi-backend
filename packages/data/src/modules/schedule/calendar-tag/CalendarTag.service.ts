@@ -2,13 +2,17 @@ import type {
     CalendarTagFilter,
     CalendarTagFilterName
 } from "#/modules/schedule/calendar-tag/CalendarTag.contract.js";
-import IO from "#/modules/schedule/calendar-tag/CalendarTag.contract.js";
+import IO, {
+    calendarTagSort
+} from "#/modules/schedule/calendar-tag/CalendarTag.contract.js";
 import calendarTagEntity from "#/modules/schedule/calendar-tag/CalendarTag.entity.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type Result
@@ -51,7 +55,13 @@ export function createCalendarTagService({
             return (
                 await prisma.calendarTag.findMany({
                     where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: { name: "asc" }
+                    orderBy: compileSort(
+                        resolveSort(query.sort, calendarTagSort),
+                        {
+                            name: (direction) => ({ name: direction }),
+                            id: (direction) => ({ id: direction })
+                        }
+                    )
                 })
             ).map(calendarTagEntity.build);
         },

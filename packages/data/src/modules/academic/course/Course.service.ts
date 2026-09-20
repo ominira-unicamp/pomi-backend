@@ -3,17 +3,20 @@ import type {
     CourseFilterName
 } from "#/modules/academic/course/Course.contract.js";
 import IO, {
-    coursePagination
+    coursePagination,
+    courseSort
 } from "#/modules/academic/course/Course.contract.js";
 import courseEntity from "#/modules/academic/course/Course.entity.js";
 import { courseNotFoundProblem } from "#/modules/academic/course/Course.problems.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaPaginationParams,
     prismaWhereFor,
     resolvePagination,
+    resolveSort,
     type FilterWhereBuilder,
     type ResolvedPagination,
     type Result
@@ -74,7 +77,13 @@ export function createCourseService({
                 ...prismaPaginationParams(pagination),
                 ...courseEntity.selection,
                 where,
-                orderBy: [{ code: "asc" }, { id: "asc" }]
+                orderBy: compileSort(resolveSort(query.sort, courseSort), {
+                    code: (direction) => ({ code: direction }),
+                    name: (direction) => ({ name: direction }),
+                    credits: (direction) => ({ credits: direction }),
+                    unitCode: (direction) => ({ unit: { code: direction } }),
+                    id: (direction) => ({ id: direction })
+                })
             });
             return {
                 items: courses.map(courseEntity.build),

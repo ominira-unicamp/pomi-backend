@@ -2,13 +2,15 @@ import type {
     UnitFilter,
     UnitFilterName
 } from "#/modules/academic/unit/Unit.contract.js";
-import IO from "#/modules/academic/unit/Unit.contract.js";
+import IO, { unitSort } from "#/modules/academic/unit/Unit.contract.js";
 import unitEntity from "#/modules/academic/unit/Unit.entity.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type Result
@@ -46,7 +48,11 @@ export function createUnitService({
             return (
                 await prisma.unit.findMany({
                     where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: [{ code: "asc" }, { id: "asc" }]
+                    orderBy: compileSort(resolveSort(query.sort, unitSort), {
+                        code: (direction) => ({ code: direction }),
+                        name: (direction) => ({ name: direction }),
+                        id: (direction) => ({ id: direction })
+                    })
                 })
             ).map(unitEntity.build);
         },

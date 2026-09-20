@@ -1,14 +1,20 @@
 import type {
     CategoryEntity,
-    TagEntity,
-    TagFilter
+    TagEntity
+} from "#/modules/tagging/Tagging.contract.js";
+import IO, {
+    categorySort,
+    tagCourseSort,
+    tagSort
 } from "#/modules/tagging/Tagging.contract.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
     ReferenceNotFoundProblem,
+    resolveSort,
     ResourceNotFoundProblem,
     UniqueConstraintConflictProblem,
     type FilterWhereBuilder,
@@ -48,21 +54,25 @@ const conflict = (detail: string) =>
     UniqueConstraintConflictProblem.create({ detail, fields: [] });
 
 export type TaggingService = {
-    listCategories(): Promise<CategoryEntity[]>;
+    listCategories(
+        query: import("zod").infer<typeof IO.listCategories.request>["query"]
+    ): Promise<CategoryEntity[]>;
     getCategory(
         id: number
     ): Promise<Result<CategoryEntity, ReturnType<typeof resourceNotFound>>>;
-    listTags(query: { filter?: TagFilter }): Promise<TagEntity[]>;
+    listTags(
+        query: import("zod").infer<typeof IO.listTags.request>["query"]
+    ): Promise<TagEntity[]>;
     getTag(
         id: number
     ): Promise<Result<TagEntity, ReturnType<typeof resourceNotFound>>>;
     listCourseTags(
-        courseId: number
+        courseId: number,
+        query: import("zod").infer<typeof IO.listCourseTags.request>["query"]
     ): Promise<Result<TagEntity[], ReturnType<typeof resourceNotFound>>>;
     listTagCourses(
         tagId: number,
-        page: number,
-        pageSize: number
+        query: import("zod").infer<typeof IO.listTagCourses.request>["query"]
     ): Promise<
         Result<
             { items: RelatedCourse[]; total: number },
@@ -150,8 +160,13 @@ export function createTaggingService({
         return validateParent(tagId, input.categoryId, input.parentTagId);
     }
     return {
-        async listCategories() {
-            return await prisma.category.findMany({ orderBy: { name: "asc" } });
+        async listCategories(query) {
+            return await prisma.category.findMany({
+                orderBy: compileSort(resolveSort(query.sort, categorySort), {
+                    name: (direction) => ({ name: direction }),
+                    id: (direction) => ({ id: direction })
+                })
+            });
         },
         async getCategory(id) {
             const value = await prisma.category.findUnique({ where: { id } });
@@ -167,7 +182,11 @@ export function createTaggingService({
             );
             return await prisma.tag.findMany({
                 where: { AND: filterWhere },
-                orderBy: { name: "asc" }
+                orderBy: compileSort(resolveSort(query.sort, tagSort), {
+                    name: (direction) => ({ name: direction }),
+                    categoryId: (direction) => ({ categoryId: direction }),
+                    id: (direction) => ({ id: direction })
+                })
             });
         },
         async getTag(id) {
@@ -176,7 +195,7 @@ export function createTaggingService({
                 ? ok(tag(value))
                 : err(resourceNotFound("Tag not found"));
         },
-        async listCourseTags(courseId) {
+        async listCourseTags(courseId, query) {
             const courseExists = await prisma.course.findUnique({
                 where: { id: courseId },
                 select: { id: true }
@@ -185,11 +204,15 @@ export function createTaggingService({
             return ok(
                 await prisma.tag.findMany({
                     where: { courseTags: { some: { courseId } } },
-                    orderBy: { name: "asc" }
+                    orderBy: compileSort(resolveSort(query.sort, tagSort), {
+                        name: (direction) => ({ name: direction }),
+                        categoryId: (direction) => ({ categoryId: direction }),
+                        id: (direction) => ({ id: direction })
+                    })
                 })
             );
         },
-        async listTagCourses(tagId, page, pageSize) {
+        async listTagCourses(tagId, query) {
             const tagExists = await prisma.tag.findUnique({
                 where: { id: tagId },
                 select: { id: true }
@@ -200,8 +223,17 @@ export function createTaggingService({
                 prisma.course.count({ where }),
                 prisma.course.findMany({
                     where,
-                    skip: (page - 1) * pageSize,
-                    take: pageSize,
+                    skip: ((query.page ?? 1) - 1) * (query.pageSize ?? 20),
+                    take: query.pageSize ?? 20,
+                    orderBy: compileSort(
+                        resolveSort(query.sort, tagCourseSort),
+                        {
+                            code: (direction) => ({ code: direction }),
+                            name: (direction) => ({ name: direction }),
+                            credits: (direction) => ({ credits: direction }),
+                            id: (direction) => ({ id: direction })
+                        }
+                    ),
                     select: { id: true, code: true, name: true, credits: true }
                 })
             ]);

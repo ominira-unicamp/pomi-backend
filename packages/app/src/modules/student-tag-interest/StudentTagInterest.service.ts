@@ -1,4 +1,14 @@
-import { err, ok, ReferenceNotFoundProblem, type Result } from "@pomi/api-core";
+import IO, {
+    studentTagInterestSort
+} from "#/modules/student-tag-interest/StudentTagInterest.contract.js";
+import {
+    compareBySort,
+    err,
+    ok,
+    ReferenceNotFoundProblem,
+    resolveSort,
+    type Result
+} from "@pomi/api-core";
 import type { DatabaseClient } from "@pomi/db";
 import z from "zod";
 
@@ -12,6 +22,7 @@ const tagEntity = z
     .strict();
 
 type TagInterest = z.infer<typeof tagEntity>;
+type ListQuery = z.infer<typeof IO.list.request>["query"];
 
 type TagInterestProblem = ReturnType<typeof ReferenceNotFoundProblem.create>;
 
@@ -25,7 +36,7 @@ function toTagEntity(tag: {
 }
 
 export type StudentTagInterestService = {
-    list(studentId: number): Promise<TagInterest[]>;
+    list(studentId: number, query: ListQuery): Promise<TagInterest[]>;
     put(
         studentId: number,
         tagId: number
@@ -39,7 +50,7 @@ export function createStudentTagInterestService({
     prisma: DatabaseClient;
 }): StudentTagInterestService {
     return {
-        async list(studentId) {
+        async list(studentId, query) {
             const interests = await prisma.studentTagInterest.findMany({
                 where: { studentId },
                 include: { tag: true }
@@ -47,9 +58,14 @@ export function createStudentTagInterestService({
             return interests
                 .map(({ tag }) => toTagEntity(tag))
                 .sort(
-                    (left, right) =>
-                        left.name.localeCompare(right.name, "pt-BR") ||
-                        left.id - right.id
+                    compareBySort(
+                        resolveSort(query.sort, studentTagInterestSort),
+                        {
+                            name: (left, right) =>
+                                left.name.localeCompare(right.name, "pt-BR"),
+                            id: (left, right) => left.id - right.id
+                        }
+                    )
                 );
         },
         async put(studentId, tagId) {

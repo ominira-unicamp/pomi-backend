@@ -43,7 +43,7 @@ test("lists interests sorted by tag name", async () => {
         } as never
     });
 
-    assert.deepEqual(await service.list(7), [
+    assert.deepEqual(await service.list(7, {}), [
         { id: 9, name: "Álgebra", categoryId: 1, parentTagId: null },
         { id: 8, name: "Zoologia", categoryId: 1, parentTagId: null }
     ]);

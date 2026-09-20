@@ -4,12 +4,14 @@ import { InvalidProfessorEvaluationProblem } from "#/modules/planning/professor-
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     resourceFilterSchema,
+    resourceSortSchema,
     unpaginatedByDefault,
     type Filter
 } from "@pomi/api-core";
@@ -147,6 +149,25 @@ const pendingFilter = resourceFilterSchema(
         });
 });
 
+export const pendingProfessorEvaluationSort = defineSort({
+    resourceName: "pending professor evaluations",
+    sortableFields: [
+        "courseCode",
+        "courseName",
+        "classCode",
+        "professorName"
+    ] as const,
+    defaultSort: [
+        { field: "courseCode", direction: "asc" },
+        { field: "classCode", direction: "asc" },
+        { field: "professorName", direction: "asc" }
+    ] as const,
+    tieBreakers: [
+        { field: "attemptId", direction: "asc" },
+        { field: "professorId", direction: "asc" }
+    ] as const
+});
+
 const get = {
     meta: {
         operationId: "getProfessorEvaluation",
@@ -219,7 +240,7 @@ const listPending = {
             "sid",
             StudentCapabilities.HISTORY_READ
         ),
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
@@ -227,7 +248,8 @@ const listPending = {
             sid: pathParam.integer()
         }),
         query: createPaginationQuerySchema(unpaginatedByDefault, {
-            filter: pendingFilter
+            filter: pendingFilter,
+            sort: resourceSortSchema(pendingProfessorEvaluationSort).optional()
         })
             .strict()
             .openapi("ListPendingProfessorEvaluationsQuery", {

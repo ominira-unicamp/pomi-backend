@@ -4,12 +4,14 @@ import { periodPlanningClass } from "#/modules/planning/period-plan/PeriodPlan.c
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
+    resourceSortSchema,
     SpecBuilder,
     YearPeriodSchema,
     type Filter,
@@ -94,11 +96,18 @@ const studentFilter = resourceFilterSchema(
     { ownerPublicId: "a375fdb0-45d9-4a79-8415-89fcb64157b6" }
 );
 export type SharedPeriodPlanningFilter = Filter;
+export const sharedPeriodPlanningSort = defineSort({
+    resourceName: "shared period plannings",
+    sortableFields: ["updatedAt", "name", "studyPeriodYear"] as const,
+    defaultSort: [{ field: "updatedAt", direction: "desc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 const publicQuery = createPaginationQuerySchema(
     sharedPeriodPlanningPagination,
     {
         query: z.string().trim().min(1).optional(),
-        filter: publicFilter.optional()
+        filter: publicFilter.optional(),
+        sort: resourceSortSchema(sharedPeriodPlanningSort).optional()
     }
 )
     .strict()
@@ -120,7 +129,7 @@ const listPublic = {
         path: publicPath,
         tags: ["shared-period-plannings"],
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         sdk: {
             resource: "sharedPeriodPlannings",
             action: "list" as const,
@@ -169,7 +178,7 @@ const listForStudent = {
             "sid",
             StudentCapabilities.PLANNING_READ
         ),
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         sdk: {
             resource: "studentSharedPeriodPlannings",
             action: "list" as const,
@@ -181,7 +190,8 @@ const listForStudent = {
     request: z.object({
         path: sidPath,
         query: createPaginationQuerySchema(sharedPeriodPlanningPagination, {
-            filter: studentFilter.optional()
+            filter: studentFilter.optional(),
+            sort: resourceSortSchema(sharedPeriodPlanningSort).optional()
         })
             .strict()
             .openapi("ListStudentSharedPeriodPlanningsQuery", {

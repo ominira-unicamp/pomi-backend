@@ -7,10 +7,12 @@ import {
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     ResourceNotFoundProblemSchema,
+    resourceSortSchema,
     unpaginatedByDefault
 } from "@pomi/api-core";
 import z from "zod";
@@ -70,6 +72,18 @@ const replaceBody = z
     .openapi("ReplaceBotGrantBody", {
         "x-pomi-schema": { kind: "input", publicName: "ReplaceBotGrantBody" }
     });
+export const botIdentitySort = defineSort({
+    resourceName: "bots",
+    sortableFields: ["displayName"] as const,
+    defaultSort: [{ field: "displayName", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
+export const botGrantSort = defineSort({
+    resourceName: "bot grants",
+    sortableFields: ["createdAt", "capability", "botDisplayName"] as const,
+    defaultSort: [{ field: "createdAt", direction: "desc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 
 const listBots = {
     meta: {
@@ -83,10 +97,13 @@ const listBots = {
         path: [pathSeg.literal("bots")],
         tags: ["bot-grants"],
         authorization: policies.authenticated,
+        queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
-        query: createPaginationQuerySchema(unpaginatedByDefault)
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            sort: resourceSortSchema(botIdentitySort).optional()
+        })
     }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(bot), "Bots ativos recuperados")
@@ -104,10 +121,13 @@ const list = {
         path: [pathSeg.literal("me"), pathSeg.literal("bot-grants")],
         tags: ["bot-grants"],
         authorization: policies.authenticated,
+        queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
-        query: createPaginationQuerySchema(unpaginatedByDefault)
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            sort: resourceSortSchema(botGrantSort).optional()
+        })
     }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(entity), "Permissões de bots recuperadas")

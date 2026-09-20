@@ -3,6 +3,7 @@ import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     paginatedByDefault,
@@ -10,6 +11,7 @@ import {
     pathParam,
     pathSeg,
     resourceFilterSchema,
+    resourceSortSchema,
     SpecBuilder,
     unpaginatedByDefault,
     type Filter
@@ -193,18 +195,49 @@ const positionFilter = resourceFilterSchema(
     "professor positions",
     "Structured professor position filters. Use bracket notation such as filter[role]=Professor."
 );
+export const profileSort = defineSort({
+    resourceName: "professor data portal profiles",
+    sortableFields: ["name"] as const,
+    defaultSort: [{ field: "name", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
+export const positionSort = defineSort({
+    resourceName: "professor positions",
+    sortableFields: ["canonicalKey", "role"] as const,
+    defaultSort: [{ field: "canonicalKey", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
+export const departmentSort = defineSort({
+    resourceName: "departments",
+    sortableFields: ["name"] as const,
+    defaultSort: [{ field: "name", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
+export const keywordSort = defineSort({
+    resourceName: "keywords",
+    sortableFields: ["name"] as const,
+    defaultSort: [{ field: "name", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
+export const coauthorSort = defineSort({
+    resourceName: "coauthors",
+    sortableFields: ["name"] as const,
+    defaultSort: [{ field: "name", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 
 const profileList = {
     meta: {
         ...profileSpecs.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: paginatedByDefault
     },
     request: z.object({
         query: paginationQuerySchema
             .extend({
-                filter: profileFilter.optional()
+                filter: profileFilter.optional(),
+                sort: resourceSortSchema(profileSort).optional()
             })
             .strict()
     }),
@@ -232,7 +265,8 @@ const simpleList = (
     operationName: string,
     identifierName: string,
     schema: z.ZodTypeAny,
-    filter?: z.ZodType<Filter>
+    filter: z.ZodType<Filter> | undefined,
+    sort: import("@pomi/api-core").SortDefinition
 ) => ({
     meta: {
         ...new SpecBuilder([pathSeg.literal(path)], [tag], "id", {
@@ -241,14 +275,14 @@ const simpleList = (
             pathParameters: { id: identifierName }
         }).list(),
         authorization: policies.public,
-        ...(filter ? { queryFeatures: { filter: true } } : {}),
+        queryFeatures: { ...(filter ? { filter: true } : {}), sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
-        query: createPaginationQuerySchema(
-            unpaginatedByDefault,
-            filter ? { filter: filter.optional() } : {}
-        ).strict()
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            ...(filter ? { filter: filter.optional() } : {}),
+            sort: resourceSortSchema(sort).optional()
+        }).strict()
     }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(schema), `${tag} retrieved successfully`)
@@ -308,12 +342,15 @@ const keywordList = {
             pathParameters: { id: "keywordId" }
         }).list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: paginatedByDefault
     },
     request: z.object({
         query: paginationQuerySchema
-            .extend({ filter: nameFilter.optional() })
+            .extend({
+                filter: nameFilter.optional(),
+                sort: resourceSortSchema(keywordSort).optional()
+            })
             .strict()
     }),
     response: new OutputBuilder()
@@ -337,12 +374,15 @@ const coauthorList = {
             }
         ).list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: paginatedByDefault
     },
     request: z.object({
         query: paginationQuerySchema
-            .extend({ filter: nameFilter.optional() })
+            .extend({
+                filter: nameFilter.optional(),
+                sort: resourceSortSchema(coauthorSort).optional()
+            })
             .strict()
     }),
     response: new OutputBuilder()
@@ -363,7 +403,8 @@ export default {
             "ProfessorPositions",
             "professorPositionId",
             position,
-            positionFilter
+            positionFilter,
+            positionSort
         ),
         get: simpleGet(
             "professor-positions",
@@ -382,7 +423,8 @@ export default {
             "Departments",
             "departmentId",
             department,
-            departmentFilter
+            departmentFilter,
+            departmentSort
         ),
         get: simpleGet(
             "departments",

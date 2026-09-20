@@ -2,15 +2,18 @@ import periodPlanningEntity, {
     prismaPeriodPlanningFieldSelection
 } from "#/modules/planning/period-plan/PeriodPlan.entity.js";
 import IO, {
-    sharedPeriodPlanningPagination
+    sharedPeriodPlanningPagination,
+    sharedPeriodPlanningSort
 } from "#/modules/planning/shared-period-plan/SharedPeriodPlan.contract.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaPaginationParams,
     prismaWhereFor,
     resolvePagination,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type ResolvedPagination,
@@ -188,7 +191,19 @@ export function createSharedPeriodPlanService({
                 prisma.periodPlanning.findMany({
                     ...selection,
                     where,
-                    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+                    orderBy: compileSort(
+                        resolveSort(input.sort, sharedPeriodPlanningSort),
+                        {
+                            updatedAt: (direction) => ({
+                                updatedAt: direction
+                            }),
+                            name: (direction) => ({ name: direction }),
+                            studyPeriodYear: (direction) => ({
+                                studyPeriod: { year: direction }
+                            }),
+                            id: (direction) => ({ id: direction })
+                        }
+                    ),
                     ...prismaPaginationParams(pagination)
                 }),
                 prisma.periodPlanning.count({ where })
@@ -216,7 +231,19 @@ export function createSharedPeriodPlanService({
                 prisma.periodPlanning.findMany({
                     ...selection,
                     where,
-                    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+                    orderBy: compileSort(
+                        resolveSort(input.sort, sharedPeriodPlanningSort),
+                        {
+                            updatedAt: (direction) => ({
+                                updatedAt: direction
+                            }),
+                            name: (direction) => ({ name: direction }),
+                            studyPeriodYear: (direction) => ({
+                                studyPeriod: { year: direction }
+                            }),
+                            id: (direction) => ({ id: direction })
+                        }
+                    ),
                     ...prismaPaginationParams(pagination)
                 }),
                 prisma.periodPlanning.count({ where })

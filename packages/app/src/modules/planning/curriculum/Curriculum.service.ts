@@ -1,5 +1,6 @@
 import IO, {
     createBody,
+    curriculumSort,
     patchBody
 } from "#/modules/planning/curriculum/Curriculum.contract.js";
 import curriculumEntity from "#/modules/planning/curriculum/Curriculum.entity.js";
@@ -8,12 +9,20 @@ import {
     curriculumNotFoundProblem,
     type CurriculumProblem
 } from "#/modules/planning/curriculum/Curriculum.problems.js";
-import { err, ok, type ProblemField, type Result } from "@pomi/api-core";
+import {
+    compareBySort,
+    err,
+    ok,
+    resolveSort,
+    type ProblemField,
+    type Result
+} from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import z from "zod";
 
 type Curriculum = z.infer<typeof IO.schema>;
 type CurriculumSummary = z.infer<typeof IO.summarySchema>;
+type ListQuery = z.infer<typeof IO.list.request>["query"];
 export type CreateCurriculumInput = z.infer<typeof createBody>;
 export type PatchCurriculumInput = z.infer<typeof patchBody>;
 type TransactionClient = Omit<
@@ -28,7 +37,7 @@ class CurriculumOperationError extends Error {
 }
 
 export type CurriculumService = {
-    list(studentId: number): Promise<CurriculumSummary[]>;
+    list(studentId: number, query: ListQuery): Promise<CurriculumSummary[]>;
     getById(
         studentId: number,
         id: number
@@ -362,7 +371,7 @@ export function createCurriculumService({
     prisma: PrismaClient;
 }): CurriculumService {
     return {
-        async list(studentId) {
+        async list(studentId, query) {
             return (
                 await prisma.curriculum.findMany({
                     ...curriculumEntity.prismaSummarySelection,
@@ -372,8 +381,15 @@ export function createCurriculumService({
             )
                 .map(curriculumEntity.buildSummary)
                 .sort(
-                    (left, right) =>
-                        Number(right.isFavorite) - Number(left.isFavorite)
+                    compareBySort(resolveSort(query.sort, curriculumSort), {
+                        isFavorite: (left, right) =>
+                            Number(left.isFavorite) - Number(right.isFavorite),
+                        updatedAt: (left, right) =>
+                            left.updatedAt.localeCompare(right.updatedAt),
+                        name: (left, right) =>
+                            left.name.localeCompare(right.name),
+                        id: (left, right) => left.id - right.id
+                    })
                 );
         },
         async getById(studentId, id) {

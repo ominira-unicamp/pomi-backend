@@ -3,11 +3,13 @@ import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
+    resourceSortSchema,
     SpecBuilder,
     unpaginatedByDefault,
     type Filter
@@ -67,6 +69,15 @@ const calendarEventFilter = resourceFilterSchema(
     "calendar events",
     "Structured calendar event filters. Use bracket notation such as filter[tagId]=1."
 );
+export const calendarEventSort = defineSort({
+    resourceName: "calendar events",
+    sortableFields: ["startDate", "endDate", "description"] as const,
+    defaultSort: [
+        { field: "startDate", direction: "asc" },
+        { field: "endDate", direction: "asc" }
+    ] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 const get = {
     meta: { ...specsBuilder.get(), authorization: policies.public },
     request: z.object({
@@ -82,12 +93,13 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         query: createPaginationQuerySchema(unpaginatedByDefault, {
-            filter: calendarEventFilter.optional()
+            filter: calendarEventFilter.optional(),
+            sort: resourceSortSchema(calendarEventSort).optional()
         }).strict()
     }),
     response: new OutputBuilder()

@@ -1,13 +1,16 @@
 import IO, {
+    professorSort,
     type ListQueryParams,
     type ProfessorFilter,
     type ProfessorFilterName
 } from "#/modules/academic/professor/Professor.contract.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type Result
@@ -59,7 +62,10 @@ export function createProfessorService({
             const professors = await prisma.professor.findMany({
                 where,
                 include: { dataPortalProfile: { select: { id: true } } },
-                orderBy: [{ name: "asc" }, { id: "asc" }],
+                orderBy: compileSort(resolveSort(query.sort, professorSort), {
+                    name: (direction) => ({ name: direction }),
+                    id: (direction) => ({ id: direction })
+                }),
                 ...(query.page !== undefined || query.pageSize !== undefined
                     ? {
                           skip:

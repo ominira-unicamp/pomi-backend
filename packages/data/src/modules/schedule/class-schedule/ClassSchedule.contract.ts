@@ -3,6 +3,7 @@ import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     DayOfWeekSchema,
+    defineSort,
     equalityOperators,
     type Filter,
     filterDefinition,
@@ -15,6 +16,7 @@ import {
     pathSeg,
     resourceFilterSchema,
     ResourceNotFoundProblemSchema,
+    resourceSortSchema,
     serializeQueryParams,
     SpecBuilder,
     YearPeriodSchema
@@ -136,10 +138,26 @@ const classScheduleFilter = resourceFilterSchema(
     "class schedules",
     "Structured class schedule filters. Use bracket notation such as filter[course][code]=MC102."
 );
+export const classScheduleSort = defineSort({
+    resourceName: "class schedules",
+    sortableFields: [
+        "id",
+        "dayOfWeek",
+        "start",
+        "end",
+        "roomCode",
+        "classCode",
+        "courseCode",
+        "studyPeriodYear"
+    ] as const,
+    defaultSort: [{ field: "id", direction: "asc" }] as const,
+    tieBreakers: [] as const
+});
 
 const getClassSchedulesQuery = paginationQuerySchema
     .extend({
-        filter: classScheduleFilter.optional()
+        filter: classScheduleFilter.optional(),
+        sort: resourceSortSchema(classScheduleSort).optional()
     })
     .strict()
     .openapi("GetClassSchedulesQuery", {
@@ -178,7 +196,7 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: paginatedByDefault
     },
     request: z.object({

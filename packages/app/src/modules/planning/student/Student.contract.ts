@@ -4,11 +4,13 @@ import { InvalidStudentProfileProblem } from "#/modules/planning/student/Student
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     ResourceNotFoundProblemSchema,
+    resourceSortSchema,
     SpecBuilder,
     UniqueConstraintConflictProblemSchema,
     unpaginatedByDefault
@@ -62,6 +64,12 @@ const studentBase = z
         languageId: z.number().int().nullable().optional()
     })
     .strict();
+export const studentSort = defineSort({
+    resourceName: "students",
+    sortableFields: ["id", "ra", "name", "entryYear"] as const,
+    defaultSort: [{ field: "id", direction: "asc" }] as const,
+    tieBreakers: [] as const
+});
 
 const createStudentBody = studentBase
     .omit({ id: true, ra: true })
@@ -100,10 +108,13 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.admin,
+        queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
-        query: createPaginationQuerySchema(unpaginatedByDefault)
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            sort: resourceSortSchema(studentSort).optional()
+        })
     }),
     response: new OutputBuilder()
         .ok(

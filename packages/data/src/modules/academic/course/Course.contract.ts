@@ -4,12 +4,14 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
     defineResource,
+    defineSort,
     equalityOperators,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
+    resourceSortSchema,
     serializeQueryParams,
     type Filter,
     type FilterValue,
@@ -93,6 +95,13 @@ const courseFilter = resourceFilterSchema(
     }
 );
 
+export const courseSort = defineSort({
+    resourceName: "courses",
+    sortableFields: ["code", "name", "credits", "unitCode"] as const,
+    defaultSort: [{ field: "code", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
+
 export const coursePagination = {
     defaultMode: "all",
     defaultPageSize: 20,
@@ -112,7 +121,8 @@ const PageCoursesSchema = getPaginatedSchema(courseEntity).openapi(
 );
 
 const listCourseQuery = createPaginationQuerySchema(coursePagination, {
-    filter: courseFilter.optional()
+    filter: courseFilter.optional(),
+    sort: resourceSortSchema(courseSort).optional()
 })
     .strict()
     .openapi("ListCoursesQuery", {

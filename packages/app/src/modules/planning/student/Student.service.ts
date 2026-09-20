@@ -1,6 +1,8 @@
 import type { Principal } from "#/auth.js";
 import { raFromDacEmail } from "#/Authorization.js";
-import IO from "#/modules/planning/student/Student.contract.js";
+import IO, {
+    studentSort
+} from "#/modules/planning/student/Student.contract.js";
 import studentEntity from "#/modules/planning/student/Student.entity.js";
 import {
     invalidStudentProfileProblem,
@@ -9,11 +11,12 @@ import {
     studentReferenceNotFoundProblem,
     type StudentProblem
 } from "#/modules/planning/student/Student.problems.js";
-import { err, ok, type Result } from "@pomi/api-core";
+import { compileSort, err, ok, resolveSort, type Result } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import z from "zod";
 
 type Student = z.infer<typeof IO.schema>;
+type ListQuery = z.infer<typeof IO.list.request>["query"];
 type CreateInput = z.infer<typeof IO.create.request>["body"];
 type PatchInput = z.infer<typeof IO.patch.request>["body"];
 type Fields = Array<{ code: string; path: string[]; message: string }>;
@@ -125,7 +128,7 @@ async function validateAcademicSelection(
 }
 
 export type StudentService = {
-    list(): Promise<Student[]>;
+    list(query: ListQuery): Promise<Student[]>;
     getById(
         id: number
     ): Promise<Result<Student, ReturnType<typeof studentNotFoundProblem>>>;
@@ -168,9 +171,16 @@ export function createStudentService({
     prisma: PrismaClient;
 }): StudentService {
     return {
-        async list() {
+        async list(query) {
             return (
-                await prisma.student.findMany({ orderBy: { id: "asc" } })
+                await prisma.student.findMany({
+                    orderBy: compileSort(resolveSort(query.sort, studentSort), {
+                        id: (direction) => ({ id: direction }),
+                        ra: (direction) => ({ ra: direction }),
+                        name: (direction) => ({ name: direction }),
+                        entryYear: (direction) => ({ entryYear: direction })
+                    })
+                })
             ).map(studentEntity.build);
         },
         async getById(id) {

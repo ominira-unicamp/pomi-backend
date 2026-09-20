@@ -3,11 +3,13 @@ import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     resourceFilterSchema,
+    resourceSortSchema,
     serializeQueryParams,
     SpecBuilder,
     unpaginatedByDefault,
@@ -64,6 +66,12 @@ const coordinatorFilter = resourceFilterSchema(
     "coordinators",
     "Structured coordinator filters. Use bracket notation such as filter[name]=Ada."
 );
+export const coordinatorSort = defineSort({
+    resourceName: "coordinators",
+    sortableFields: ["name"] as const,
+    defaultSort: [{ field: "name", direction: "asc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 
 const listQuery = createPaginationQuerySchema(unpaginatedByDefault, {
     filter: coordinatorFilter.optional()
@@ -77,10 +85,14 @@ const list = {
     meta: {
         ...specsBuilder.list(),
         authorization: policies.public,
-        queryFeatures: { filter: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
-    request: z.object({ query: listQuery.strict() }),
+    request: z.object({
+        query: listQuery
+            .extend({ sort: resourceSortSchema(coordinatorSort).optional() })
+            .strict()
+    }),
     response: new OutputBuilder()
         .ok(
             getPaginatedSchema(coordinatorEntity),

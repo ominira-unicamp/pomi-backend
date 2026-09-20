@@ -4,10 +4,12 @@ import { AdminIdentityManagedByCliProblem } from "#/modules/identity/auth-user/A
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     ResourceNotFoundProblemSchema,
+    resourceSortSchema,
     unpaginatedByDefault
 } from "@pomi/api-core";
 import z from "zod";
@@ -77,6 +79,12 @@ const patchBody = z
 const path = z.object({
     id: pathParam.integer()
 });
+export const authUserSort = defineSort({
+    resourceName: "auth users",
+    sortableFields: ["id", "displayName", "email", "status"] as const,
+    defaultSort: [{ field: "id", direction: "asc" }] as const,
+    tieBreakers: [] as const
+});
 const list = {
     meta: {
         operationId: "listAuthUsers",
@@ -89,10 +97,13 @@ const list = {
         path: [pathSeg.literal("admin"), pathSeg.literal("auth-users")],
         tags: ["auth-users"],
         authorization: policies.admin,
+        queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
-        query: createPaginationQuerySchema(unpaginatedByDefault)
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            sort: resourceSortSchema(authUserSort).optional()
+        })
     }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(entity), "Identidades recuperadas")

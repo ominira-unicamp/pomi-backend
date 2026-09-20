@@ -7,11 +7,13 @@ import {
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     ResourceNotFoundProblemSchema,
+    resourceSortSchema,
     unpaginatedByDefault
 } from "@pomi/api-core";
 import z from "zod";
@@ -175,6 +177,18 @@ const adminPatchBody = z
             publicName: "PatchFeedbackReportBody"
         }
     });
+export const feedbackReportSort = defineSort({
+    resourceName: "feedback reports",
+    sortableFields: [
+        "createdAt",
+        "updatedAt",
+        "status",
+        "kind",
+        "title"
+    ] as const,
+    defaultSort: [{ field: "createdAt", direction: "desc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
 
 const listStudent = {
     meta: {
@@ -192,11 +206,14 @@ const listStudent = {
             "sid",
             StudentCapabilities.FEEDBACK_READ
         ),
+        queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         path: studentPath,
-        query: createPaginationQuerySchema(unpaginatedByDefault)
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            sort: resourceSortSchema(feedbackReportSort).optional()
+        })
     }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(report), "Solicitações recuperadas")
@@ -215,10 +232,13 @@ const listAdmin = {
         path: [pathSeg.literal("admin"), pathSeg.literal("feedback-reports")],
         tags: ["feedback-reports"],
         authorization: policies.admin,
+        queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
-        query: createPaginationQuerySchema(unpaginatedByDefault)
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            sort: resourceSortSchema(feedbackReportSort).optional()
+        })
     }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(report), "Solicitações recuperadas")

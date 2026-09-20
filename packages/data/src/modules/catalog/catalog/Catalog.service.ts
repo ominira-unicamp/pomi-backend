@@ -2,13 +2,15 @@ import type {
     CatalogFilter,
     CatalogFilterName
 } from "#/modules/catalog/catalog/Catalog.contract.js";
-import IO from "#/modules/catalog/catalog/Catalog.contract.js";
+import IO, { catalogSort } from "#/modules/catalog/catalog/Catalog.contract.js";
 import catalogEntity from "#/modules/catalog/catalog/Catalog.entity.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type Result
@@ -51,7 +53,10 @@ export function createCatalogService({
                 await prisma.catalog.findMany({
                     ...catalogEntity.prismaSelection,
                     where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: { year: "desc" }
+                    orderBy: compileSort(resolveSort(query.sort, catalogSort), {
+                        year: (direction) => ({ year: direction }),
+                        id: (direction) => ({ id: direction })
+                    })
                 })
             ).map(catalogEntity.build);
         },

@@ -2,13 +2,17 @@ import type {
     StudyPeriodFilter,
     StudyPeriodFilterName
 } from "#/modules/schedule/study-period/StudyPeriod.contract.js";
-import IO from "#/modules/schedule/study-period/StudyPeriod.contract.js";
+import IO, {
+    studyPeriodSort
+} from "#/modules/schedule/study-period/StudyPeriod.contract.js";
 import studyPeriodEntity from "#/modules/schedule/study-period/StudyPeriod.entity.js";
 import {
     compileFilterWhere,
+    compileSort,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     ResourceNotFoundProblem,
     type FilterWhereBuilder,
     type Result
@@ -54,7 +58,17 @@ export function createStudyPeriodService({
             return (
                 await prisma.studyPeriod.findMany({
                     where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: { id: "asc" }
+                    orderBy: compileSort(
+                        resolveSort(query.sort, studyPeriodSort),
+                        {
+                            id: (direction) => ({ id: direction }),
+                            year: (direction) => ({ year: direction }),
+                            yearPeriod: (direction) => ({
+                                yearPeriod: direction
+                            }),
+                            startDate: (direction) => ({ startDate: direction })
+                        }
+                    )
                 })
             ).map(studyPeriodEntity.build);
         },

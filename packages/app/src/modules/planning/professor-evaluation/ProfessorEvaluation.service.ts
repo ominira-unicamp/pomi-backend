@@ -1,4 +1,6 @@
-import IO from "#/modules/planning/professor-evaluation/ProfessorEvaluation.contract.js";
+import IO, {
+    pendingProfessorEvaluationSort
+} from "#/modules/planning/professor-evaluation/ProfessorEvaluation.contract.js";
 import { buildProfessorEvaluationEntity } from "#/modules/planning/professor-evaluation/ProfessorEvaluation.entity.js";
 import {
     invalidProfessorEvaluationProblem,
@@ -7,10 +9,12 @@ import {
 } from "#/modules/planning/professor-evaluation/ProfessorEvaluation.problems.js";
 import { isEligibleProfessorEvaluationAttempt } from "#/modules/planning/professor-evaluation/ProfessorEvaluation.rules.js";
 import {
+    compareBySort,
     compileFilterWhere,
     err,
     ok,
     prismaWhereFor,
+    resolveSort,
     type FilterWhereBuilder,
     type Result
 } from "@pomi/api-core";
@@ -216,26 +220,52 @@ export function createProfessorEvaluationService({
                         `${evaluation.classId}:${evaluation.professorId}`
                 )
             );
-            return attempts.flatMap((attempt) =>
-                attempt.class
-                    ? attempt.class.professors
-                          .filter(
-                              (professor) =>
-                                  !evaluatedKeys.has(
-                                      `${attempt.class!.id}:${professor.id}`
-                                  )
-                          )
-                          .map((professor) => ({
-                              attemptId: attempt.id,
-                              class: {
-                                  id: attempt.class!.id,
-                                  code: attempt.class!.code
-                              },
-                              course: attempt.class!.course,
-                              professor
-                          }))
-                    : []
-            );
+            return attempts
+                .flatMap((attempt) =>
+                    attempt.class
+                        ? attempt.class.professors
+                              .filter(
+                                  (professor) =>
+                                      !evaluatedKeys.has(
+                                          `${attempt.class!.id}:${professor.id}`
+                                      )
+                              )
+                              .map((professor) => ({
+                                  attemptId: attempt.id,
+                                  class: {
+                                      id: attempt.class!.id,
+                                      code: attempt.class!.code
+                                  },
+                                  course: attempt.class!.course,
+                                  professor
+                              }))
+                        : []
+                )
+                .sort(
+                    compareBySort(
+                        resolveSort(input.sort, pendingProfessorEvaluationSort),
+                        {
+                            courseCode: (left, right) =>
+                                left.course.code.localeCompare(
+                                    right.course.code
+                                ),
+                            courseName: (left, right) =>
+                                left.course.name.localeCompare(
+                                    right.course.name
+                                ),
+                            classCode: (left, right) =>
+                                left.class.code.localeCompare(right.class.code),
+                            professorName: (left, right) =>
+                                left.professor.name.localeCompare(
+                                    right.professor.name
+                                ),
+                            attemptId: (left, right) =>
+                                left.attemptId - right.attemptId,
+                            professorId: (left, right) =>
+                                left.professor.id - right.professor.id
+                        }
+                    )
+                );
         }
     };
 }

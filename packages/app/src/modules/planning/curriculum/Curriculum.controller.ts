@@ -19,7 +19,7 @@ const actions: Actions = {
     list: async (ctx, input) =>
         ApiResponse.ok(
             buildArrayPaginationResponse(
-                await ctx.curriculumService.list(input.path.sid),
+                await ctx.curriculumService.list(input.path.sid, input.query),
                 input.query,
                 unpaginatedByDefault,
                 `/student/${input.path.sid}/curricula`

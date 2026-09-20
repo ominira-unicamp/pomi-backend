@@ -4,11 +4,13 @@ import { InvalidCurriculumProblem } from "#/modules/planning/curriculum/Curricul
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
+    defineSort,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
     ResourceNotFoundProblemSchema,
+    resourceSortSchema,
     SpecBuilder,
     unpaginatedByDefault
 } from "@pomi/api-core";
@@ -162,6 +164,16 @@ const pathWithId = z.object({
     id: pathParam.integer()
 });
 
+export const curriculumSort = defineSort({
+    resourceName: "student curricula",
+    sortableFields: ["isFavorite", "updatedAt", "name"] as const,
+    defaultSort: [
+        { field: "isFavorite", direction: "desc" },
+        { field: "updatedAt", direction: "desc" }
+    ] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
+
 const get = {
     meta: {
         ...specBuilder.get(),
@@ -184,13 +196,16 @@ const list = {
             "sid",
             StudentCapabilities.PLANNING_READ
         ),
+        queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         path: z.object({
             sid: pathParam.integer()
         }),
-        query: createPaginationQuerySchema(unpaginatedByDefault)
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            sort: resourceSortSchema(curriculumSort).optional()
+        })
     }),
     response: new OutputBuilder()
         .ok(
