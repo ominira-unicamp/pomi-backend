@@ -502,14 +502,15 @@ model CatalogCoursePrerequisiteItem {
 }
 
 model Program {
-  id              Int              @id @default(autoincrement())
-  code            Int              @unique
-  name            String
-  unit            Unit             @relation(fields: [unitId], references: [id])
-  unitId          Int
-  catalogPrograms CatalogProgram[]
-  specializations Specialization[]
-  students        Student[]
+  id                Int                @id @default(autoincrement())
+  code              Int                @unique
+  name              String
+  unit              Unit               @relation(fields: [unitId], references: [id])
+  unitId            Int
+  catalogPrograms   CatalogProgram[]
+  specializations   Specialization[]
+  students          Student[]
+  classReservations ClassReservation[]
 
   @@schema("data")
 }
@@ -901,9 +902,21 @@ model Class {
   periodPlannings       PeriodPlanning[]
   studentCourseAttempts StudentCourseAttempt[]
   professorEvaluations  ProfessorEvaluation[]
+  reservationPrograms   ClassReservation[]
 
   @@index([courseId])
   @@index([studyPeriodId])
+  @@schema("data")
+}
+
+model ClassReservation {
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classId   Int
+  program   Program @relation(fields: [programId], references: [id], onDelete: Restrict)
+  programId Int
+
+  @@id([classId, programId])
+  @@index([programId])
   @@schema("data")
 }
 

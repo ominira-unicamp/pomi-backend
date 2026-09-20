@@ -6,6 +6,14 @@ import z from "zod";
 export const prismaClassFieldSelection = {
     include: {
         professors: selectIdName,
+        reservationPrograms: {
+            select: {
+                program: {
+                    select: { id: true, code: true, name: true }
+                }
+            },
+            orderBy: { program: { code: "asc" } }
+        },
         studyPeriod: {
             select: { id: true, year: true, yearPeriod: true }
         },
@@ -57,7 +65,7 @@ function relatedPathsForClass(classPayload: PrismaClassPayload) {
 function buildClassEntity(
     classData: PrismaClassPayload
 ): z.infer<typeof IO.schema> {
-    const { course, studyPeriod, ...rest } = classData;
+    const { course, reservationPrograms, studyPeriod, ...rest } = classData;
     return {
         ...rest,
         studyPeriodId: studyPeriod.id,
@@ -68,6 +76,7 @@ function buildClassEntity(
         unitId: course.unit?.id ?? null,
         unitCode: course.unit?.code ?? null,
         professorIds: classData.professors.map((p) => p.id),
+        reservationPrograms: reservationPrograms.map(({ program }) => program),
         _paths: relatedPathsForClass(classData)
     };
 }

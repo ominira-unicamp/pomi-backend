@@ -75,6 +75,18 @@ test("student OpenAPI exposes structured filters and stable operations", () => {
     }
 });
 
+test("period planning classes expose reservation programs instead of legacy codes", () => {
+    const document = generateAppOpenApiDocument("student");
+    const schema = document.components?.schemas?.PeriodPlanningClass as {
+        properties?: Record<string, unknown>;
+        required?: string[];
+    };
+
+    assert.ok(schema.properties?.reservationPrograms);
+    assert.equal("reservations" in (schema.properties ?? {}), false);
+    assert.equal(schema.required?.includes("reservationPrograms"), true);
+});
+
 test("student collection operations expose the standard pagination contract", () => {
     const document = generateAppOpenApiDocument("student");
     const operation = document.paths["/tags"]?.get;

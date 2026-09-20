@@ -65,6 +65,20 @@ export function selectNewProfessorNames(
         .map(([, professor]) => professor);
 }
 
+export function resolveReservationProgramIds(
+    reservationCodes: readonly number[],
+    programIdByCode: ReadonlyMap<number, number>
+) {
+    const programIds: number[] = [];
+    const unknownCodes: number[] = [];
+    for (const programCode of new Set(reservationCodes)) {
+        const programId = programIdByCode.get(programCode);
+        if (programId === undefined) unknownCodes.push(programCode);
+        else programIds.push(programId);
+    }
+    return { programIds, unknownCodes };
+}
+
 const dayOfWeekMap: Record<string, DayOfWeek> = {
     Segunda: DayOfWeek.MONDAY,
     Terça: DayOfWeek.TUESDAY,
@@ -324,6 +338,11 @@ export async function injectAcademicData(
             sp
         ])
     );
+    const programIdByCode = new Map(
+        (
+            await prisma.program.findMany({ select: { id: true, code: true } })
+        ).map((program) => [program.code, program.id])
+    );
 
     logger.info("\n👥 Coletando turmas...");
     const allClasses: Array<{
@@ -383,9 +402,30 @@ export async function injectAcademicData(
         }
     }
 
-    const uniqueClasses = [
+    const uniqueClassesWithReservationCodes = [
         ...new Map(allClasses.map((item) => [item.turmaKey, item])).values()
     ];
+    const unresolvedReservations: Array<{
+        turmaKey: string;
+        programCode: number;
+    }> = [];
+    const uniqueClasses = uniqueClassesWithReservationCodes.map((classData) => {
+        const { programIds, unknownCodes } = resolveReservationProgramIds(
+            classData.reservations,
+            programIdByCode
+        );
+        unresolvedReservations.push(
+            ...unknownCodes.map((programCode) => ({
+                turmaKey: classData.turmaKey,
+                programCode
+            }))
+        );
+        return { ...classData, reservationProgramIds: programIds };
+    });
+    if (unresolvedReservations.length > 0)
+        throw new Error(
+            `Reservas com programas desconhecidos: ${JSON.stringify(unresolvedReservations)}`
+        );
     logger.info(`👥 Inserindo ${uniqueClasses.length} turmas...`);
     const createdClassesArray = await prisma.class.findMany({
         include: { course: true, studyPeriod: true }
@@ -408,7 +448,17 @@ export async function injectAcademicData(
                     existingClass
                         ? transaction.class.update({
                               where: { id: existingClass.id },
-                              data: { reservations: classData.reservations },
+                              data: {
+                                  reservations: classData.reservations,
+                                  reservationPrograms: {
+                                      deleteMany: {},
+                                      createMany: {
+                                          data: classData.reservationProgramIds.map(
+                                              (programId) => ({ programId })
+                                          )
+                                      }
+                                  }
+                              },
                               include: { course: true, studyPeriod: true }
                           })
                         : transaction.class.create({
@@ -416,7 +466,14 @@ export async function injectAcademicData(
                                   code: classData.code,
                                   courseId: classData.courseId,
                                   studyPeriodId: classData.studyPeriodId,
-                                  reservations: classData.reservations
+                                  reservations: classData.reservations,
+                                  reservationPrograms: {
+                                      createMany: {
+                                          data: classData.reservationProgramIds.map(
+                                              (programId) => ({ programId })
+                                          )
+                                      }
+                                  }
                               },
                               include: { course: true, studyPeriod: true }
                           })

@@ -4,7 +4,8 @@ import test from "node:test";
 
 process.env.DISABLED_AUTH = "true";
 
-const { default: openApiRouter } = await import("#/OpenApi.js");
+const { default: openApiRouter, generateDataOpenApiDocument } =
+    await import("#/OpenApi.js");
 
 test("redirects the root path to the documentation", async () => {
     const application = express().use(openApiRouter);
@@ -26,4 +27,16 @@ test("redirects the root path to the documentation", async () => {
             server.close((error) => (error ? reject(error) : resolve()))
         );
     }
+});
+
+test("class contract exposes reservation programs instead of legacy codes", () => {
+    const document = generateDataOpenApiDocument("public");
+    const schema = document.components?.schemas?.ClassEntity as {
+        properties?: Record<string, unknown>;
+        required?: string[];
+    };
+
+    assert.ok(schema.properties?.reservationPrograms);
+    assert.equal("reservations" in (schema.properties ?? {}), false);
+    assert.equal(schema.required?.includes("reservationPrograms"), true);
 });

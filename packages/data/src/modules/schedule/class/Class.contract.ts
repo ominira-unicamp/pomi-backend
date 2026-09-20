@@ -35,7 +35,15 @@ const classEntity = z
     .object({
         id: z.number().int(),
         code: z.string(),
-        reservations: z.array(z.number().int()),
+        reservationPrograms: z.array(
+            z
+                .object({
+                    id: z.number().int(),
+                    code: z.number().int(),
+                    name: z.string()
+                })
+                .strict()
+        ),
         courseId: z.number().int(),
         studyPeriodId: z.number().int(),
         professorIds: z.array(z.number().int()),
