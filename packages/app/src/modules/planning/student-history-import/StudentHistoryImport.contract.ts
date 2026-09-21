@@ -15,6 +15,7 @@ extendZodWithOpenApi(z);
 
 const historyCourseStatusSchema = z
     .enum([
+        "ENROLLED",
         "APPROVED",
         "APPROVED_BY_ATTENDANCE",
         "APPROVED_BY_PROFICIENCY",

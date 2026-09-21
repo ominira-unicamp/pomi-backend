@@ -20,6 +20,7 @@ function statusAllowed(
     evaluation: CourseEvaluationMode,
     status: ImportInput["semesters"][number]["courses"][number]["status"]
 ) {
+    if (status === "ENROLLED") return true;
     if (status === "APPROVED_BY_PROFICIENCY") return true;
     if (status === "DROPPED") return true;
     if (evaluation === "CONCEPT") return status === "SUFFICIENT";
