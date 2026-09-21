@@ -67,6 +67,11 @@ export function createStudentHistoryImportService({
             const codes = input.semesters.flatMap((item) =>
                 item.courses.map((course) => course.code)
             );
+            const classCodes = input.semesters.flatMap((item) =>
+                item.courses.flatMap((course) =>
+                    course.classCode == null ? [] : [course.classCode]
+                )
+            );
             const [periods, courses] = await Promise.all([
                 prisma.studyPeriod.findMany({ where: { OR: periodKeys } }),
                 prisma.course.findMany({
@@ -74,6 +79,19 @@ export function createStudentHistoryImportService({
                     select: { id: true, code: true }
                 })
             ]);
+            const classes = await prisma.class.findMany({
+                where: {
+                    code: { in: [...new Set(classCodes)] },
+                    courseId: { in: courses.map((course) => course.id) },
+                    studyPeriodId: { in: periods.map((period) => period.id) }
+                },
+                select: {
+                    id: true,
+                    code: true,
+                    courseId: true,
+                    studyPeriodId: true
+                }
+            });
             const periodByKey = new Map(
                 periods.map((period) => [
                     `${period.year}:${period.yearPeriod}`,
@@ -82,6 +100,12 @@ export function createStudentHistoryImportService({
             );
             const courseByCode = new Map(
                 courses.map((course) => [course.code, course])
+            );
+            const classByKey = new Map(
+                classes.map((classData) => [
+                    `${classData.courseId}:${classData.studyPeriodId}:${classData.code}`,
+                    classData
+                ])
             );
             const catalogCourses = await prisma.catalogCourse.findMany({
                 where: {
@@ -118,6 +142,7 @@ export function createStudentHistoryImportService({
                 evaluationMode: CourseEvaluationMode;
                 status: ImportInput["semesters"][number]["courses"][number]["status"];
                 grade: number | null;
+                classId: number | null | undefined;
             }> = [];
             const seen = new Set<string>();
             for (const semester of input.semesters) {
@@ -155,6 +180,42 @@ export function createStudentHistoryImportService({
                         continue;
                     }
                     seen.add(key);
+                    const classData =
+                        course.classCode == null
+                            ? undefined
+                            : classByKey.get(
+                                  `${persistedCourse.id}:${period.id}:${course.classCode}`
+                              );
+                    if (course.classCode != null && !classData) {
+                        warnings.push({
+                            ...warningBase,
+                            message: "Turma não encontrada."
+                        });
+                        continue;
+                    }
+                    if (
+                        classData &&
+                        (classData.courseId !== persistedCourse.id ||
+                            classData.studyPeriodId !== period.id)
+                    ) {
+                        warnings.push({
+                            ...warningBase,
+                            message:
+                                "A turma não pertence à disciplina e ao período informados."
+                        });
+                        continue;
+                    }
+                    if (
+                        classData &&
+                        course.status === "APPROVED_BY_PROFICIENCY"
+                    ) {
+                        warnings.push({
+                            ...warningBase,
+                            message:
+                                "Uma disciplina aprovada por proficiência não pode estar vinculada a uma turma."
+                        });
+                        continue;
+                    }
                     const evaluation = evaluationByCourseYear.get(
                         `${persistedCourse.id}:${semester.year}`
                     );
@@ -179,7 +240,11 @@ export function createStudentHistoryImportService({
                         studyPeriodId: period.id,
                         evaluationMode: evaluation,
                         status: course.status,
-                        grade: course.grade
+                        grade: course.grade,
+                        classId:
+                            course.classCode === undefined
+                                ? undefined
+                                : (classData?.id ?? null)
                     });
                 }
             }
@@ -203,10 +268,22 @@ export function createStudentHistoryImportService({
                         await tx.studentCourseAttempt.update({
                             where: { id: existing.id },
                             data: {
-                                ...(row.status === "APPROVED_BY_PROFICIENCY"
-                                    ? { classId: null }
-                                    : {}),
-                                studyPeriodId: row.studyPeriodId,
+                                ...(row.classId !== undefined
+                                    ? {
+                                          classId: row.classId,
+                                          studyPeriodId:
+                                              row.classId === null
+                                                  ? row.studyPeriodId
+                                                  : null
+                                      }
+                                    : row.status === "APPROVED_BY_PROFICIENCY"
+                                      ? {
+                                            classId: null,
+                                            studyPeriodId: row.studyPeriodId
+                                        }
+                                      : {
+                                            studyPeriodId: row.studyPeriodId
+                                        }),
                                 evaluationMode: row.evaluationMode,
                                 status: row.status,
                                 grade: row.grade
@@ -218,8 +295,11 @@ export function createStudentHistoryImportService({
                             data: {
                                 studentId,
                                 courseId: row.courseId,
-                                studyPeriodId: row.studyPeriodId,
-                                classId: null,
+                                studyPeriodId:
+                                    row.classId == null
+                                        ? row.studyPeriodId
+                                        : null,
+                                classId: row.classId ?? null,
                                 evaluationMode: row.evaluationMode,
                                 status: row.status,
                                 grade: row.grade

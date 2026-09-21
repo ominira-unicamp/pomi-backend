@@ -48,6 +48,7 @@ const specsBuilder = new SpecBuilder(
 const course = z.object({
     code: z.string().min(1),
     name: z.string().min(1),
+    classCode: z.string().trim().min(1).nullable().optional(),
     grade: z.number().min(0).max(10).nullable(),
     workloadHours: z.number().int().nonnegative().nullable(),
     credits: z.number().int().nonnegative().nullable(),

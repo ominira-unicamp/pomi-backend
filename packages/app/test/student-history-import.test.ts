@@ -16,6 +16,7 @@ const enrolledHistory = {
                 {
                     code: "MC202",
                     name: "Estruturas de Dados",
+                    classCode: "A",
                     grade: null,
                     workloadHours: 60,
                     credits: 4,
@@ -63,6 +64,11 @@ test("imports an enrolled course attempt", async () => {
             course: {
                 findMany: async () => [{ id: 20, code: "MC202" }]
             },
+            class: {
+                findMany: async () => [
+                    { id: 30, code: "A", courseId: 20, studyPeriodId: 10 }
+                ]
+            },
             catalogCourse: {
                 findMany: async () => [
                     {
@@ -91,8 +97,8 @@ test("imports an enrolled course attempt", async () => {
     assert.deepEqual(createdData, {
         studentId: 1,
         courseId: 20,
-        studyPeriodId: 10,
-        classId: null,
+        studyPeriodId: null,
+        classId: 30,
         evaluationMode: "GRADE_AND_ATTENDANCE",
         status: "ENROLLED",
         grade: null
