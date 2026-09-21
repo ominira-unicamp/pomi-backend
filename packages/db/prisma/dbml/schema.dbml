@@ -226,6 +226,7 @@ Table Program {
   catalogPrograms CatalogProgram [not null]
   specializations Specialization [not null]
   students Student [not null]
+  classReservations ClassReservation [not null]
 }
 
 Table Specialization {
@@ -532,12 +533,23 @@ Table Class {
   studyPeriodId Int [not null]
   course Course [not null]
   courseId Int [not null]
-  reservations Int[] [not null]
   professors Professor [not null]
   classSchedules ClassSchedule [not null]
   periodPlannings PeriodPlanning [not null]
   studentCourseAttempts StudentCourseAttempt [not null]
   professorEvaluations ProfessorEvaluation [not null]
+  reservationPrograms ClassReservation [not null]
+}
+
+Table ClassReservation {
+  class Class [not null]
+  classId Int [not null]
+  program Program [not null]
+  programId Int [not null]
+
+  indexes {
+    (classId, programId) [pk]
+  }
 }
 
 Table ClassSchedule {
@@ -1274,6 +1286,10 @@ Ref: data_portal_professor_coauthor.coauthorId > data_portal_coauthor.id
 Ref: Class.studyPeriodId > StudyPeriod.id
 
 Ref: Class.courseId > Course.id
+
+Ref: ClassReservation.classId > Class.id [delete: Cascade]
+
+Ref: ClassReservation.programId > Program.id [delete: Restrict]
 
 Ref: ClassSchedule.roomId > Room.id
 

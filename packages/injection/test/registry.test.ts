@@ -18,6 +18,7 @@ test("resolve todas as injections predefinidas", () => {
         "catalog-disciplines",
         "daily-menus",
         "exchange-notices",
+        "historical-programs",
         "suggestions"
     ]) {
         const service = createInjectionService({

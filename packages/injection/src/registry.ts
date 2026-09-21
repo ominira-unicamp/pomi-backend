@@ -23,6 +23,10 @@ import {
     injectExchangeNotices,
     type ExchangeNoticesInjectionOptions
 } from "./services/ExchangeNoticesInjection.js";
+import {
+    injectHistoricalPrograms,
+    type HistoricalProgramsInjectionOptions
+} from "./services/HistoricalProgramsInjection.js";
 import type { InjectionContext } from "./services/InjectionTypes.js";
 import {
     injectProfessorDataPortal,
@@ -79,6 +83,11 @@ const services: Record<
         createService(
             injectExchangeNotices,
             options as ExchangeNoticesInjectionOptions & InjectionOptions
+        ),
+    "historical-programs": (options) =>
+        createService(
+            injectHistoricalPrograms,
+            options as HistoricalProgramsInjectionOptions & InjectionOptions
         ),
     "suggestions": (options) =>
         createService(

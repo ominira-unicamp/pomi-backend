@@ -895,8 +895,6 @@ model Class {
   studyPeriodId Int
   course        Course      @relation(fields: [courseId], references: [id])
   courseId      Int
-  reservations  Int[]
-
   professors            Professor[]
   classSchedules        ClassSchedule[]
   periodPlannings       PeriodPlanning[]

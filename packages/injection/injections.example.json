@@ -92,6 +92,35 @@
             }
         },
         {
+            "name": "historical-programs",
+            "description": "Programas históricos citados por reservas de turmas",
+            "obtain": {
+                "command": "node",
+                "args": [
+                    "unicamp-scrapper-cli/dist/index.js",
+                    "catalogos-programas",
+                    "--first-year",
+                    "1998",
+                    "--last-year",
+                    "2020",
+                    "--output",
+                    "${POMI_INJECTION_OUTPUT}"
+                ],
+                "cwd": "../scrapper-aulas",
+                "env": {},
+                "timeoutMs": 7200000
+            },
+            "input": {
+                "directory": "data/injections/historical-programs",
+                "fileName": "historical-programs.json"
+            },
+            "allowIssues": true,
+            "options": {
+                "transactionTimeout": 600000,
+                "transactionMaxWait": 60000
+            }
+        },
+        {
             "name": "exchange-notices",
             "description": "Editais de intercâmbio da DERI",
             "schedule": { "cron": "30 */6 * * *" },

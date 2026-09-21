@@ -79,6 +79,29 @@ export function resolveReservationProgramIds(
     return { programIds, unknownCodes };
 }
 
+export function haveSameProgramIds(
+    left: readonly number[],
+    right: readonly number[]
+) {
+    if (left.length !== right.length) return false;
+    const rightIds = new Set(right);
+    return left.every((programId) => rightIds.has(programId));
+}
+
+export function reservationProgramRelationWrites(
+    programIds: readonly number[]
+) {
+    const create =
+        programIds.length > 0
+            ? {
+                  createMany: {
+                      data: programIds.map((programId) => ({ programId }))
+                  }
+              }
+            : undefined;
+    return { create, update: { deleteMany: {}, ...create } };
+}
+
 const dayOfWeekMap: Record<string, DayOfWeek> = {
     Segunda: DayOfWeek.MONDAY,
     Terça: DayOfWeek.TUESDAY,
@@ -127,6 +150,40 @@ export async function injectAcademicData(
     ) as AcademicData[];
     if (academicData.length === 0)
         throw new Error("Nenhum período acadêmico encontrado");
+
+    const programIdByCode = new Map(
+        (
+            await prisma.program.findMany({ select: { id: true, code: true } })
+        ).map((program) => [program.code, program.id])
+    );
+    const unresolvedReservations: Array<{
+        turmaKey: string;
+        programCode: number;
+    }> = [];
+    for (const period of academicData) {
+        const yearPeriod =
+            period.semester === 1
+                ? YearPeriods.FIRST_SEMESTER
+                : YearPeriods.SECOND_SEMESTER;
+        for (const instituteData of period.institutes)
+            for (const courseData of instituteData.courses)
+                for (const classData of courseData.classes) {
+                    const { unknownCodes } = resolveReservationProgramIds(
+                        classData.reservations,
+                        programIdByCode
+                    );
+                    unresolvedReservations.push(
+                        ...unknownCodes.map((programCode) => ({
+                            turmaKey: `${period.year}-${yearPeriod}-${courseData.code}-${classData.name}`,
+                            programCode
+                        }))
+                    );
+                }
+    }
+    if (unresolvedReservations.length > 0)
+        throw new Error(
+            `Reservas com programas desconhecidos: ${JSON.stringify(unresolvedReservations)}`
+        );
 
     const allUnits: Map<string, { code: string; name: string }> = new Map();
     const allProfessors: Map<string, { name: string }> = new Map();
@@ -338,12 +395,6 @@ export async function injectAcademicData(
             sp
         ])
     );
-    const programIdByCode = new Map(
-        (
-            await prisma.program.findMany({ select: { id: true, code: true } })
-        ).map((program) => [program.code, program.id])
-    );
-
     logger.info("\n👥 Coletando turmas...");
     const allClasses: Array<{
         code: string;
@@ -405,30 +456,24 @@ export async function injectAcademicData(
     const uniqueClassesWithReservationCodes = [
         ...new Map(allClasses.map((item) => [item.turmaKey, item])).values()
     ];
-    const unresolvedReservations: Array<{
-        turmaKey: string;
-        programCode: number;
-    }> = [];
     const uniqueClasses = uniqueClassesWithReservationCodes.map((classData) => {
-        const { programIds, unknownCodes } = resolveReservationProgramIds(
+        const { programIds } = resolveReservationProgramIds(
             classData.reservations,
             programIdByCode
         );
-        unresolvedReservations.push(
-            ...unknownCodes.map((programCode) => ({
-                turmaKey: classData.turmaKey,
-                programCode
-            }))
-        );
-        return { ...classData, reservationProgramIds: programIds };
+        const { reservations: _, ...classWithoutReservationCodes } = classData;
+        return {
+            ...classWithoutReservationCodes,
+            reservationProgramIds: programIds
+        };
     });
-    if (unresolvedReservations.length > 0)
-        throw new Error(
-            `Reservas com programas desconhecidos: ${JSON.stringify(unresolvedReservations)}`
-        );
     logger.info(`👥 Inserindo ${uniqueClasses.length} turmas...`);
     const createdClassesArray = await prisma.class.findMany({
-        include: { course: true, studyPeriod: true }
+        include: {
+            course: true,
+            studyPeriod: true,
+            reservationPrograms: { select: { programId: true } }
+        }
     });
     const classesMap = new Map(
         createdClassesArray.map((c) => [
@@ -441,6 +486,19 @@ export async function injectAcademicData(
         databaseConcurrency,
         async (classData) => {
             const existingClass = classesMap.get(classData.turmaKey);
+            const existingProgramIds =
+                existingClass?.reservationPrograms.map(
+                    ({ programId }) => programId
+                ) ?? [];
+            const reservationsChanged = !haveSameProgramIds(
+                existingProgramIds,
+                classData.reservationProgramIds
+            );
+            if (existingClass && !reservationsChanged)
+                return [classData.turmaKey, existingClass] as const;
+            const reservationProgramWrites = reservationProgramRelationWrites(
+                classData.reservationProgramIds
+            );
             const persisted = await withAuditTransaction(
                 prisma,
                 auditContext,
@@ -449,33 +507,32 @@ export async function injectAcademicData(
                         ? transaction.class.update({
                               where: { id: existingClass.id },
                               data: {
-                                  reservations: classData.reservations,
-                                  reservationPrograms: {
-                                      deleteMany: {},
-                                      createMany: {
-                                          data: classData.reservationProgramIds.map(
-                                              (programId) => ({ programId })
-                                          )
-                                      }
-                                  }
+                                  reservationPrograms:
+                                      reservationProgramWrites.update
                               },
-                              include: { course: true, studyPeriod: true }
+                              include: {
+                                  course: true,
+                                  studyPeriod: true,
+                                  reservationPrograms: {
+                                      select: { programId: true }
+                                  }
+                              }
                           })
                         : transaction.class.create({
                               data: {
                                   code: classData.code,
                                   courseId: classData.courseId,
                                   studyPeriodId: classData.studyPeriodId,
-                                  reservations: classData.reservations,
-                                  reservationPrograms: {
-                                      createMany: {
-                                          data: classData.reservationProgramIds.map(
-                                              (programId) => ({ programId })
-                                          )
-                                      }
-                                  }
+                                  reservationPrograms:
+                                      reservationProgramWrites.create
                               },
-                              include: { course: true, studyPeriod: true }
+                              include: {
+                                  course: true,
+                                  studyPeriod: true,
+                                  reservationPrograms: {
+                                      select: { programId: true }
+                                  }
+                              }
                           })
             );
             if (!existingClass)
@@ -488,20 +545,19 @@ export async function injectAcademicData(
                         code: classData.code,
                         courseId: classData.courseId,
                         studyPeriodId: classData.studyPeriodId,
-                        reservations: classData.reservations
+                        reservationProgramIds: classData.reservationProgramIds
                     }
                 });
-            else if (
-                existingClass.reservations.join(",") !==
-                classData.reservations.join(",")
-            )
+            else
                 changes.push({
                     entity: "Class",
                     operation: "update",
                     key: { id: persisted.id, code: classData.code },
-                    changedFields: ["reservations"],
-                    before: { reservations: existingClass.reservations },
-                    after: { reservations: classData.reservations }
+                    changedFields: ["reservationPrograms"],
+                    before: { reservationProgramIds: existingProgramIds },
+                    after: {
+                        reservationProgramIds: classData.reservationProgramIds
+                    }
                 });
             return [classData.turmaKey, persisted] as const;
         }
