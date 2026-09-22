@@ -33,7 +33,7 @@ const specBuilder = new SpecBuilder(basePath, tags, "id", {
 const selection = z
     .object({
         catalogProgramId: z.number().int().nullable(),
-        specializationId: z.number().int().nullable(),
+        catalogProgramVariantId: z.number().int().nullable(),
         languageId: z.number().int().nullable()
     })
     .strict();

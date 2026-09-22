@@ -29,8 +29,8 @@ test("redirects the root path to the documentation", async () => {
     }
 });
 
-test("student OpenAPI exposes structured filters and stable operations", () => {
-    const document = generateAppOpenApiDocument("student");
+test("App OpenAPI exposes structured filters and stable operations", () => {
+    const document = generateAppOpenApiDocument();
     const tagsOperation = document.paths["/tags"]?.get;
     const filterParameter = tagsOperation?.parameters?.find(
         (parameter) =>
@@ -76,7 +76,7 @@ test("student OpenAPI exposes structured filters and stable operations", () => {
 });
 
 test("period planning classes expose reservation programs instead of legacy codes", () => {
-    const document = generateAppOpenApiDocument("student");
+    const document = generateAppOpenApiDocument();
     const schema = document.components?.schemas?.PeriodPlanningClass as {
         properties?: Record<string, unknown>;
         required?: string[];
@@ -87,8 +87,8 @@ test("period planning classes expose reservation programs instead of legacy code
     assert.equal(schema.required?.includes("reservationPrograms"), true);
 });
 
-test("student collection operations expose the standard pagination contract", () => {
-    const document = generateAppOpenApiDocument("student");
+test("collection operations expose the standard pagination contract", () => {
+    const document = generateAppOpenApiDocument();
     const operation = document.paths["/tags"]?.get;
     assert.deepEqual(operation?.["x-pomi-pagination"], {
         defaultMode: "all",

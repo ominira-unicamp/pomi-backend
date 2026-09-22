@@ -10,6 +10,7 @@
     "scripts": {
         "dev:data": "npm run dev --workspace @pomi/data",
         "dev:app": "npm run dev --workspace @pomi/app",
+        "openapi:export": "npm run openapi:export --workspace @pomi/data && npm run openapi:export --workspace @pomi/app",
         "build": "npm run check:boundaries && npm run build --workspace @pomi/db && npm run build --workspace @pomi/api-core && npm run build --workspace @pomi/data && npm run build --workspace @pomi/app && npm run build --workspace @pomi/injection && npm run build --workspace @pomi/notifier",
         "check:boundaries": "node scripts/check-package-boundaries.mjs",
         "test": "npm run test --workspaces --if-present",
@@ -44,7 +45,6 @@
         "prettier": "3.8.0",
         "prettier-plugin-organize-imports": "^4.3.0",
         "prisma": "^7.2.0",
-        "prisma-dbml-generator": "^0.12.0",
         "prisma-zod-generator": "^2.1.2",
         "tsx": "^4.20.6",
         "typescript": "5.8.2",

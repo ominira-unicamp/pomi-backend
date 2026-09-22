@@ -25,19 +25,26 @@ type CurriculumSuggestionData = z.infer<typeof curriculumSuggestionDataSchema>;
 const curriculumSuggestionWhere =
     prismaWhereFor<MyPrisma.CurriculumSuggestionWhereInput>();
 const curriculumSuggestionWhereDefinitions = {
-    catalogProgramId: curriculumSuggestionWhere.numberAt("catalogProgramId"),
-    catalogId: curriculumSuggestionWhere.numberAt("catalogProgram.catalogId"),
+    catalogProgramId: curriculumSuggestionWhere.numberAt(
+        "catalogProgramVariant.catalogProgramId"
+    ),
+    catalogProgramVariantId: curriculumSuggestionWhere.numberAt(
+        "catalogProgramVariantId"
+    ),
+    catalogId: curriculumSuggestionWhere.numberAt(
+        "catalogProgramVariant.catalogProgram.catalogId"
+    ),
     catalogYear: curriculumSuggestionWhere.numberAt(
-        "catalogProgram.catalog.year"
+        "catalogProgramVariant.catalogProgram.catalog.year"
     ),
-    programId: curriculumSuggestionWhere.numberAt("catalogProgram.programId"),
+    programId: curriculumSuggestionWhere.numberAt(
+        "catalogProgramVariant.catalogProgram.programId"
+    ),
     programCode: curriculumSuggestionWhere.numberAt(
-        "catalogProgram.program.code"
+        "catalogProgramVariant.catalogProgram.program.code"
     ),
-    code: curriculumSuggestionWhere.containsAt("code"),
-    type: curriculumSuggestionWhere.enumAt("type"),
     specializationId: curriculumSuggestionWhere.numberAt(
-        "catalogSpecialization.specializationId"
+        "catalogProgramVariant.specializationId"
     )
 } satisfies Record<
     CurriculumSuggestionFilterName,
@@ -90,12 +97,10 @@ export function createCurriculumSuggestionService({
                             left.programCode - right.programCode,
                         programName: (left, right) =>
                             left.programName.localeCompare(right.programName),
-                        code: (left, right) =>
-                            left.code.localeCompare(right.code),
-                        name: (left, right) =>
-                            left.name.localeCompare(right.name),
-                        type: (left, right) =>
-                            left.type.localeCompare(right.type),
+                        specializationCode: (left, right) =>
+                            (left.specialization?.code ?? "").localeCompare(
+                                right.specialization?.code ?? ""
+                            ),
                         id: (left, right) => left.id - right.id
                     }
                 )

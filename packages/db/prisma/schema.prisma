@@ -11,10 +11,6 @@ generator zod {
   config   = "./config-zod.json"
 }
 
-generator dbml {
-  provider = "prisma-dbml-generator"
-}
-
 datasource db {
   provider = "postgresql"
   schemas  = ["data", "app", "unicamp_data_portal"]
@@ -350,12 +346,12 @@ model Coordinator {
 }
 
 model Course {
-  id       Int       @id @default(autoincrement())
-  code     String    @unique
-  name     String
-  credits  Int
-  unit     Unit?     @relation(fields: [unitId], references: [id])
-  unitId   Int?
+  id      Int    @id @default(autoincrement())
+  code    String @unique
+  name    String
+  credits Int
+  unit    Unit?  @relation(fields: [unitId], references: [id])
+  unitId  Int?
 
   classes                     Class[]
   catalogCourses              CatalogCourse[]
@@ -387,9 +383,9 @@ model Tag {
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   categoryId Int
 
-  parent   Tag?  @relation("TagHierarchy", fields: [parentTagId], references: [id], onDelete: Restrict)
+  parent      Tag?  @relation("TagHierarchy", fields: [parentTagId], references: [id], onDelete: Restrict)
   parentTagId Int?
-  children Tag[] @relation("TagHierarchy")
+  children    Tag[] @relation("TagHierarchy")
 
   courseTags       CourseTag[]
   studentInterests StudentTagInterest[]
@@ -502,15 +498,16 @@ model CatalogCoursePrerequisiteItem {
 }
 
 model Program {
-  id                Int                @id @default(autoincrement())
-  code              Int                @unique
-  name              String
-  unit              Unit               @relation(fields: [unitId], references: [id])
-  unitId            Int
-  catalogPrograms   CatalogProgram[]
-  specializations   Specialization[]
-  students          Student[]
-  classReservations ClassReservation[]
+  id                     Int                     @id @default(autoincrement())
+  code                   Int                     @unique
+  name                   String
+  unit                   Unit                    @relation(fields: [unitId], references: [id])
+  unitId                 Int
+  catalogPrograms        CatalogProgram[]
+  catalogProgramVariants CatalogProgramVariant[]
+  specializations        Specialization[]
+  students               Student[]
+  classReservations      ClassReservation[]
 
   @@schema("data")
 }
@@ -523,8 +520,7 @@ model Specialization {
   name      String
   students  Student[]
 
-  catalogSpecializations CatalogSpecialization[]
-  periodPlannings        PeriodPlanning[]
+  catalogProgramVariants CatalogProgramVariant[]
 
   @@unique([programId, code])
   @@schema("data")
@@ -541,41 +537,40 @@ model Language {
 }
 
 model CatalogProgram {
-  id                     Int                     @id @default(autoincrement())
-  catalog                Catalog                 @relation(fields: [catalogId], references: [id])
-  catalogId              Int
-  program                Program                 @relation(fields: [programId], references: [id])
-  programId              Int
-  catalogSpecializations CatalogSpecialization[]
-  catalogLanguages       CatalogLanguage[]
-  courseBlocks           CourseBlock[]
-  curriculumSuggestions  CurriculumSuggestion[]
-  curricula              Curriculum[]
-  periodPlannings        PeriodPlanning[]
+  id                                Int                     @id @default(autoincrement())
+  catalog                           Catalog                 @relation(fields: [catalogId], references: [id])
+  catalogId                         Int
+  program                           Program                 @relation(fields: [programId], references: [id])
+  programId                         Int
+  shift                             CatalogProgramShift?
+  creditLimitType                   CatalogCreditLimitType?
+  creditLimitFixedCredits           Int?
+  creditLimitBeforeThresholdCredits Int?
+  creditLimitThresholdCredits       Int?
+  creditLimitCrBase                 Int?
+  creditLimitCrMultiplier           Float?
+  professionalPracticeDescription   String?                 @db.Text
+  variants                          CatalogProgramVariant[]
+  catalogLanguages                  CatalogLanguage[]
+  courseBlocks                      CourseBlock[]
+  curricula                         Curriculum[]
+  periodPlannings                   PeriodPlanning[]
 
   @@unique([catalogId, programId])
   @@schema("data")
 }
 
-model CatalogSpecialization {
-  id               Int            @id @default(autoincrement())
-  catalogProgram   CatalogProgram @relation(fields: [catalogProgramId], references: [id], onDelete: Cascade)
-  catalogProgramId Int
-  specialization   Specialization @relation(fields: [specializationId], references: [id], onDelete: Cascade)
-  specializationId Int
+enum CatalogProgramShift {
+  DAYTIME
+  NIGHT
 
-  courseBlocks         CourseBlock[]
-  curriculumSuggestion CurriculumSuggestion?
-  curricula            Curriculum[]
-
-  @@unique([catalogProgramId, specializationId])
   @@schema("data")
 }
 
-enum CurriculumSuggestionType {
-  GENERAL
-  SPECIALIZATION
-  PRE_OPTION
+enum CatalogCreditLimitType {
+  NONE
+  FIXED
+  CR_FORMULA
 
   @@schema("data")
 }
@@ -594,18 +589,41 @@ model CatalogLanguage {
 }
 
 model CurriculumSuggestion {
-  id                      Int                      @id @default(autoincrement())
-  catalogProgram          CatalogProgram           @relation(fields: [catalogProgramId], references: [id], onDelete: Cascade)
-  catalogProgramId        Int
-  code                    String
-  name                    String
-  type                    CurriculumSuggestionType @default(GENERAL)
-  catalogSpecialization   CatalogSpecialization?   @relation(fields: [catalogSpecializationId], references: [id])
-  catalogSpecializationId Int?                     @unique
+  id                      Int                   @id @default(autoincrement())
+  catalogProgramVariant   CatalogProgramVariant @relation(fields: [catalogProgramVariantId], references: [id], onDelete: Cascade)
+  catalogProgramVariantId Int                   @unique
   semesters               SemesterSuggestion[]
   periodPlannings         PeriodPlanning[]
 
-  @@unique([catalogProgramId, code])
+  @@schema("data")
+}
+
+model CatalogProgramVariant {
+  id               Int             @id @default(autoincrement())
+  catalogProgram   CatalogProgram  @relation(fields: [catalogProgramId], references: [id], onDelete: Cascade)
+  catalogProgramId Int
+  program          Program?        @relation(fields: [programId], references: [id])
+  programId        Int?
+  specialization   Specialization? @relation(fields: [specializationId], references: [id])
+  specializationId Int?
+
+  integralizationCredits          Int?
+  integralizationSupervisedHours  Int?
+  integralizationExtensionHours   Int?
+  integralizationSemesters        Int?
+  integralizationMaximumSemesters Int?
+  professionalDescription         String? @db.Text
+  recognitionDescription          String? @db.Text
+
+  courseBlocks         CourseBlock[]
+  curriculumSuggestion CurriculumSuggestion?
+  curricula            Curriculum[]
+  periodPlannings      PeriodPlanning[]
+
+  @@unique([catalogProgramId, programId])
+  @@unique([catalogProgramId, specializationId])
+  @@index([programId])
+  @@index([specializationId])
   @@schema("data")
 }
 
@@ -665,8 +683,8 @@ model CourseBlock {
   catalogLanguage   CatalogLanguage? @relation(fields: [catalogLanguageId], references: [id], onDelete: Cascade)
   catalogLanguageId Int?
 
-  catalogSpecialization   CatalogSpecialization? @relation(fields: [catalogSpecializationId], references: [id], onDelete: Cascade)
-  catalogSpecializationId Int?
+  catalogProgramVariant   CatalogProgramVariant? @relation(fields: [catalogProgramVariantId], references: [id], onDelete: Cascade)
+  catalogProgramVariantId Int?
 
   catalogProgram   CatalogProgram? @relation(fields: [catalogProgramId], references: [id], onDelete: Cascade)
   catalogProgramId Int?
@@ -778,15 +796,16 @@ model AcademicCareerReference {
 }
 
 model AcademicPosition {
-  id                     Int                            @id @default(autoincrement())
-  canonicalKey           String                         @unique
-  role                   AcademicRole
-  affiliationType        AcademicAffiliationType
-  careerReferenceId      Int?
-  postdoctoralModality   AcademicPostdoctoralModality?
-  programCode            String?
-  careerReference        AcademicCareerReference?       @relation(fields: [careerReferenceId], references: [id])
-  profiles               ProfessorDataPortalProfile[]
+  id                   Int                           @id @default(autoincrement())
+  canonicalKey         String                        @unique
+  role                 AcademicRole
+  affiliationType      AcademicAffiliationType
+  careerReferenceId    Int?
+  postdoctoralModality AcademicPostdoctoralModality?
+  programCode          String?
+  careerReference      AcademicCareerReference?      @relation(fields: [careerReferenceId], references: [id])
+  profiles             ProfessorDataPortalProfile[]
+
   @@map("data_portal_position")
   @@schema("unicamp_data_portal")
 }
@@ -889,12 +908,12 @@ model Room {
 }
 
 model Class {
-  id            Int         @id @default(autoincrement())
-  code          String
-  studyPeriod   StudyPeriod @relation(fields: [studyPeriodId], references: [id])
-  studyPeriodId Int
-  course        Course      @relation(fields: [courseId], references: [id])
-  courseId      Int
+  id                    Int                    @id @default(autoincrement())
+  code                  String
+  studyPeriod           StudyPeriod            @relation(fields: [studyPeriodId], references: [id])
+  studyPeriodId         Int
+  course                Course                 @relation(fields: [courseId], references: [id])
+  courseId              Int
   professors            Professor[]
   classSchedules        ClassSchedule[]
   periodPlannings       PeriodPlanning[]
@@ -1101,23 +1120,23 @@ enum StudentCurrentCoursesVisibility {
 }
 
 model Student {
-  id                   Int             @id @default(autoincrement())
-  ra                   String          @unique
-  name                 String
-  authUsers            AuthUser[]      @relation("AuthUserStudent")
-  program              Program?        @relation(fields: [programId], references: [id])
-  programId            Int?
-  specialization       Specialization? @relation(fields: [specializationId], references: [id])
-  specializationId     Int?
-  catalog              Catalog?        @relation(fields: [catalogId], references: [id])
-  catalogId            Int?
-  entryYear            Int?
-  language             Language?       @relation(fields: [languageId], references: [id])
-  languageId           Int?
-  publicId             String          @unique @default(dbgenerated("gen_random_uuid()"))
-  publicProfileEnabled Boolean         @default(false)
-  publicDisplayName    String?         @db.VarChar(80)
-  publicBio            String?         @db.VarChar(280)
+  id                       Int                             @id @default(autoincrement())
+  ra                       String                          @unique
+  name                     String
+  authUsers                AuthUser[]                      @relation("AuthUserStudent")
+  program                  Program?                        @relation(fields: [programId], references: [id])
+  programId                Int?
+  specialization           Specialization?                 @relation(fields: [specializationId], references: [id])
+  specializationId         Int?
+  catalog                  Catalog?                        @relation(fields: [catalogId], references: [id])
+  catalogId                Int?
+  entryYear                Int?
+  language                 Language?                       @relation(fields: [languageId], references: [id])
+  languageId               Int?
+  publicId                 String                          @unique @default(dbgenerated("gen_random_uuid()"))
+  publicProfileEnabled     Boolean                         @default(false)
+  publicDisplayName        String?                         @db.VarChar(80)
+  publicBio                String?                         @db.VarChar(280)
   currentCoursesVisibility StudentCurrentCoursesVisibility @default(PRIVATE)
 
   courseAttempts             StudentCourseAttempt[]
@@ -1328,8 +1347,8 @@ model Curriculum {
   name                    String                 @default("Novo planejamento")
   catalogProgram          CatalogProgram?        @relation(fields: [catalogProgramId], references: [id])
   catalogProgramId        Int?
-  catalogSpecialization   CatalogSpecialization? @relation(fields: [catalogSpecializationId], references: [id])
-  catalogSpecializationId Int?
+  catalogProgramVariant   CatalogProgramVariant? @relation(fields: [catalogProgramVariantId], references: [id])
+  catalogProgramVariantId Int?
   catalogLanguage         CatalogLanguage?       @relation(fields: [catalogLanguageId], references: [id])
   catalogLanguageId       Int?
   planningStartYear       Int?
@@ -1376,28 +1395,28 @@ model CurriculumPeriod {
 }
 
 model PeriodPlanning {
-  id                     Int                             @id @default(autoincrement())
-  name                   String                          @default("Novo planejamento de semestre")
-  studyPeriod            StudyPeriod                     @relation(fields: [studyPeriodId], references: [id])
-  studyPeriodId          Int
-  student                Student                         @relation(fields: [studentId], references: [id])
-  studentId              Int
-  curriculum             Curriculum?                     @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
-  curriculumId           Int?
-  guideMode              PeriodPlanningGuideMode         @default(NONE)
-  curriculumSource       PeriodPlanningCurriculumSource?
-  curriculumSuggestion   CurriculumSuggestion?           @relation(fields: [curriculumSuggestionId], references: [id], onDelete: SetNull)
-  curriculumSuggestionId Int?
-  catalogProgram         CatalogProgram?                 @relation(fields: [catalogProgramId], references: [id], onDelete: SetNull)
-  catalogProgramId       Int?
-  specialization         Specialization?                 @relation(fields: [specializationId], references: [id], onDelete: SetNull)
-  specializationId       Int?
-  language               Language?                       @relation(fields: [languageId], references: [id], onDelete: SetNull)
-  languageId             Int?
-  visibility             PeriodPlanningVisibility @default(PRIVATE)
-  shareId                String                   @unique @default(dbgenerated("gen_random_uuid()"))
-  createdAt              DateTime                        @default(now())
-  updatedAt              DateTime                        @updatedAt
+  id                      Int                             @id @default(autoincrement())
+  name                    String                          @default("Novo planejamento de semestre")
+  studyPeriod             StudyPeriod                     @relation(fields: [studyPeriodId], references: [id])
+  studyPeriodId           Int
+  student                 Student                         @relation(fields: [studentId], references: [id])
+  studentId               Int
+  curriculum              Curriculum?                     @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
+  curriculumId            Int?
+  guideMode               PeriodPlanningGuideMode         @default(NONE)
+  curriculumSource        PeriodPlanningCurriculumSource?
+  curriculumSuggestion    CurriculumSuggestion?           @relation(fields: [curriculumSuggestionId], references: [id], onDelete: SetNull)
+  curriculumSuggestionId  Int?
+  catalogProgram          CatalogProgram?                 @relation(fields: [catalogProgramId], references: [id], onDelete: SetNull)
+  catalogProgramId        Int?
+  catalogProgramVariant   CatalogProgramVariant?          @relation(fields: [catalogProgramVariantId], references: [id], onDelete: SetNull)
+  catalogProgramVariantId Int?
+  language                Language?                       @relation(fields: [languageId], references: [id], onDelete: SetNull)
+  languageId              Int?
+  visibility              PeriodPlanningVisibility        @default(PRIVATE)
+  shareId                 String                          @unique @default(dbgenerated("gen_random_uuid()"))
+  createdAt               DateTime                        @default(now())
+  updatedAt               DateTime                        @updatedAt
 
   classes       Class[]
   manualCourses PeriodPlanningManualCourse[]
@@ -1406,7 +1425,7 @@ model PeriodPlanning {
   @@index([curriculumId])
   @@index([curriculumSuggestionId])
   @@index([catalogProgramId])
-  @@index([specializationId])
+  @@index([catalogProgramVariantId])
   @@index([languageId])
   @@index([visibility, studyPeriodId, updatedAt])
   @@schema("app")

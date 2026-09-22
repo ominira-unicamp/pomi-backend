@@ -62,6 +62,38 @@
             }
         },
         {
+            "name": "catalog-information",
+            "description": "Informações estruturadas dos programas dos catálogos",
+            "schedule": { "cron": "0 4 1 * *" },
+            "obtain": {
+                "command": "node",
+                "args": [
+                    "unicamp-scrapper-cli/dist/index.js",
+                    "catalogo-informacoes",
+                    "--first-year",
+                    "1998",
+                    "--last-year",
+                    "${POMI_CURRENT_YEAR}",
+                    "--output",
+                    "${POMI_INJECTION_OUTPUT}",
+                    "--concurrency",
+                    "1"
+                ],
+                "cwd": "../scrapper-aulas",
+                "env": {},
+                "timeoutMs": 7200000
+            },
+            "input": {
+                "directory": "data/injections/catalog-information",
+                "fileName": "catalog-information.json"
+            },
+            "allowIssues": true,
+            "options": {
+                "transactionTimeout": 600000,
+                "transactionMaxWait": 60000
+            }
+        },
+        {
             "name": "daily-menus",
             "description": "Cardápios dos restaurantes universitários",
             "schedule": { "cron": "0 */6 * * *" },
@@ -93,7 +125,8 @@
         },
         {
             "name": "historical-programs",
-            "description": "Programas históricos citados por reservas de turmas",
+            "description": "Programas e vínculos com catálogos históricos",
+            "schedule": { "cron": "0 3 1 * *" },
             "obtain": {
                 "command": "node",
                 "args": [

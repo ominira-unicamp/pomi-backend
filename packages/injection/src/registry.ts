@@ -16,6 +16,10 @@ import {
     type CatalogInjectionOptions
 } from "./services/CatalogInjection.js";
 import {
+    injectCatalogInformation,
+    type CatalogInformationInjectionOptions
+} from "./services/CatalogInformationInjection.js";
+import {
     injectDailyMenus,
     type DailyMenusInjectionOptions
 } from "./services/DailyMenusInjection.js";
@@ -68,6 +72,11 @@ const services: Record<
         createService(
             injectCatalogs,
             options as CatalogInjectionOptions & InjectionOptions
+        ),
+    "catalog-information": (options) =>
+        createService(
+            injectCatalogInformation,
+            options as CatalogInformationInjectionOptions & InjectionOptions
         ),
     "catalog-disciplines": (options) =>
         createService(

@@ -35,7 +35,7 @@ const schema = z
         programName: z.string().trim().min(1),
         code: z.string(),
         name: z.string(),
-        catalogSpecializationsCount: z.number().int(),
+        catalogProgramVariantsCount: z.number().int(),
         studentsCount: z.number().int(),
         _paths: z.object({
             self: z.string(),

@@ -9,7 +9,7 @@ test("accepts a curriculum with allocated and unallocated courses", () => {
             name: "Plano de conclusão",
             selection: {
                 catalogProgramId: 10,
-                specializationId: null,
+                catalogProgramVariantId: null,
                 languageId: 4
             },
             periods: {

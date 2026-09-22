@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+    createHistoricalCatalogProgramPlan,
     createHistoricalProgramImportPlan,
     HistoricalProgramsValidationError,
     normalizeHistoricalProgramCatalogs
@@ -68,6 +69,26 @@ test("não altera programas que já existem", () => {
     });
 
     assert.deepEqual(plan, []);
+});
+
+test("reconcilia CatalogProgram também para programas já existentes", () => {
+    assert.deepEqual(
+        createHistoricalCatalogProgramPlan(catalogs, [{ id: 370, code: 37 }]),
+        {
+            entries: [
+                { year: 1998, programCode: 37, programId: 370 },
+                { year: 2001, programCode: 37, programId: 370 }
+            ],
+            missingProgramCodes: []
+        }
+    );
+});
+
+test("registra programas históricos que ainda não podem ser relacionados", () => {
+    assert.deepEqual(createHistoricalCatalogProgramPlan(catalogs, []), {
+        entries: [],
+        missingProgramCodes: [37]
+    });
 });
 
 test("rejeita fontes, unidades e mapeamentos ausentes antes da persistência", () => {

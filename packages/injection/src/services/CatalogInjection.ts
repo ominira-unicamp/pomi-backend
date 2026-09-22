@@ -73,7 +73,7 @@ type TxType = Omit<
 >;
 type CourseBlockParent = {
     catalogProgramId?: number;
-    catalogSpecializationId?: number;
+    catalogProgramVariantId?: number;
     catalogLanguageId?: number;
 };
 type CourseRequirementData = Omit<
@@ -234,10 +234,6 @@ export function parseCurriculum(html: string) {
                 continue;
             }
             const [, code, name] = parsed;
-            if (code === "AX" && /matrícula antes da opção/i.test(name)) {
-                currentSpecialization = null;
-                continue;
-            }
             currentSpecialization = { code, name, blocks: [] };
             specializations.set(code, currentSpecialization);
             continue;
@@ -493,6 +489,20 @@ async function importCatalog(
                     create: { catalogId: catalog.id, programId: persisted.id },
                     update: {}
                 });
+                if (program.specializations.length === 0)
+                    await tx.catalogProgramVariant.upsert({
+                        where: {
+                            catalogProgramId_programId: {
+                                catalogProgramId: catalogProgram.id,
+                                programId: persisted.id
+                            }
+                        },
+                        create: {
+                            catalogProgramId: catalogProgram.id,
+                            programId: persisted.id
+                        },
+                        update: {}
+                    });
                 accountBlocks(
                     await replaceCourseBlocks(
                         tx,
@@ -517,8 +527,8 @@ async function importCatalog(
                             },
                             update: { name: specialization.name }
                         });
-                    const catalogSpecialization =
-                        await tx.catalogSpecialization.upsert({
+                    const catalogProgramVariant =
+                        await tx.catalogProgramVariant.upsert({
                             where: {
                                 catalogProgramId_specializationId: {
                                     catalogProgramId: catalogProgram.id,
@@ -535,8 +545,8 @@ async function importCatalog(
                         await replaceCourseBlocks(
                             tx,
                             {
-                                catalogSpecializationId:
-                                    catalogSpecialization.id
+                                catalogProgramVariantId:
+                                    catalogProgramVariant.id
                             },
                             specialization.blocks,
                             courseIds

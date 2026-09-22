@@ -11,32 +11,6 @@ import {
     queryFilterOperatorMetadata
 } from "@pomi/api-core";
 
-function expressPath(path: string) {
-    return path.replace(/\/:([\w-]+)/g, "/{$1}");
-}
-
-function policyFor(
-    definition: (typeof appControllers.registry.definitions)[number]
-) {
-    if (definition.type !== "route") return "authenticated" as const;
-    return (
-        appControllers.authRegistry.rules.find(
-            (rule) =>
-                rule.method.toLowerCase() === definition.route.method &&
-                expressPath(rule.path) === definition.route.path
-        )?.policy.kind ?? "authenticated"
-    );
-}
-
-function studentVisible(policy: ReturnType<typeof policyFor>) {
-    return [
-        "public",
-        "authenticated",
-        "student-access",
-        "student-registration"
-    ].includes(policy);
-}
-
 const operationMethods = new Set([
     "get",
     "put",
@@ -48,14 +22,10 @@ const operationMethods = new Set([
     "trace"
 ]);
 
-export function generateAppOpenApiDocument(audience: "student" | "all") {
-    const definitions =
-        audience === "all"
-            ? appControllers.registry.definitions
-            : appControllers.registry.definitions.filter((definition) =>
-                  studentVisible(policyFor(definition))
-              );
-    const document = new OpenApiGeneratorV3(definitions).generateDocument({
+export function generateAppOpenApiDocument() {
+    const document = new OpenApiGeneratorV3(
+        appControllers.registry.definitions
+    ).generateDocument({
         openapi: "3.0.0",
         info: {
             version: "1.0.0",
@@ -121,13 +91,9 @@ export function generateAppOpenApiDocument(audience: "student" | "all") {
 
 const router = Router();
 router.get("/", (_req: Request, res: Response) => res.redirect("/docs"));
-router.get("/student-openapi.json", (_req: Request, res: Response) =>
-    res.json(generateAppOpenApiDocument("student"))
-);
 router.get("/openapi.json", (_req: Request, res: Response) =>
-    res.json(generateAppOpenApiDocument("all"))
+    res.json(generateAppOpenApiDocument())
 );
-router.use("/student-docs", apiReference({ url: "/student-openapi.json" }));
 router.use("/docs", apiReference({ url: "/openapi.json" }));
 
 export default router;

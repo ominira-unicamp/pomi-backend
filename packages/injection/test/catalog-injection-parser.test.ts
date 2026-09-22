@@ -59,3 +59,25 @@ test("parses base, elective, specialization and language blocks", () => {
         }
     ]);
 });
+
+test("treats AX as a regular specialization", () => {
+    const curriculum = parseCurriculum(`
+        <h2>AX - Para matrícula antes da opção</h2>
+        <h3>Disciplinas Obrigatórias</h3>
+        <table><tr><td><a>MC102</a></td></tr></table>
+    `);
+
+    assert.deepEqual(curriculum.specializations, [
+        {
+            code: "AX",
+            name: "Para matrícula antes da opção",
+            blocks: [
+                {
+                    type: "mandatory",
+                    credits: null,
+                    requirements: [{ type: "specific", code: "MC102" }]
+                }
+            ]
+        }
+    ]);
+});

@@ -25,7 +25,7 @@ test("lists specializations through its service", async () => {
                         programName: "Engenharia de Computação",
                         code: "AA",
                         name: "Sistemas",
-                        catalogSpecializationsCount: 0,
+                        catalogProgramVariantsCount: 0,
                         studentsCount: 0,
                         _paths: {
                             self: "/specializations/11",
@@ -56,7 +56,7 @@ test("lists specializations through its service", async () => {
         programName: "Engenharia de Computação",
         code: "AA",
         name: "Sistemas",
-        catalogSpecializationsCount: 0,
+        catalogProgramVariantsCount: 0,
         studentsCount: 0,
         _paths: { self: "/specializations/11", program: "/programs/7" }
     });

@@ -69,7 +69,7 @@ export const guideSchema = z
         suggestionId: z.number().int().nullable(),
         suggestionCatalogProgramId: z.number().int().nullable().optional(),
         catalogProgramId: z.number().int().nullable(),
-        specializationId: z.number().int().nullable(),
+        catalogProgramVariantId: z.number().int().nullable(),
         languageId: z.number().int().nullable(),
         manualCourseIds: z
             .array(z.number().int())

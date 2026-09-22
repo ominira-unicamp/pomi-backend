@@ -29,8 +29,6 @@ for (const path of [
     "/ready",
     "/version",
     "/openapi.json",
-    "/public-openapi.json",
-    "/public-docs",
     "/docs"
 ]) {
     dataControllers.authRegistry.addException("GET", path);

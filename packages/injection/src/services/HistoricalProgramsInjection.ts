@@ -34,6 +34,11 @@ export type HistoricalProgramImport = {
     catalogYears: number[];
 };
 
+export type HistoricalCatalogProgramPlan = {
+    entries: Array<{ year: number; programCode: number; programId: number }>;
+    missingProgramCodes: number[];
+};
+
 export class HistoricalProgramsValidationError extends Error {}
 
 export function normalizeHistoricalProgramCatalogs(
@@ -174,6 +179,42 @@ export function createHistoricalProgramImportPlan({
     });
 }
 
+export function createHistoricalCatalogProgramPlan(
+    catalogs: HistoricalCatalog[],
+    programs: Array<{ id: number; code: number }>
+): HistoricalCatalogProgramPlan {
+    const programsByCode = new Map(
+        programs.map((program) => [program.code, program.id])
+    );
+    const missingProgramCodes = new Set<number>();
+    const entries = new Map<
+        string,
+        { year: number; programCode: number; programId: number }
+    >();
+    for (const catalog of catalogs)
+        for (const program of catalog.programs) {
+            const programId = programsByCode.get(program.code);
+            if (!programId) {
+                missingProgramCodes.add(program.code);
+                continue;
+            }
+            entries.set(`${catalog.year}:${program.code}`, {
+                year: catalog.year,
+                programCode: program.code,
+                programId
+            });
+        }
+    return {
+        entries: [...entries.values()].sort(
+            (left, right) =>
+                left.year - right.year || left.programCode - right.programCode
+        ),
+        missingProgramCodes: [...missingProgramCodes].sort(
+            (left, right) => left - right
+        )
+    };
+}
+
 type TransactionClient = Omit<
     PrismaClient,
     "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends"
@@ -182,6 +223,7 @@ type TransactionClient = Omit<
 async function persistHistoricalPrograms(
     tx: TransactionClient,
     imports: HistoricalProgramImport[],
+    catalogs: HistoricalCatalog[],
     changes: Parameters<InjectionContext["logger"]["change"]>[0][]
 ) {
     for (const program of imports) {
@@ -205,28 +247,41 @@ async function persistHistoricalPrograms(
                 sourceUrl: program.sourceUrl
             }
         });
-        for (const year of program.catalogYears) {
-            const catalog = await tx.catalog.upsert({
-                where: { year },
-                create: { year },
-                update: {},
-                select: { id: true }
-            });
-            await tx.catalogProgram.upsert({
-                where: {
-                    catalogId_programId: {
-                        catalogId: catalog.id,
-                        programId: persisted.id
-                    }
-                },
-                create: {
-                    catalogId: catalog.id,
-                    programId: persisted.id
-                },
-                update: {}
-            });
-        }
     }
+    const programCodes = [
+        ...new Set(
+            catalogs.flatMap((catalog) =>
+                catalog.programs.map(({ code }) => code)
+            )
+        )
+    ];
+    const programs = await tx.program.findMany({
+        where: { code: { in: programCodes } },
+        select: { id: true, code: true }
+    });
+    const plan = createHistoricalCatalogProgramPlan(catalogs, programs);
+    for (const entry of plan.entries) {
+        const catalog = await tx.catalog.upsert({
+            where: { year: entry.year },
+            create: { year: entry.year },
+            update: {},
+            select: { id: true }
+        });
+        await tx.catalogProgram.upsert({
+            where: {
+                catalogId_programId: {
+                    catalogId: catalog.id,
+                    programId: entry.programId
+                }
+            },
+            create: {
+                catalogId: catalog.id,
+                programId: entry.programId
+            },
+            update: {}
+        });
+    }
+    return plan;
 }
 
 export async function injectHistoricalPrograms(
@@ -248,19 +303,27 @@ export async function injectHistoricalPrograms(
         existingProgramCodes: programs.map(({ code }) => code),
         units
     });
-    if (imports.length === 0) {
-        logger.info("Nenhum programa histórico ausente.");
-        return;
-    }
     const changes = [] as Parameters<InjectionContext["logger"]["change"]>[0][];
-    await withAuditTransaction(
+    const plan = await withAuditTransaction(
         prisma,
         auditContext,
-        (tx) => persistHistoricalPrograms(tx, imports, changes),
+        (tx) => persistHistoricalPrograms(tx, imports, catalogs, changes),
         { timeout: transactionTimeout, maxWait: transactionMaxWait }
     );
     for (const change of changes) logger.change(change);
+    if (plan.missingProgramCodes.length > 0)
+        logger.warn(
+            `Programas históricos sem cadastro ou mapeamento de unidade: ${plan.missingProgramCodes.join(", ")}.`
+        );
     logger.info(
-        `Programas históricos criados: ${imports.map(({ code }) => code).join(", ")}.`
+        JSON.stringify(
+            {
+                createdPrograms: imports.map(({ code }) => code),
+                reconciledCatalogPrograms: plan.entries.length,
+                missingProgramCodes: plan.missingProgramCodes
+            },
+            null,
+            2
+        )
     );
 }

@@ -85,18 +85,27 @@ const courseBlockSetSchema = z
         "x-pomi-schema": { kind: "value-object", publicName: "CourseBlockSet" }
     });
 
-const catalogProgramModalitySchema = z
+const catalogProgramVariantSchema = z
     .object({
-        specializationId: z.number().int(),
+        id: z.number().int(),
+        programId: z.number().int().nullable(),
+        specializationId: z.number().int().nullable(),
         curriculumSuggestionId: z.number().int().nullable(),
         code: z.string(),
         name: z.string(),
+        integralizationCredits: z.number().int().nullable(),
+        integralizationSupervisedHours: z.number().int().nullable(),
+        integralizationExtensionHours: z.number().int().nullable(),
+        integralizationSemesters: z.number().int().nullable(),
+        integralizationMaximumSemesters: z.number().int().nullable(),
+        professionalDescription: z.string().nullable(),
+        recognitionDescription: z.string().nullable(),
         blocks: courseBlockSetSchema
     })
-    .openapi("CatalogProgramModality", {
+    .openapi("CatalogProgramVariant", {
         "x-pomi-schema": {
             kind: "projection",
-            publicName: "CatalogProgramModality"
+            publicName: "CatalogProgramVariant"
         }
     });
 
@@ -122,8 +131,18 @@ const catalogProgramEntity = z
         catalogYear: z.number().int(),
         programCode: z.number().int(),
         programName: z.string(),
+        shift: z.enum(["DAYTIME", "NIGHT"]).nullable(),
+        creditLimitType: z
+            .enum(["NONE", "FIXED", "CR_FORMULA"])
+            .nullable(),
+        creditLimitFixedCredits: z.number().int().nullable(),
+        creditLimitBeforeThresholdCredits: z.number().int().nullable(),
+        creditLimitThresholdCredits: z.number().int().nullable(),
+        creditLimitCrBase: z.number().int().nullable(),
+        creditLimitCrMultiplier: z.number().nullable(),
+        professionalPracticeDescription: z.string().nullable(),
         base: courseBlockSetSchema,
-        modalities: z.array(catalogProgramModalitySchema),
+        variants: z.array(catalogProgramVariantSchema),
         languages: z.array(catalogProgramLanguageSchema),
         _paths: z.object({
             self: z.string(),
@@ -142,8 +161,8 @@ const catalogProgramEntity = z
             relations: {
                 catalogId: { resource: "catalogs", cardinality: "one" },
                 programId: { resource: "programs", cardinality: "one" },
-                modalities: {
-                    resource: "specializations",
+                variants: {
+                    resource: "catalogProgramVariants",
                     cardinality: "many"
                 },
                 languages: { resource: "languages", cardinality: "many" }

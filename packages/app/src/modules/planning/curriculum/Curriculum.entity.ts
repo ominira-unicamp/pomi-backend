@@ -21,7 +21,7 @@ export const prismaCurriculumFieldSelection = {
             orderBy: { position: "asc" }
         },
         favoriteForStudent: { select: { id: true } },
-        catalogSpecialization: { select: { specializationId: true } },
+        catalogProgramVariant: { select: { id: true } },
         catalogLanguage: { select: { languageId: true } }
     }
 } as const satisfies MyPrisma.CurriculumDefaultArgs;
@@ -32,7 +32,7 @@ export const prismaCurriculumSummaryFieldSelection = {
         studentId: true,
         name: true,
         catalogProgramId: true,
-        catalogSpecialization: { select: { specializationId: true } },
+        catalogProgramVariant: { select: { id: true } },
         catalogLanguage: { select: { languageId: true } },
         favoriteForStudent: { select: { id: true } },
         createdAt: true,
@@ -56,13 +56,12 @@ function relatedPathsForCurriculum(curriculumId: number, studentId: number) {
 
 function selectionFromCurriculum(curriculum: {
     catalogProgramId: number | null;
-    catalogSpecialization: { specializationId: number } | null;
+    catalogProgramVariant: { id: number } | null;
     catalogLanguage: { languageId: number } | null;
 }) {
     return {
         catalogProgramId: curriculum.catalogProgramId,
-        specializationId:
-            curriculum.catalogSpecialization?.specializationId ?? null,
+        catalogProgramVariantId: curriculum.catalogProgramVariant?.id ?? null,
         languageId: curriculum.catalogLanguage?.languageId ?? null
     };
 }

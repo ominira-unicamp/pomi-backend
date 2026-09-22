@@ -30,7 +30,7 @@ test("redirects the root path to the documentation", async () => {
 });
 
 test("class contract exposes reservation programs instead of legacy codes", () => {
-    const document = generateDataOpenApiDocument("public");
+    const document = generateDataOpenApiDocument();
     const schema = document.components?.schemas?.ClassEntity as {
         properties?: Record<string, unknown>;
         required?: string[];

@@ -114,7 +114,7 @@ test("period planning visibility updates do not require class changes", () => {
 
 function curriculumEntityFixture(selection: {
     catalogProgramId: number | null;
-    specializationId: number | null;
+    catalogProgramVariantId: number | null;
     languageId: number | null;
 }) {
     return {
@@ -123,10 +123,10 @@ function curriculumEntityFixture(selection: {
         name: "Planejamento",
         favoriteForStudent: null,
         catalogProgramId: selection.catalogProgramId,
-        catalogSpecialization:
-            selection.specializationId === null
+        catalogProgramVariant:
+            selection.catalogProgramVariantId === null
                 ? null
-                : { specializationId: selection.specializationId },
+                : { id: selection.catalogProgramVariantId },
         catalogLanguage:
             selection.languageId === null
                 ? null
@@ -147,14 +147,14 @@ test("curriculum patch treats null selection values as explicit clears", async (
     let updateData: unknown;
     const existing = {
         catalogProgramId: 1,
-        catalogSpecializationId: 10,
+        catalogProgramVariantId: 10,
         catalogLanguageId: 20,
-        catalogSpecialization: { specializationId: 100 },
+        catalogProgramVariant: { id: 10 },
         catalogLanguage: { languageId: 200 }
     };
     const resultEntity = curriculumEntityFixture({
         catalogProgramId: null,
-        specializationId: null,
+        catalogProgramVariantId: null,
         languageId: null
     });
     const prisma = {
@@ -165,7 +165,7 @@ test("curriculum patch treats null selection values as explicit clears", async (
             }
         },
         catalogProgram: { findUnique: async () => null },
-        catalogSpecialization: { findFirst: async () => null },
+        catalogProgramVariant: { findFirst: async () => null },
         catalogLanguage: { findFirst: async () => null },
         $transaction: async (callback: (tx: never) => Promise<unknown>) =>
             callback({
@@ -184,7 +184,7 @@ test("curriculum patch treats null selection values as explicit clears", async (
 
     assert.deepEqual(updateData, {
         catalogProgramId: null,
-        catalogSpecializationId: null,
+        catalogProgramVariantId: null,
         catalogLanguageId: null
     });
 });
@@ -194,14 +194,14 @@ test("curriculum patch clears dependent selections when changing program", async
     let updateData: unknown;
     const existing = {
         catalogProgramId: 1,
-        catalogSpecializationId: 10,
+        catalogProgramVariantId: 10,
         catalogLanguageId: 20,
-        catalogSpecialization: { specializationId: 100 },
+        catalogProgramVariant: { id: 10 },
         catalogLanguage: { languageId: 200 }
     };
     const resultEntity = curriculumEntityFixture({
         catalogProgramId: 2,
-        specializationId: null,
+        catalogProgramVariantId: null,
         languageId: null
     });
     const prisma = {
@@ -214,7 +214,7 @@ test("curriculum patch clears dependent selections when changing program", async
         catalogProgram: {
             findUnique: async () => ({ id: 2 })
         },
-        catalogSpecialization: { findFirst: async () => null },
+        catalogProgramVariant: { findFirst: async () => null },
         catalogLanguage: { findFirst: async () => null },
         $transaction: async (callback: (tx: never) => Promise<unknown>) =>
             callback({
@@ -233,7 +233,7 @@ test("curriculum patch clears dependent selections when changing program", async
 
     assert.deepEqual(updateData, {
         catalogProgramId: 2,
-        catalogSpecializationId: null,
+        catalogProgramVariantId: null,
         catalogLanguageId: null
     });
 });

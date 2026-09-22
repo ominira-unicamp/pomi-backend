@@ -8,9 +8,16 @@ export const prismaPeriodPlanningFieldSelection = {
             select: { id: true, year: true, yearPeriod: true }
         },
         curriculum: { select: { id: true } },
-        curriculumSuggestion: { select: { id: true, catalogProgramId: true } },
+        curriculumSuggestion: {
+            select: {
+                id: true,
+                catalogProgramVariant: {
+                    select: { catalogProgramId: true }
+                }
+            }
+        },
         catalogProgram: { select: { id: true } },
-        specialization: { select: { id: true } },
+        catalogProgramVariant: { select: { id: true } },
         language: { select: { id: true } },
         manualCourses: { select: { courseId: true } },
         classes: {
@@ -74,7 +81,7 @@ function buildPeriodPlanningEntity(
         curriculum,
         curriculumSuggestion,
         catalogProgram,
-        specialization,
+        catalogProgramVariant,
         language,
         manualCourses,
         classes,
@@ -94,9 +101,10 @@ function buildPeriodPlanningEntity(
             curriculumId: curriculum?.id ?? null,
             suggestionId: curriculumSuggestion?.id ?? null,
             suggestionCatalogProgramId:
-                curriculumSuggestion?.catalogProgramId ?? null,
+                curriculumSuggestion?.catalogProgramVariant.catalogProgramId ??
+                null,
             catalogProgramId: catalogProgram?.id ?? null,
-            specializationId: specialization?.id ?? null,
+            catalogProgramVariantId: catalogProgramVariant?.id ?? null,
             languageId: language?.id ?? null,
             manualCourseIds: manualCourses.map(({ courseId }) => courseId)
         },

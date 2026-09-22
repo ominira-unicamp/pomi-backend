@@ -4,24 +4,16 @@ import z from "zod";
 
 export const prismaCurriculumSuggestionFieldSelection = {
     include: {
-        catalogProgram: {
+        catalogProgramVariant: {
             include: {
-                catalog: {
-                    select: {
-                        year: true
+                catalogProgram: {
+                    include: {
+                        catalog: { select: { year: true } },
+                        program: {
+                            select: { id: true, code: true, name: true }
+                        }
                     }
                 },
-                program: {
-                    select: {
-                        id: true,
-                        code: true,
-                        name: true
-                    }
-                }
-            }
-        },
-        catalogSpecialization: {
-            include: {
                 specialization: {
                     select: { id: true, code: true, name: true }
                 }
@@ -56,16 +48,16 @@ export function buildCurriculumSuggestionEntity(
 ): z.infer<typeof curriculumSuggestionDataSchema> {
     return {
         id: suggestion.id,
-        catalogProgramId: suggestion.catalogProgramId,
-        catalogYear: suggestion.catalogProgram.catalog.year,
-        programId: suggestion.catalogProgram.program.id,
-        programCode: suggestion.catalogProgram.program.code,
-        programName: suggestion.catalogProgram.program.name,
-        code: suggestion.code,
-        name: suggestion.name,
-        type: suggestion.type,
-        specialization:
-            suggestion.catalogSpecialization?.specialization ?? null,
+        catalogProgramVariantId: suggestion.catalogProgramVariantId,
+        catalogProgramId: suggestion.catalogProgramVariant.catalogProgramId,
+        catalogYear:
+            suggestion.catalogProgramVariant.catalogProgram.catalog.year,
+        programId: suggestion.catalogProgramVariant.catalogProgram.program.id,
+        programCode:
+            suggestion.catalogProgramVariant.catalogProgram.program.code,
+        programName:
+            suggestion.catalogProgramVariant.catalogProgram.program.name,
+        specialization: suggestion.catalogProgramVariant.specialization,
         semesters: suggestion.semesters
             .map((semester) => ({
                 semester: semester.semester,

@@ -120,8 +120,8 @@ ocorrência cron definida em cada entrada. As expressões usam cinco campos e o
 fuso horário local do processo (configurável por `TZ`). O diretório de dados e
 o lock do scheduler ficam sob a raiz configurada, sem remover arquivos
 existentes. Os tipos predefinidos são
-`academic-data`, `calendar`, `catalogs`, `catalog-disciplines`, `daily-menus`,
-`exchange-notices` e `suggestions`.
+`academic-data`, `calendar`, `catalogs`, `catalog-information`,
+`catalog-disciplines`, `daily-menus`, `exchange-notices` e `suggestions`.
 As alterações persistidas são emitidas como eventos JSON pelo Pino no stdout;
 o nível pode ser ajustado com `LOG_LEVEL` (ou, por compatibilidade,
 `POMI_INJECTION_LOG_LEVEL`). O envio opcional para OpenObserve usa
@@ -148,9 +148,10 @@ envio remoto.
 Após iniciar os servidores, acesse:
 
 - **POMI Data:** http://localhost:3000/docs
-- **POMI Data pública:** http://localhost:3000/public-docs
 - **POMI App:** http://localhost:3001/docs
-- **POMI App para estudantes:** http://localhost:3001/student-docs
+
+Cada página exibe o documento OpenAPI completo da respectiva API; os arquivos
+JSON também ficam disponíveis em `/openapi.json`.
 
 ## Estrutura do Projeto
 

@@ -15,7 +15,6 @@ import {
     unpaginatedByDefault,
     type Filter
 } from "@pomi/api-core";
-import { CurriculumSuggestionType } from "@pomi/db";
 import z from "zod";
 
 extendZodWithOpenApi(z);
@@ -30,14 +29,6 @@ const specsBuilder = new SpecBuilder(basePath, tags, "id", {
 
 const positiveId = z.number().int().positive();
 const catalogYear = z.number().int().min(1900).max(2100);
-const suggestionType = z
-    .enum(CurriculumSuggestionType)
-    .openapi("CurriculumSuggestionType", {
-        "x-pomi-schema": {
-            kind: "value-object",
-            publicName: "CurriculumSuggestionType"
-        }
-    });
 const specializationSummary = z
     .object({
         id: positiveId,
@@ -76,14 +67,12 @@ const semesterSuggestionEntitySchema = z
 export const curriculumSuggestionDataSchema = z
     .object({
         id: positiveId,
+        catalogProgramVariantId: positiveId,
         catalogProgramId: positiveId,
         catalogYear,
         programId: positiveId,
         programCode: z.number().int().positive(),
         programName: z.string().trim().min(1),
-        code: z.string().trim().min(1),
-        name: z.string().trim().min(1),
-        type: suggestionType,
         specialization: specializationSummary.nullable(),
         semesters: z.array(semesterSuggestionEntitySchema)
     })
@@ -98,12 +87,11 @@ export const curriculumSuggestionDataSchema = z
 export type CurriculumSuggestionFilter = Filter;
 const curriculumSuggestionFilterDefinitions = {
     catalogProgramId: filterDefinition.id({ positive: true }),
+    catalogProgramVariantId: filterDefinition.id({ positive: true }),
     catalogId: filterDefinition.id({ positive: true }),
     catalogYear: filterDefinition.integer({ minimum: 1900 }),
     programId: filterDefinition.id({ positive: true }),
     programCode: filterDefinition.integer({ minimum: 1 }),
-    code: filterDefinition.code(),
-    type: filterDefinition.enum(["GENERAL", "SPECIALIZATION", "PRE_OPTION"]),
     specializationId: filterDefinition.id({ positive: true })
 };
 export type CurriculumSuggestionFilterName =
@@ -119,14 +107,12 @@ export const curriculumSuggestionSort = defineSort({
         "catalogYear",
         "programCode",
         "programName",
-        "code",
-        "name",
-        "type"
+        "specializationCode"
     ] as const,
     defaultSort: [
         { field: "catalogYear", direction: "desc" },
         { field: "programCode", direction: "desc" },
-        { field: "code", direction: "asc" }
+        { field: "specializationCode", direction: "asc" }
     ] as const,
     tieBreakers: [{ field: "id", direction: "asc" }] as const
 });

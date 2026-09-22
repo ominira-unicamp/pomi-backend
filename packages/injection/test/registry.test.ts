@@ -15,6 +15,7 @@ test("resolve todas as injections predefinidas", () => {
         "academic-data",
         "calendar",
         "catalogs",
+        "catalog-information",
         "catalog-disciplines",
         "daily-menus",
         "exchange-notices",

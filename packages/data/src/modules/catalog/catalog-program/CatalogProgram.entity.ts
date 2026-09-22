@@ -40,7 +40,7 @@ export const prismaCatalogProgramFieldSelection = {
                 name: true
             }
         },
-        catalogSpecializations: {
+        variants: {
             include: {
                 curriculumSuggestion: { select: { id: true } },
                 specialization: {
@@ -154,18 +154,28 @@ function transformCourseBlocks(
 function buildCatalogProgramEntity(
     catalogProgram: PrismaCatalogProgramPayload
 ): z.infer<typeof IO.schemas.catalogProgramEntity> {
-    const { catalogSpecializations, catalogLanguages, courseBlocks, ...rest } =
+    const { variants: persistedVariants, catalogLanguages, courseBlocks, ...rest } =
         catalogProgram;
 
     const base = transformCourseBlocks(courseBlocks, catalogProgram.catalog.id);
 
-    const modalities = catalogSpecializations.map((spec) => ({
-        specializationId: spec.specializationId,
-        curriculumSuggestionId: spec.curriculumSuggestion?.id ?? null,
-        code: spec.specialization.code,
-        name: spec.specialization.name,
+    const variants = persistedVariants.map((variant) => ({
+        id: variant.id,
+        programId: variant.programId,
+        specializationId: variant.specializationId,
+        curriculumSuggestionId: variant.curriculumSuggestion?.id ?? null,
+        code: variant.specialization?.code ?? String(catalogProgram.program.code),
+        name: variant.specialization?.name ?? catalogProgram.program.name,
+        integralizationCredits: variant.integralizationCredits,
+        integralizationSupervisedHours: variant.integralizationSupervisedHours,
+        integralizationExtensionHours: variant.integralizationExtensionHours,
+        integralizationSemesters: variant.integralizationSemesters,
+        integralizationMaximumSemesters:
+            variant.integralizationMaximumSemesters,
+        professionalDescription: variant.professionalDescription,
+        recognitionDescription: variant.recognitionDescription,
         blocks: transformCourseBlocks(
-            spec.courseBlocks,
+            variant.courseBlocks,
             catalogProgram.catalog.id
         )
     }));
@@ -186,7 +196,7 @@ function buildCatalogProgramEntity(
         programCode: catalogProgram.program.code,
         programName: catalogProgram.program.name,
         base,
-        modalities,
+        variants,
         languages,
         _paths: relatedPathsForCatalogProgram(
             rest.id,

@@ -70,7 +70,8 @@ export type CurriculumService = {
 function selectionData(selection: CreateCurriculumInput["selection"]) {
     return {
         catalogProgramId: selection?.catalogProgramId ?? null,
-        specializationId: selection?.specializationId ?? null,
+        catalogProgramVariantId:
+            selection?.catalogProgramVariantId ?? null,
         languageId: selection?.languageId ?? null
     };
 }
@@ -79,7 +80,7 @@ function patchSelectionData(
     selection: PatchCurriculumInput["selection"],
     existing: {
         catalogProgramId: number | null;
-        catalogSpecialization: { specializationId: number } | null;
+        catalogProgramVariant: { id: number } | null;
         catalogLanguage: { languageId: number } | null;
     }
 ) {
@@ -92,11 +93,11 @@ function patchSelectionData(
         catalogProgramId !== existing.catalogProgramId;
     return selectionData({
         catalogProgramId,
-        specializationId: programChanged
+        catalogProgramVariantId: programChanged
             ? null
-            : selection?.specializationId !== undefined
-              ? selection.specializationId
-              : (existing.catalogSpecialization?.specializationId ?? null),
+            : selection?.catalogProgramVariantId !== undefined
+              ? selection.catalogProgramVariantId
+              : (existing.catalogProgramVariant?.id ?? null),
         languageId: programChanged
             ? null
             : selection?.languageId !== undefined
@@ -109,14 +110,15 @@ async function resolveSelection(
     prisma: TransactionClient | PrismaClient,
     selection: ReturnType<typeof selectionData>
 ) {
-    const [specialization, language] = await Promise.all([
-        selection.specializationId === null ||
+    const [variant, language] = await Promise.all([
         selection.catalogProgramId === null
             ? null
-            : prisma.catalogSpecialization.findFirst({
+            : prisma.catalogProgramVariant.findFirst({
                   where: {
                       catalogProgramId: selection.catalogProgramId,
-                      specializationId: selection.specializationId
+                      ...(selection.catalogProgramVariantId === null
+                          ? { programId: { not: null } }
+                          : { id: selection.catalogProgramVariantId })
                   },
                   select: { id: true }
               }),
@@ -132,7 +134,7 @@ async function resolveSelection(
     ]);
     return {
         catalogProgramId: selection.catalogProgramId,
-        catalogSpecializationId: specialization?.id ?? null,
+        catalogProgramVariantId: variant?.id ?? null,
         catalogLanguageId: language?.id ?? null
     };
 }
@@ -157,24 +159,24 @@ async function selectionFields(
     prisma: TransactionClient,
     selection: ReturnType<typeof selectionData>,
     resolved: {
-        catalogSpecializationId: number | null;
+        catalogProgramVariantId: number | null;
         catalogLanguageId: number | null;
     }
 ): Promise<ProblemField[]> {
     const fields: ProblemField[] = [];
-    const [program, specialization, language] = await Promise.all([
+    const [program, variant, language] = await Promise.all([
         selection.catalogProgramId === null
             ? null
             : prisma.catalogProgram.findUnique({
                   where: { id: selection.catalogProgramId },
                   select: { id: true }
               }),
-        selection.specializationId === null ||
+        selection.catalogProgramVariantId === null ||
         selection.catalogProgramId === null
             ? null
-            : prisma.catalogSpecialization.findFirst({
+            : prisma.catalogProgramVariant.findFirst({
                   where: {
-                      id: resolved.catalogSpecializationId ?? -1,
+                      id: resolved.catalogProgramVariantId ?? -1,
                       catalogProgramId: selection.catalogProgramId
                   },
                   select: { catalogProgramId: true }
@@ -196,15 +198,14 @@ async function selectionFields(
             message: "O programa de catálogo informado não foi encontrado."
         });
     if (
-        selection.specializationId !== null &&
-        (!specialization ||
-            specialization.catalogProgramId !== selection.catalogProgramId)
+        selection.catalogProgramVariantId !== null &&
+        (!variant || variant.catalogProgramId !== selection.catalogProgramId)
     )
         fields.push({
-            code: specialization ? "INVALID_VALUE" : "REFERENCE_NOT_FOUND",
-            path: ["selection", "specializationId"],
+            code: variant ? "INVALID_VALUE" : "REFERENCE_NOT_FOUND",
+            path: ["selection", "catalogProgramVariantId"],
             message:
-                "A habilitação não pertence ao programa de catálogo informado."
+                "A variante não pertence ao programa de catálogo informado."
         });
     if (
         selection.languageId !== null &&
@@ -446,10 +447,10 @@ export function createCurriculumService({
                 where: { studentId, id },
                 select: {
                     catalogProgramId: true,
-                    catalogSpecializationId: true,
+                    catalogProgramVariantId: true,
                     catalogLanguageId: true,
-                    catalogSpecialization: {
-                        select: { specializationId: true }
+                    catalogProgramVariant: {
+                        select: { id: true }
                     },
                     catalogLanguage: { select: { languageId: true } }
                 }

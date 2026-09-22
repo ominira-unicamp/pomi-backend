@@ -67,10 +67,31 @@ function legacyGuide(curriculumId: number | null | undefined): GuideInput {
         suggestionId: null,
         suggestionCatalogProgramId: null,
         catalogProgramId: null,
-        specializationId: null,
+        catalogProgramVariantId: null,
         languageId: null,
         manualCourseIds: []
     };
+}
+
+async function resolveGuideVariant(
+    prisma: PrismaClient,
+    guide: GuideInput
+): Promise<GuideInput> {
+    if (
+        guide.catalogProgramId === null ||
+        guide.catalogProgramVariantId !== null
+    )
+        return guide;
+    const variant = await prisma.catalogProgramVariant.findFirst({
+        where: {
+            catalogProgramId: guide.catalogProgramId,
+            programId: { not: null }
+        },
+        select: { id: true }
+    });
+    return variant
+        ? { ...guide, catalogProgramVariantId: variant.id }
+        : guide;
 }
 
 async function guideFields(
@@ -132,23 +153,23 @@ async function guideFields(
                 "A origem é obrigatória quando há uma referência curricular."
         });
 
-    const [program, specialization, language] = await Promise.all([
+    const [program, variant, language] = await Promise.all([
         guide.catalogProgramId === null
             ? null
             : prisma.catalogProgram.findUnique({
                   where: { id: guide.catalogProgramId },
                   select: { id: true }
               }),
-        guide.specializationId === null
+        guide.catalogProgramVariantId === null
             ? null
-            : prisma.catalogSpecialization.findFirst({
+            : prisma.catalogProgramVariant.findFirst({
                   where: {
-                      specializationId: guide.specializationId,
+                      id: guide.catalogProgramVariantId,
                       ...(guide.catalogProgramId === null
                           ? {}
                           : { catalogProgramId: guide.catalogProgramId })
                   },
-                  select: { specializationId: true }
+                  select: { id: true }
               }),
         guide.languageId === null
             ? null
@@ -168,11 +189,11 @@ async function guideFields(
             code: "REFERENCE_NOT_FOUND",
             message: "O programa de catálogo não foi encontrado."
         });
-    if (guide.specializationId !== null && !specialization)
+    if (guide.catalogProgramVariantId !== null && !variant)
         fields.push({
-            path: ["guide", "specializationId"],
+            path: ["guide", "catalogProgramVariantId"],
             code: "REFERENCE_NOT_FOUND",
-            message: "A habilitação não está disponível para o programa."
+            message: "A variante não está disponível para o programa."
         });
     if (guide.languageId !== null && !language)
         fields.push({
@@ -273,10 +294,10 @@ function guideUpdateData(guide: GuideInput) {
             guide.catalogProgramId === null
                 ? { disconnect: true }
                 : { connect: { id: guide.catalogProgramId } },
-        specialization:
-            guide.specializationId === null
+        catalogProgramVariant:
+            guide.catalogProgramVariantId === null
                 ? { disconnect: true }
-                : { connect: { id: guide.specializationId } },
+                : { connect: { id: guide.catalogProgramVariantId } },
         language:
             guide.languageId === null
                 ? { disconnect: true }
@@ -337,7 +358,10 @@ export function createPeriodPlanService({
                 : err(periodPlanNotFoundProblem());
         },
         async create(studentId, input) {
-            const guide = input.guide ?? legacyGuide(input.curriculumId);
+            const guide = await resolveGuideVariant(
+                prisma,
+                input.guide ?? legacyGuide(input.curriculumId)
+            );
             const studyPeriod = await prisma.studyPeriod.findUnique({
                 where: { id: input.studyPeriodId },
                 select: { id: true, year: true, yearPeriod: true }
@@ -399,11 +423,13 @@ export function createPeriodPlanService({
                                   connect: { id: guide.catalogProgramId }
                               }
                           }),
-                    ...(guide.specializationId === null
+                    ...(guide.catalogProgramVariantId === null
                         ? {}
                         : {
-                              specialization: {
-                                  connect: { id: guide.specializationId }
+                              catalogProgramVariant: {
+                                  connect: {
+                                      id: guide.catalogProgramVariantId
+                                  }
                               }
                           }),
                     ...(guide.languageId === null
@@ -424,12 +450,15 @@ export function createPeriodPlanService({
         async patch(studentId, id, input) {
             const existing = await load(prisma, studentId, id);
             if (!existing) return err(periodPlanNotFoundProblem());
-            const guide =
+            const requestedGuide =
                 input.guide !== undefined
                     ? input.guide
                     : input.curriculumId !== undefined
                       ? legacyGuide(input.curriculumId)
                       : undefined;
+            const guide = requestedGuide
+                ? await resolveGuideVariant(prisma, requestedGuide)
+                : undefined;
             const fields = guide
                 ? await guideFields(prisma, guide, studentId)
                 : [];

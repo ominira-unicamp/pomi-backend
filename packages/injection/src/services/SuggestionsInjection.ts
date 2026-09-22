@@ -1,4 +1,3 @@
-import { CurriculumSuggestionType } from "@pomi/db";
 import { readFile } from "node:fs/promises";
 import {
     withAuditTransaction,
@@ -34,7 +33,8 @@ type CatalogInput = { year: number; programs: ProgramInput[] };
 type Input = { catalogs: CatalogInput[] };
 type CatalogProgramLookup = {
     id: number;
-    specializations: Map<string, number>;
+    generalVariantId: number | null;
+    specializedVariants: Map<string, number>;
 };
 
 function normalizeSuggestion(suggestion: SuggestionInput) {
@@ -46,17 +46,6 @@ function normalizeSuggestion(suggestion: SuggestionInput) {
             : nameParts.join(" - ");
     if (!name) throw new Error(`sugestão ${code} sem nome`);
     return { code, name };
-}
-
-function isPreOptionSuggestion(code: string, name: string) {
-    return (
-        `${code} - ${name}`
-            .normalize("NFD")
-            .replace(/\p{Diacritic}/gu, "")
-            .replace(/\s+/g, " ")
-            .trim()
-            .toUpperCase() === "AX - PARA MATRICULA ANTES DA OPCAO"
-    );
 }
 
 async function importSuggestion(
@@ -88,57 +77,23 @@ async function importSuggestion(
         prisma,
         auditContext,
         async (tx) => {
-            let type: CurriculumSuggestionType;
-            let catalogSpecializationId: number | null = null;
-            if (isPreOptionSuggestion(code, name)) {
-                type = CurriculumSuggestionType.PRE_OPTION;
-            } else {
-                const matchedSpecialization =
-                    catalogProgram.specializations.get(code);
-                if (matchedSpecialization !== undefined) {
-                    type = CurriculumSuggestionType.SPECIALIZATION;
-                    catalogSpecializationId = matchedSpecialization;
-                } else {
-                    if (catalogProgram.specializations.size > 0)
-                        throw new Error(
-                            `sugestão ${code} não corresponde a uma especialização do catálogo`
-                        );
-                    type = CurriculumSuggestionType.GENERAL;
-                }
-            }
+            const catalogProgramVariantId =
+                catalogProgram.specializedVariants.get(code) ??
+                (catalogProgram.specializedVariants.size === 0
+                    ? catalogProgram.generalVariantId
+                    : null);
+            if (catalogProgramVariantId === null)
+                throw new Error(
+                    `sugestão ${code} não corresponde a uma variante do catálogo`
+                );
             const existing = await tx.curriculumSuggestion.findUnique({
-                where: {
-                    catalogProgramId_code: {
-                        catalogProgramId: catalogProgram.id,
-                        code
-                    }
-                },
-                select: {
-                    id: true,
-                    name: true,
-                    type: true,
-                    catalogSpecializationId: true
-                }
+                where: { catalogProgramVariantId },
+                select: { id: true }
             });
             const persisted = await tx.curriculumSuggestion.upsert({
-                where: {
-                    catalogProgramId_code: {
-                        catalogProgramId: catalogProgram.id,
-                        code
-                    }
-                },
-                create: {
-                    catalogProgramId: catalogProgram.id,
-                    code,
-                    name,
-                    type,
-                    catalogSpecializationId
-                },
-                update: {
-                    name,
-                    type,
-                    catalogSpecializationId
-                },
+                where: { catalogProgramVariantId },
+                create: { catalogProgramVariantId },
+                update: {},
                 select: { id: true }
             });
             if (!existing)
@@ -147,50 +102,8 @@ async function importSuggestion(
                     operation: "create",
                     key: { id: persisted.id, code },
                     before: null,
-                    after: {
-                        code,
-                        name,
-                        type,
-                        catalogSpecializationId
-                    }
+                    after: { catalogProgramVariantId }
                 });
-            else {
-                const changedFields = [
-                    ...(existing.name !== name ? ["name"] : []),
-                    ...(existing.type !== type ? ["type"] : []),
-                    ...(existing.catalogSpecializationId !==
-                    catalogSpecializationId
-                        ? ["catalogSpecializationId"]
-                        : [])
-                ];
-                if (changedFields.length > 0)
-                    changes.push({
-                        entity: "CurriculumSuggestion",
-                        operation: "update",
-                        key: { id: existing.id, code },
-                        changedFields,
-                        before: Object.fromEntries(
-                            changedFields.map((field) => [
-                                field,
-                                field === "name"
-                                    ? existing.name
-                                    : field === "type"
-                                      ? existing.type
-                                      : existing.catalogSpecializationId
-                            ])
-                        ),
-                        after: Object.fromEntries(
-                            changedFields.map((field) => [
-                                field,
-                                field === "name"
-                                    ? name
-                                    : field === "type"
-                                      ? type
-                                      : catalogSpecializationId
-                            ])
-                        )
-                    });
-            }
             await tx.semesterSuggestion.deleteMany({
                 where: { suggestionId: persisted.id }
             });
@@ -296,9 +209,10 @@ export async function injectSuggestions(
             id: true,
             catalog: { select: { year: true } },
             program: { select: { code: true } },
-            catalogSpecializations: {
+            variants: {
                 select: {
                     id: true,
+                    programId: true,
                     specialization: { select: { code: true } }
                 }
             }
@@ -309,11 +223,21 @@ export async function injectSuggestions(
             `${catalogProgram.catalog.year}:${catalogProgram.program.code}`,
             {
                 id: catalogProgram.id,
-                specializations: new Map(
-                    catalogProgram.catalogSpecializations.map((item) => [
-                        normalizeCourseCode(item.specialization.code),
-                        item.id
-                    ])
+                generalVariantId:
+                    catalogProgram.variants.find(
+                        (variant) => variant.programId !== null
+                    )?.id ?? null,
+                specializedVariants: new Map(
+                    catalogProgram.variants.flatMap((variant) =>
+                        variant.specialization
+                            ? [[
+                                  normalizeCourseCode(
+                                      variant.specialization.code
+                                  ),
+                                  variant.id
+                              ] as const]
+                            : []
+                    )
                 )
             }
         ])
