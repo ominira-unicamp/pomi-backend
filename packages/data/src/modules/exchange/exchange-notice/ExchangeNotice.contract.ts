@@ -28,16 +28,14 @@ const specsBuilder = new SpecBuilder(basePath, ["exchange-notices"], "id", {
 const placeSchema = z
     .object({
         id: z.number().int().positive(),
-        name: z.string(),
-        _paths: z.object({ notices: z.string() }).strict()
+        name: z.string()
     })
     .strict()
     .openapi("ExchangePlace", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "ExchangePlace",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 
@@ -66,16 +64,14 @@ const schema = z
         registrationOriginalText: z.string().nullable(),
         registrationStart: z.iso.date().nullable(),
         registrationEnd: z.iso.date().nullable(),
-        files: z.array(fileSchema),
-        _paths: z.object({ self: z.string() }).strict()
+        files: z.array(fileSchema)
     })
     .strict()
     .openapi("ExchangeNotice", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "ExchangeNotice",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

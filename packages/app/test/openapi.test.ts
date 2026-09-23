@@ -106,3 +106,19 @@ test("collection operations expose the standard pagination contract", () => {
     assert.equal("itemsField" in operation!["x-pomi-pagination"], false);
     assert.equal("pageParameter" in operation!["x-pomi-pagination"], false);
 });
+
+test("exposes links only in pagination envelopes", () => {
+    const document = generateAppOpenApiDocument();
+    assert.equal(JSON.stringify(document).includes('"_paths"'), false);
+
+    for (const [name, value] of Object.entries(
+        document.components?.schemas ?? {}
+    )) {
+        if (!("properties" in value) || !value.properties?.links) continue;
+        assert.equal(
+            value["x-pomi-schema"]?.kind,
+            "page",
+            `${name} exposes links outside a page schema`
+        );
+    }
+});

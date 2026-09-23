@@ -151,15 +151,7 @@ const periodPlanningEntity = z
         guide: guideSchema,
         createdAt: z.string().datetime(),
         updatedAt: z.string().datetime(),
-        classes: z.array(periodPlanningClass),
-        _paths: z
-            .object({
-                self: z.string(),
-                student: z.string(),
-                studyPeriod: z.string(),
-                curriculum: z.string().nullable()
-            })
-            .strict()
+        classes: z.array(periodPlanningClass)
     })
     .strict()
     .openapi("PeriodPlanningEntity", {
@@ -167,7 +159,6 @@ const periodPlanningEntity = z
             kind: "entity",
             publicName: "PeriodPlanning",
             identityFields: ["id"],
-            transportFields: ["_paths"],
             relations: {
                 studentId: { resource: "students", cardinality: "one" },
                 studyPeriodId: {

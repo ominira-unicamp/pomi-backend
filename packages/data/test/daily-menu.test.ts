@@ -88,8 +88,7 @@ test("lista cardápios com refeições e coleções textuais", async () => {
                     observations: ["Contém glúten"],
                     serviceNotes: ["Servido no RU"]
                 }
-            ],
-            _paths: { self: "/daily-menus/1" }
+            ]
         }
     ]);
 });

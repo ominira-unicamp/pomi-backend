@@ -109,10 +109,7 @@ test("lista editais com os dados públicos completos", async () => {
             title: "Intercâmbio",
             place: {
                 id: 4,
-                name: "França",
-                _paths: {
-                    notices: "/exchange-notices?filter[placeId]=4"
-                }
+                name: "França"
             },
             registrationOriginalText: "01/09/2026 a 10/09/2026",
             registrationStart: "2026-09-01",
@@ -123,8 +120,7 @@ test("lista editais com os dados públicos completos", async () => {
                     name: "Edital",
                     url: "https://example.test/edital.pdf"
                 }
-            ],
-            _paths: { self: "/exchange-notices/12" }
+            ]
         }
     ]);
 });
@@ -190,7 +186,7 @@ test("compila ordenação de editais mantendo nulos por último", async () => {
     ]);
 });
 
-test("lista locais em ordem de nome com caminho para seus editais", async () => {
+test("lista locais em ordem de nome", async () => {
     const service = createExchangePlaceService({
         prisma: {
             exchangePlace: {
@@ -204,10 +200,7 @@ test("lista locais em ordem de nome com caminho para seus editais", async () => 
     assert.deepEqual(await service.list({}), [
         {
             id: 4,
-            name: "França",
-            _paths: {
-                notices: "/exchange-notices?filter[placeId]=4"
-            }
+            name: "França"
         }
     ]);
 });

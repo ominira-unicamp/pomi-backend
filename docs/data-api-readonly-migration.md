@@ -70,8 +70,8 @@ entidades ou `Result` com problems.
 Os métodos mínimos são:
 
 ```ts
-list(input)
-getById(id)
+list(input);
+getById(id);
 ```
 
 Services não importam Express nem conhecem Request, Response, body, query,
@@ -79,8 +79,8 @@ path ou status HTTP.
 
 ### Entity
 
-A entity define a seleção Prisma, remove campos internos, transforma o payload
-no schema público e deixa a adição de `_paths` para o controller.
+A entity define a seleção Prisma, remove campos internos e transforma o payload
+no schema público.
 
 ### Problems
 
@@ -90,8 +90,8 @@ criados quando carregarem informação adicional útil para o consumidor.
 ### Controller
 
 O controller extrai a entrada validada, chama o service, converte o Result com
-`createResultResponder`, adiciona `_paths`, responde com `ApiResponse` e
-compõe as rotas usando `createDataEndpointRegistries`.
+`createResultResponder`, responde com `ApiResponse` e compõe as rotas usando
+`createDataEndpointRegistries`.
 
 Controllers não acessam Prisma, não contêm regras de negócio ou transações e
 não registram OpenAPI manualmente.
@@ -111,8 +111,8 @@ não registram OpenAPI manualmente.
 ## Compatibilidade
 
 Manter URLs, parâmetros de query, formatos de sucesso, paginação, metadados,
-`_paths`, aliases de calendário e classes e contratos consumidos pelo frontend
-e pelo SDK.
+aliases de calendário e classes e contratos consumidos pelo frontend e pelo
+SDK.
 
 Adaptações entre formato legado e service ficam no controller ou entity, nunca
 no service por meio de conceitos HTTP. Autenticação global e políticas de
@@ -155,4 +155,3 @@ rg -n 'ctx\.prisma|req\.prisma' packages/data/src/modules --glob '*controller.ts
 
 Os dois primeiros comandos não devem retornar resultados; o terceiro não deve
 retornar resultados nos controllers migrados.
-

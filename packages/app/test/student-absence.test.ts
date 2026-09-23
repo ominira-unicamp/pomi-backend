@@ -111,7 +111,6 @@ test("creates an absence for the attempt schedule and matching date", async () =
                         date: new Date("2026-08-20T00:00:00.000Z"),
                         createdAt,
                         updatedAt: createdAt,
-                        studentCourseAttempt: { id: 4, studentId: 1 },
                         classSchedule: {
                             id: 3,
                             dayOfWeek: "THURSDAY",
@@ -158,14 +157,6 @@ test("creates an absence for the attempt schedule and matching date", async () =
             classCode: "A",
             dayOfWeek: "THURSDAY",
             start: "08:00",
-            end: "10:00",
-            _paths: {
-                self: "/student/1/absences/1",
-                courseAttempt: "/student/1/course-attempts/4",
-                classSchedule: "/class-schedules/3",
-                class: "/classes/10",
-                course: "/courses/20",
-                studyPeriod: "/study-periods/30"
-            }
+            end: "10:00"
         });
 });

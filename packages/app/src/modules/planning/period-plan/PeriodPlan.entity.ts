@@ -60,19 +60,6 @@ type PrismaPeriodPlanningPayload = MyPrisma.PeriodPlanningGetPayload<
     typeof prismaPeriodPlanningFieldSelection
 >;
 
-function relatedPathsForPeriodPlanning(
-    periodPlanning: PrismaPeriodPlanningPayload
-) {
-    return {
-        self: `/student/${periodPlanning.studentId}/period-plannings/${periodPlanning.id}`,
-        student: `/student/${periodPlanning.studentId}`,
-        studyPeriod: `/study-periods/${periodPlanning.studyPeriod.id}`,
-        curriculum: periodPlanning.curriculum
-            ? `/student/${periodPlanning.studentId}/curricula/${periodPlanning.curriculum.id}`
-            : null
-    };
-}
-
 function buildPeriodPlanningEntity(
     periodPlanning: PrismaPeriodPlanningPayload
 ): z.infer<typeof IO.schema> {
@@ -130,8 +117,7 @@ function buildPeriodPlanningEntity(
                     roomCode: cs.room.code
                 }))
             };
-        }),
-        _paths: relatedPathsForPeriodPlanning(periodPlanning)
+        })
     };
 }
 

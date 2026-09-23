@@ -33,18 +33,14 @@ const specsBuilder = new SpecBuilder(basePath, tags, "id", {
 const roomEntity = z
     .object({
         id: z.number().int(),
-        code: z.string(),
-        _paths: z.object({
-            entity: z.string()
-        })
+        code: z.string()
     })
     .strict()
     .openapi("RoomEntity", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "Room",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

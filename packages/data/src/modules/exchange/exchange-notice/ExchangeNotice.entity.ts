@@ -1,4 +1,3 @@
-import { resourcesPaths } from "#/Controllers.js";
 import IO from "#/modules/exchange/exchange-notice/ExchangeNotice.contract.js";
 import { MyPrisma } from "@pomi/db";
 import z from "zod";
@@ -29,12 +28,7 @@ function buildExchangeNoticeEntity(
         place: notice.place
             ? {
                   id: notice.place.id,
-                  name: notice.place.name,
-                  _paths: {
-                      notices: resourcesPaths.exchangeNotice.list({
-                          placeId: notice.place.id
-                      })
-                  }
+                  name: notice.place.name
               }
             : null,
         registrationOriginalText: notice.registrationOriginalText,
@@ -44,8 +38,7 @@ function buildExchangeNoticeEntity(
             id: file.id,
             name: file.name,
             url: file.url
-        })),
-        _paths: { self: resourcesPaths.exchangeNotice.entity(notice.id) }
+        }))
     };
 }
 

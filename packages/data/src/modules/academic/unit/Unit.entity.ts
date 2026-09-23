@@ -1,4 +1,3 @@
-import { resourcesPaths } from "#/Controllers.js";
 import IO from "#/modules/academic/unit/Unit.contract.js";
 import { MyPrisma } from "@pomi/db";
 import z from "zod";
@@ -6,22 +5,8 @@ import z from "zod";
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 type PrismaUnitPayload = MyPrisma.UnitGetPayload<{}>;
 
-function relatedPathsForUnit(unitId: number) {
-    return {
-        classes: resourcesPaths.class.list({
-            unitId: unitId
-        }),
-        courses: resourcesPaths.course.list({
-            filter: [{ path: ["unit", "id"], operator: "eq", values: [unitId] }]
-        })
-    };
-}
-
 function buildUnitEntity(unit: PrismaUnitPayload): z.infer<typeof IO.schema> {
-    return {
-        ...unit,
-        _paths: relatedPathsForUnit(unit.id)
-    };
+    return unit;
 }
 
 export default {

@@ -47,13 +47,6 @@ type PrismaCurriculumSummaryPayload = MyPrisma.CurriculumGetPayload<
     typeof prismaCurriculumSummaryFieldSelection
 >;
 
-function relatedPathsForCurriculum(curriculumId: number, studentId: number) {
-    return {
-        self: `/student/${studentId}/curricula/${curriculumId}`,
-        student: `/student/${studentId}`
-    };
-}
-
 function selectionFromCurriculum(curriculum: {
     catalogProgramId: number | null;
     catalogProgramVariant: { id: number } | null;
@@ -104,8 +97,7 @@ function buildCurriculumEntity(
         })),
         periods: curriculum.periods,
         createdAt: curriculum.createdAt.toISOString(),
-        updatedAt: curriculum.updatedAt.toISOString(),
-        _paths: relatedPathsForCurriculum(curriculum.id, curriculum.studentId)
+        updatedAt: curriculum.updatedAt.toISOString()
     };
 }
 
@@ -119,8 +111,7 @@ function buildCurriculumSummary(
         isFavorite: curriculum.favoriteForStudent !== null,
         selection: selectionFromCurriculum(curriculum),
         createdAt: curriculum.createdAt.toISOString(),
-        updatedAt: curriculum.updatedAt.toISOString(),
-        _paths: relatedPathsForCurriculum(curriculum.id, curriculum.studentId)
+        updatedAt: curriculum.updatedAt.toISOString()
     };
 }
 

@@ -49,12 +49,6 @@ test("expõe pré-requisitos sem códigos textuais", () => {
                     ]
                 }
             ]
-        },
-        _paths: {
-            self: "/catalog-courses/1",
-            catalog: "/catalogs/1",
-            course: "/courses/10",
-            coordinator: null
         }
     });
 

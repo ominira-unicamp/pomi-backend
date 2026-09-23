@@ -36,19 +36,14 @@ const studyPeriodEntity = z
         id: z.number().int(),
         year: z.number().int(),
         yearPeriod: YearPeriodSchema,
-        startDate: z.union([z.string(), z.date()]).pipe(z.coerce.date()),
-        _paths: z.object({
-            classes: z.string(),
-            classSchedules: z.string()
-        })
+        startDate: z.union([z.string(), z.date()]).pipe(z.coerce.date())
     })
     .strict()
     .openapi("StudyPeriodEntity", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "StudyPeriod",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

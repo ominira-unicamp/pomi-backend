@@ -1,4 +1,3 @@
-import { resourcesPaths } from "#/Controllers.js";
 import type {
     ExchangePlaceFilter,
     ExchangePlaceFilterName
@@ -60,12 +59,7 @@ export function createExchangePlaceService({
             });
             return places.map((place) => ({
                 id: place.id,
-                name: place.name,
-                _paths: {
-                    notices: resourcesPaths.exchangeNotice.list({
-                        placeId: place.id
-                    })
-                }
+                name: place.name
             }));
         }
     };

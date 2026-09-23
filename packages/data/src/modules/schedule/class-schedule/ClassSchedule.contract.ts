@@ -57,24 +57,12 @@ export const classScheduleDataSchema = z
     });
 
 export const classScheduleEntity = classScheduleDataSchema
-    .extend({
-        _paths: z
-            .object({
-                entity: z.string(),
-                studyPeriod: z.string(),
-                unit: z.string().nullable(),
-                course: z.string(),
-                class: z.string()
-            })
-            .strict()
-    })
     .strict()
     .openapi("ClassScheduleEntity", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "ClassSchedule",
             identityFields: ["id"],
-            transportFields: ["_paths"],
             relations: {
                 roomId: { resource: "rooms", cardinality: "one" },
                 classId: { resource: "classes", cardinality: "one" },
@@ -169,8 +157,7 @@ const ClassSchedulePageSchema = getPaginatedSchema(classScheduleEntity).openapi(
     {
         "x-pomi-schema": {
             kind: "page",
-            publicName: "PageClassSchedules",
-            transportFields: ["_paths"]
+            publicName: "PageClassSchedules"
         }
     }
 );

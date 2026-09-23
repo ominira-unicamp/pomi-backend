@@ -4,9 +4,6 @@ import z from "zod";
 
 export const prismaStudentAbsenceSelection = {
     include: {
-        studentCourseAttempt: {
-            select: { id: true, studentId: true }
-        },
         classSchedule: {
             select: {
                 id: true,
@@ -35,7 +32,7 @@ type PrismaStudentAbsencePayload = MyPrisma.StudentAbsenceGetPayload<
 function buildStudentAbsenceEntity(
     absence: PrismaStudentAbsencePayload
 ): z.infer<typeof IO.schema> {
-    const { classSchedule, studentCourseAttempt, ...data } = absence;
+    const { classSchedule, ...data } = absence;
     const { class: classData, ...schedule } = classSchedule;
     return {
         ...data,
@@ -51,15 +48,7 @@ function buildStudentAbsenceEntity(
         classCode: classData.code,
         dayOfWeek: schedule.dayOfWeek,
         start: schedule.start,
-        end: schedule.end,
-        _paths: {
-            self: `/student/${studentCourseAttempt.studentId}/absences/${absence.id}`,
-            courseAttempt: `/student/${studentCourseAttempt.studentId}/course-attempts/${absence.studentCourseAttemptId}`,
-            classSchedule: `/class-schedules/${absence.classScheduleId}`,
-            class: `/classes/${classData.id}`,
-            course: `/courses/${classData.course.id}`,
-            studyPeriod: `/study-periods/${classData.studyPeriod.id}`
-        }
+        end: schedule.end
     };
 }
 

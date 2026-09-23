@@ -41,18 +41,14 @@ const schema = z
         startDate: dateOutput,
         endDate: dateOutput.nullable(),
         description: z.string(),
-        tags: z.array(calendarTagSchema),
-        _paths: z.object({
-            entity: z.string()
-        })
+        tags: z.array(calendarTagSchema)
     })
     .strict()
     .openapi("CalendarEvent", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "CalendarEvent",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

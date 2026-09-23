@@ -59,25 +59,14 @@ const classEntity = z
                     name: z.string()
                 })
                 .strict()
-        ),
-        _paths: z
-            .object({
-                studyPeriod: z.string(),
-                unit: z.string().nullable(),
-                course: z.string(),
-                class: z.string(),
-                classSchedules: z.string(),
-                professors: z.string()
-            })
-            .strict()
+        )
     })
     .strict()
     .openapi("ClassEntity", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "Class",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

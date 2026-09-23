@@ -36,19 +36,14 @@ const studentEntity = z
         specializationId: z.number().int().nullable(),
         catalogId: z.number().int().nullable(),
         entryYear: z.number().int().min(1900).max(9999).nullable(),
-        languageId: z.number().int().nullable(),
-        _paths: z.object({
-            classes: z.string(),
-            classSchedules: z.string()
-        })
+        languageId: z.number().int().nullable()
     })
     .strict()
     .openapi("StudentEntity", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "Student",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

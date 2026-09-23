@@ -97,8 +97,7 @@ const person = z
         currentCourses: z.array(currentCourse).readonly(),
         program: academicReference.nullable(),
         specialization: academicReference.nullable(),
-        entryYear: z.number().int().nullable(),
-        _paths: z.object({ self: z.string() }).strict()
+        entryYear: z.number().int().nullable()
     })
     .strict()
     .openapi("StudentPublicPerson", {
@@ -106,7 +105,6 @@ const person = z
             kind: "entity",
             publicName: "StudentPublicPerson",
             identityFields: ["publicId"],
-            transportFields: ["_paths"],
             relations: {
                 currentCourses: { resource: "courses", cardinality: "many" },
                 program: {
@@ -132,8 +130,7 @@ const ownProfile = person
         "x-pomi-schema": {
             kind: "entity",
             publicName: "StudentPublicProfile",
-            identityFields: ["publicId"],
-            transportFields: ["_paths"]
+            identityFields: ["publicId"]
         }
     });
 const friendship = z
@@ -143,8 +140,7 @@ const friendship = z
         direction: friendshipDirectionSchema,
         friend: person,
         createdAt: z.string().datetime(),
-        acceptedAt: z.string().datetime().nullable(),
-        _paths: z.object({ self: z.string(), friend: z.string() }).strict()
+        acceptedAt: z.string().datetime().nullable()
     })
     .strict()
     .openapi("StudentFriendship", {
@@ -152,7 +148,6 @@ const friendship = z
             kind: "entity",
             publicName: "StudentFriendship",
             identityFields: ["id"],
-            transportFields: ["_paths"],
             relations: {
                 friend: { resource: "studentSocial", cardinality: "one" }
             }

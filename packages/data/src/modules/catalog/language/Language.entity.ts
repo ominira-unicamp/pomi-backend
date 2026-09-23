@@ -1,4 +1,3 @@
-import { resourcesPaths } from "#/Controllers.js";
 import IO from "#/modules/catalog/language/Language.contract.js";
 import { MyPrisma } from "@pomi/db";
 import z from "zod";
@@ -17,20 +16,13 @@ type PrismaLanguagePayload = MyPrisma.LanguageGetPayload<
     typeof prismaLanguageFieldSelection
 >;
 
-function relatedPathsForLanguage(language: PrismaLanguagePayload) {
-    return {
-        self: resourcesPaths.language.entity(language.id)
-    };
-}
-
 function buildLanguageEntity(
     language: PrismaLanguagePayload
 ): z.infer<typeof IO.schema> {
     const { _count, ...rest } = language;
     return {
         ...rest,
-        catalogLanguagesCount: _count.catalogLanguages,
-        _paths: relatedPathsForLanguage(language)
+        catalogLanguagesCount: _count.catalogLanguages
     };
 }
 

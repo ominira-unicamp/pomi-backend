@@ -9,35 +9,11 @@ import {
 } from "@pomi/api-core";
 
 import { createDataEndpointRegistries, type Context } from "#/BuildHandler.js";
-import { coursePaths } from "#/modules/academic/course/Course.contract.js";
-import { unitPaths } from "#/modules/academic/unit/Unit.contract.js";
 import IO, {
-    classScheduleDataSchema,
     classScheduleEntity,
     classSchedulePaths
 } from "#/modules/schedule/class-schedule/ClassSchedule.contract.js";
 import { classScheduleProblemResponses } from "#/modules/schedule/class-schedule/ClassSchedule.problems.js";
-import { classPaths } from "#/modules/schedule/class/Class.contract.js";
-import { studyPeriodPaths } from "#/modules/schedule/study-period/StudyPeriod.contract.js";
-import type z from "zod";
-
-function withPaths(
-    schedule: z.infer<typeof classScheduleDataSchema>
-): z.infer<typeof classScheduleEntity> {
-    return {
-        ...schedule,
-        _paths: {
-            entity: classSchedulePaths.entity(schedule.id),
-            studyPeriod: studyPeriodPaths.entity(schedule.studyPeriodId),
-            unit:
-                schedule.unitId === null
-                    ? null
-                    : unitPaths.entity(schedule.unitId),
-            course: coursePaths.entity(schedule.courseId),
-            class: classPaths.entity(schedule.classId)
-        }
-    };
-}
 type Actions = EndpointActions<typeof IO, unknown, Context>;
 const respond = createResultResponder(classScheduleProblemResponses);
 
@@ -46,7 +22,7 @@ const list: Actions["list"] = async (ctx, input) => {
     const pagination = resolvePagination(input.query, paginatedByDefault);
     return ApiResponse.ok(
         buildPaginationResponse<typeof classScheduleEntity>(
-            result.items.map(withPaths),
+            result.items,
             result.total,
             pagination,
             (link) => buildPaginationPath("/class-schedules", input.query, link)
@@ -56,7 +32,7 @@ const list: Actions["list"] = async (ctx, input) => {
 const get: Actions["get"] = async (ctx, input) => {
     return respond(
         await ctx.classScheduleService.getById(input.path.id),
-        (value) => ApiResponse.ok(withPaths(value))
+        (value) => ApiResponse.ok(value)
     );
 };
 

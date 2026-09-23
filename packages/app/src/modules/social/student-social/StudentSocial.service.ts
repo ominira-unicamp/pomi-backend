@@ -165,10 +165,7 @@ function buildPerson(
             : [],
         program: disclose ? student.program : null,
         specialization: disclose ? student.specialization : null,
-        entryYear: disclose ? student.entryYear : null,
-        _paths: {
-            self: `/student/${viewerStudentId}/people/${student.publicId}`
-        }
+        entryYear: disclose ? student.entryYear : null
     };
 }
 
@@ -200,7 +197,6 @@ function buildProfile(student: SelectedPerson): Profile {
         program: student.program,
         specialization: student.specialization,
         entryYear: student.entryYear,
-        _paths: { self: `/student/${student.id}/public-profile` },
         enabled: student.publicProfileEnabled,
         currentCoursesVisibility: student.currentCoursesVisibility
     };
@@ -239,11 +235,7 @@ function buildFriendship(
             row.status === "ACCEPTED" ? new Set([friend.id]) : undefined
         ),
         createdAt: row.createdAt.toISOString(),
-        acceptedAt: row.acceptedAt?.toISOString() ?? null,
-        _paths: {
-            self: `/student/${studentId}/friendships/${row.id}`,
-            friend: `/student/${studentId}/people/${friend.publicId}`
-        }
+        acceptedAt: row.acceptedAt?.toISOString() ?? null
     };
 }
 

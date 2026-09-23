@@ -1,4 +1,3 @@
-import { resourcesPaths } from "#/Controllers.js";
 import IO from "#/modules/catalog/program/Program.contract.js";
 import { MyPrisma, selectIdCode } from "@pomi/db";
 import z from "zod";
@@ -19,13 +18,6 @@ type PrismaProgramPayload = MyPrisma.ProgramGetPayload<
     typeof prismaProgramFieldSelection
 >;
 
-function relatedPathsForProgram(program: PrismaProgramPayload) {
-    return {
-        self: resourcesPaths.program.entity(program.id),
-        unit: resourcesPaths.unit.entity(program.unit.id)
-    };
-}
-
 function buildProgramEntity(
     program: PrismaProgramPayload
 ): z.infer<typeof IO.schema> {
@@ -34,8 +26,7 @@ function buildProgramEntity(
         ...rest,
         unit,
         catalogProgramsCount: _count.catalogPrograms,
-        studentsCount: _count.students,
-        _paths: relatedPathsForProgram(program)
+        studentsCount: _count.students
     };
 }
 

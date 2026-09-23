@@ -121,16 +121,14 @@ const profile = z
         citationNames: z.array(citationName),
         trainings: z.array(training),
         keywords: z.array(keyword),
-        coauthors: z.array(coauthor),
-        _paths: z.object({ self: z.string(), professor: z.string() }).strict()
+        coauthors: z.array(coauthor)
     })
     .strict()
     .openapi("ProfessorDataPortalProfile", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "ProfessorDataPortalProfile",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 export const profileSummary = profile
@@ -143,14 +141,12 @@ export const profileSummary = profile
         lattesAbstract: true,
         unit: true,
         department: true,
-        position: true,
-        _paths: true
+        position: true
     })
     .openapi("ProfessorDataPortalProfileSummary", {
         "x-pomi-schema": {
             kind: "projection",
-            publicName: "ProfessorDataPortalProfileSummary",
-            transportFields: ["_paths"]
+            publicName: "ProfessorDataPortalProfileSummary"
         }
     });
 

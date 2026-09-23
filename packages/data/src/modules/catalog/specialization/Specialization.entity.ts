@@ -24,15 +24,6 @@ type PrismaSpecializationPayload = MyPrisma.SpecializationGetPayload<
     typeof prismaSpecializationFieldSelection
 >;
 
-function relatedPathsForSpecialization(
-    specialization: PrismaSpecializationPayload
-) {
-    return {
-        self: `/specializations/${specialization.id}`,
-        program: `/programs/${specialization.program.id}`
-    };
-}
-
 function buildSpecializationEntity(
     specialization: PrismaSpecializationPayload
 ): z.infer<typeof IO.schema> {
@@ -42,8 +33,7 @@ function buildSpecializationEntity(
         programCode: program.code,
         programName: program.name,
         catalogProgramVariantsCount: _count.catalogProgramVariants,
-        studentsCount: _count.students,
-        _paths: relatedPathsForSpecialization(specialization)
+        studentsCount: _count.students
     };
 }
 

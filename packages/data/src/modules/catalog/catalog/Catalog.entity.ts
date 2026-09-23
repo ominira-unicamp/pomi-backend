@@ -1,4 +1,3 @@
-import { resourcesPaths } from "#/Controllers.js";
 import IO from "#/modules/catalog/catalog/Catalog.contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { MyPrisma } from "@pomi/db";
@@ -28,12 +27,6 @@ type PrismaCatalogPayload = MyPrisma.CatalogGetPayload<
     typeof prismaCatalogFieldSelection
 >;
 
-function relatedPathsForCatalog(catalog: PrismaCatalogPayload) {
-    return {
-        self: resourcesPaths.catalog.entity(catalog.id)
-    };
-}
-
 function buildCatalogEntity(
     catalog: PrismaCatalogPayload
 ): z.infer<typeof IO.schemas.catalogEntitySchema> {
@@ -43,20 +36,7 @@ function buildCatalogEntity(
         programsCount: _count.programs,
         coursesCount: _count.courses,
         studentsCount: _count.students,
-        programIds: programs.map((p) => p.programId),
-        links: relatedPathsForCatalog(catalog),
-        _paths: {
-            self: resourcesPaths.catalog.entity(catalog.id),
-            courses: resourcesPaths.catalogCourse.list({
-                filter: [
-                    {
-                        path: ["catalogId"],
-                        operator: "eq",
-                        values: [catalog.id]
-                    }
-                ]
-            })
-        }
+        programIds: programs.map((p) => p.programId)
     };
 }
 

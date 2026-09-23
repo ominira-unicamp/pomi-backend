@@ -5,6 +5,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 
 import {
+    buildPaginationPath,
     buildPaginationResponse,
     createPaginationQuerySchema,
     resolvePagination,
@@ -86,8 +87,13 @@ test("builds canonical links for empty and all responses", () => {
         resolvePagination({}, pageByDefault),
         (query) => `/items?${new URLSearchParams(stringify(query))}`
     );
-    assert.equal(empty._paths.firstPage, "/items?page=1&pageSize=20");
-    assert.equal(empty._paths.lastPage, "/items?page=1&pageSize=20");
+    assert.deepEqual(empty.links, {
+        self: "/items?page=1&pageSize=20",
+        first: "/items?page=1&pageSize=20",
+        last: "/items?page=1&pageSize=20",
+        next: null,
+        previous: null
+    });
 
     const all = buildPaginationResponse<z.ZodString>(
         ["a", "b"],
@@ -95,12 +101,41 @@ test("builds canonical links for empty and all responses", () => {
         resolvePagination({ pageSize: "all" }, allByDefault),
         (query) => `/items?${new URLSearchParams(stringify(query))}`
     );
-    assert.deepEqual(all._paths, {
-        firstPage: "/items?pageSize=all",
-        lastPage: "/items?pageSize=all",
+    assert.deepEqual(all.links, {
+        self: "/items?pageSize=all",
+        first: "/items?pageSize=all",
+        last: "/items?pageSize=all",
         next: null,
-        prev: null
+        previous: null
     });
+});
+
+test("builds navigation links for an intermediate page", () => {
+    const page = buildPaginationResponse<z.ZodString>(
+        ["a", "b"],
+        8,
+        resolvePagination({ page: 2, pageSize: 2 }, pageByDefault),
+        (query) => `/items?${new URLSearchParams(stringify(query))}`
+    );
+
+    assert.deepEqual(page.links, {
+        self: "/items?page=2&pageSize=2",
+        first: "/items?page=1&pageSize=2",
+        last: "/items?page=4&pageSize=2",
+        next: "/items?page=3&pageSize=2",
+        previous: "/items?page=1&pageSize=2"
+    });
+});
+
+test("preserves non-pagination query parameters in links", () => {
+    assert.equal(
+        buildPaginationPath(
+            "/courses",
+            { q: "cálculo", sort: "code:asc", page: 1, pageSize: 20 },
+            { page: 2, pageSize: 20 }
+        ),
+        "/courses?q=c%C3%A1lculo&sort=code%3Aasc&page=2&pageSize=20"
+    );
 });
 
 function stringify(value: Record<string, number | string>) {

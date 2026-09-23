@@ -65,8 +65,7 @@ const sharedPeriodPlanningPage = getPaginatedSchema(
 ).openapi("SharedPeriodPlanningPage", {
     "x-pomi-schema": {
         kind: "page",
-        publicName: "SharedPeriodPlanningPage",
-        transportFields: ["_paths"]
+        publicName: "SharedPeriodPlanningPage"
     }
 });
 

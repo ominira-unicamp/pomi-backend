@@ -130,14 +130,7 @@ const attemptEntity = z
         updatedAt: z.string().datetime(),
         course: courseAttemptCourseSchema,
         studyPeriod: courseAttemptStudyPeriodSchema.nullable(),
-        class: courseAttemptClassSchema.nullable(),
-        _paths: z.object({
-            self: z.string(),
-            student: z.string(),
-            course: z.string(),
-            studyPeriod: z.string().nullable(),
-            class: z.string().nullable()
-        })
+        class: courseAttemptClassSchema.nullable()
     })
     .strict()
     .openapi("StudentCourseAttempt", {
@@ -145,7 +138,6 @@ const attemptEntity = z
             kind: "entity",
             publicName: "StudentCourseAttempt",
             identityFields: ["id"],
-            transportFields: ["_paths"],
             relations: {
                 course: { resource: "courses", cardinality: "one" },
                 studyPeriod: {

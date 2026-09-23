@@ -1,4 +1,3 @@
-import { resourcesPaths } from "#/Controllers.js";
 import IO from "#/modules/schedule/calendar-event/CalendarEvent.contract.js";
 import { MyPrisma } from "@pomi/db";
 import z from "zod";
@@ -24,12 +23,7 @@ type PrismaCalendarEventPayload = MyPrisma.CalendarEventGetPayload<
 function buildCalendarEventEntity(
     calendarEvent: PrismaCalendarEventPayload
 ): z.infer<typeof IO.schema> {
-    return {
-        ...calendarEvent,
-        _paths: {
-            entity: resourcesPaths.calendarEvent.entity(calendarEvent.id)
-        }
-    };
+    return calendarEvent;
 }
 
 export default {

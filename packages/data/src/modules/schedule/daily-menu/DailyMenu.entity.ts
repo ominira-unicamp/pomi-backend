@@ -1,4 +1,3 @@
-import { resourcesPaths } from "#/Controllers.js";
 import IO from "#/modules/schedule/daily-menu/DailyMenu.contract.js";
 import { MyPrisma } from "@pomi/db";
 import z from "zod";
@@ -46,8 +45,7 @@ function buildDailyMenuEntity(
             serviceNotes: meal.serviceNotes.map(({ text }) => text)
         })),
         createdAt: dailyMenu.createdAt.toISOString(),
-        updatedAt: dailyMenu.updatedAt.toISOString(),
-        _paths: { self: resourcesPaths.dailyMenu.entity(dailyMenu.id) }
+        updatedAt: dailyMenu.updatedAt.toISOString()
     };
 }
 

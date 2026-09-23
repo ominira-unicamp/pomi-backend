@@ -1,4 +1,3 @@
-import { resourcesPaths } from "#/Controllers.js";
 import IO from "#/modules/catalog/catalog-course/CatalogCourse.contract.js";
 import { MyPrisma } from "@pomi/db";
 import z from "zod";
@@ -86,14 +85,6 @@ function buildCatalogCourseEntity(
             any: prerequisites.map((group) => ({
                 all: group.items.map(buildCatalogCoursePrerequisite)
             }))
-        },
-        _paths: {
-            self: resourcesPaths.catalogCourse.entity(data.id),
-            catalog: resourcesPaths.catalog.entity(data.catalogId),
-            course: resourcesPaths.course.entity(data.courseId),
-            coordinator: coordinator
-                ? resourcesPaths.coordinator.entity(coordinator.id)
-                : null
         }
     };
 }

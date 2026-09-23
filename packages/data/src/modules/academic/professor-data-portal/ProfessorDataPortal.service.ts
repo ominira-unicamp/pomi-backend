@@ -145,11 +145,7 @@ function buildProfile(value: ProfileValue) {
             id: item.coauthor.id,
             name: item.coauthor.name,
             count: item.count
-        })),
-        _paths: {
-            self: `/professor-data-portal-profiles/${value.id}`,
-            professor: `/professors/${value.professorId}`
-        }
+        }))
     };
 }
 

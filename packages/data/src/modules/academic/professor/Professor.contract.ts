@@ -33,19 +33,14 @@ const specsBuilder = new SpecBuilder(basePath, tags, "id", {
 const professorEntity = z
     .object({
         id: z.number().int(),
-        name: z.string(),
-        _paths: z.object({
-            entity: z.string(),
-            dataPortalProfile: z.string().nullable()
-        })
+        name: z.string()
     })
     .strict()
     .openapi("ProfessorEntity", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "Professor",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 
@@ -80,8 +75,7 @@ const PageProfessorsSchema = getPaginatedSchema(professorEntity).openapi(
     {
         "x-pomi-schema": {
             kind: "page",
-            publicName: "PageProfessors",
-            transportFields: ["_paths"]
+            publicName: "PageProfessors"
         }
     }
 );

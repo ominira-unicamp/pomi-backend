@@ -1,4 +1,3 @@
-import { resourcesPaths } from "#/Controllers.js";
 import IO from "#/modules/catalog/catalog-program/CatalogProgram.contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { CourseBlockType, MyPrisma } from "@pomi/db";
@@ -72,19 +71,6 @@ type PrismaCatalogProgramPayload = MyPrisma.CatalogProgramGetPayload<
     typeof prismaCatalogProgramFieldSelection
 >;
 
-function relatedPathsForCatalogProgram(
-    catalogProgramId: number,
-    catalogId: number,
-    programId: number
-) {
-    return {
-        self: `/catalog-program/${catalogProgramId}`,
-        catalog: `/catalogs/${catalogId}`,
-        program: `/programs/${programId}`,
-        curriculumSuggestions: `/curriculum-suggestions?filter[catalogProgramId]=${catalogProgramId}`
-    };
-}
-
 function transformCourseBlocks(
     courseBlocks: PrismaCatalogProgramPayload["courseBlocks"],
     catalogId: number
@@ -111,12 +97,7 @@ function transformCourseBlocks(
                 courseCode: req.course?.code ?? null,
                 courseName: req.course?.name ?? null,
                 prefix: req.prefix,
-                catalogCourseId: catalogCourse?.id ?? null,
-                _paths: {
-                    catalogCourse: catalogCourse
-                        ? resourcesPaths.catalogCourse.entity(catalogCourse.id)
-                        : null
-                }
+                catalogCourseId: catalogCourse?.id ?? null
             });
         }
     }
@@ -133,12 +114,7 @@ function transformCourseBlocks(
                 courseCode: req.course?.code ?? null,
                 courseName: req.course?.name ?? null,
                 prefix: req.prefix,
-                catalogCourseId: catalogCourse?.id ?? null,
-                _paths: {
-                    catalogCourse: catalogCourse
-                        ? resourcesPaths.catalogCourse.entity(catalogCourse.id)
-                        : null
-                }
+                catalogCourseId: catalogCourse?.id ?? null
             };
         });
 
@@ -154,8 +130,12 @@ function transformCourseBlocks(
 function buildCatalogProgramEntity(
     catalogProgram: PrismaCatalogProgramPayload
 ): z.infer<typeof IO.schemas.catalogProgramEntity> {
-    const { variants: persistedVariants, catalogLanguages, courseBlocks, ...rest } =
-        catalogProgram;
+    const {
+        variants: persistedVariants,
+        catalogLanguages,
+        courseBlocks,
+        ...rest
+    } = catalogProgram;
 
     const base = transformCourseBlocks(courseBlocks, catalogProgram.catalog.id);
 
@@ -164,7 +144,8 @@ function buildCatalogProgramEntity(
         programId: variant.programId,
         specializationId: variant.specializationId,
         curriculumSuggestionId: variant.curriculumSuggestion?.id ?? null,
-        code: variant.specialization?.code ?? String(catalogProgram.program.code),
+        code:
+            variant.specialization?.code ?? String(catalogProgram.program.code),
         name: variant.specialization?.name ?? catalogProgram.program.name,
         integralizationCredits: variant.integralizationCredits,
         integralizationSupervisedHours: variant.integralizationSupervisedHours,
@@ -197,12 +178,7 @@ function buildCatalogProgramEntity(
         programName: catalogProgram.program.name,
         base,
         variants,
-        languages,
-        _paths: relatedPathsForCatalogProgram(
-            rest.id,
-            rest.catalogId,
-            rest.programId
-        )
+        languages
     };
 }
 

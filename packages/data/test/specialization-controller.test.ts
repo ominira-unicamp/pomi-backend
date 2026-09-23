@@ -26,11 +26,7 @@ test("lists specializations through its service", async () => {
                         code: "AA",
                         name: "Sistemas",
                         catalogProgramVariantsCount: 0,
-                        studentsCount: 0,
-                        _paths: {
-                            self: "/specializations/11",
-                            program: "/programs/7"
-                        }
+                        studentsCount: 0
                     }
                 ]
             }
@@ -57,7 +53,6 @@ test("lists specializations through its service", async () => {
         code: "AA",
         name: "Sistemas",
         catalogProgramVariantsCount: 0,
-        studentsCount: 0,
-        _paths: { self: "/specializations/11", program: "/programs/7" }
+        studentsCount: 0
     });
 });

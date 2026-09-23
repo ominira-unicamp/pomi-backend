@@ -10,7 +10,6 @@ import {
 import { createDataEndpointRegistries, type Context } from "#/BuildHandler.js";
 import type { AuthorizationPolicy } from "#/auth.js";
 import IO, {
-    type CurriculumSuggestionEntity,
     type ListCurriculumSuggestionsQuery
 } from "#/modules/catalog/curriculum-suggestion/CurriculumSuggestion.contract.js";
 import { curriculumSuggestionProblemResponses } from "#/modules/catalog/curriculum-suggestion/CurriculumSuggestion.problems.js";
@@ -30,29 +29,10 @@ function listPath(query: Partial<ListCurriculumSuggestionsQuery> = {}) {
     return `/curriculum-suggestions${search ? `?${search}` : ""}`;
 }
 
-function withPaths(
-    suggestion: Awaited<
-        ReturnType<Context["curriculumSuggestionService"]["list"]>
-    >[number]
-): CurriculumSuggestionEntity {
-    return {
-        ...suggestion,
-        _paths: {
-            self: entityPath(suggestion.id),
-            catalogProgram: `/catalog-program/${suggestion.catalogProgramId}`,
-            specialization: suggestion.specialization
-                ? `/specializations/${suggestion.specialization.id}`
-                : null
-        }
-    };
-}
-
 const list: Actions["list"] = async (ctx, input) =>
     ApiResponse.ok(
         buildArrayPaginationResponse(
-            (await ctx.curriculumSuggestionService.list(input.query)).map(
-                withPaths
-            ),
+            await ctx.curriculumSuggestionService.list(input.query),
             input.query,
             unpaginatedByDefault,
             "/curriculum-suggestions"
@@ -62,7 +42,7 @@ const list: Actions["list"] = async (ctx, input) =>
 const get: Actions["get"] = async (ctx, input) =>
     respond(
         await ctx.curriculumSuggestionService.getById(input.path.id),
-        (suggestion) => ApiResponse.ok(withPaths(suggestion))
+        (suggestion) => ApiResponse.ok(suggestion)
     );
 
 const actions: Actions = { list, get };

@@ -45,23 +45,18 @@ export function createRoomService({
     return {
         async list(query) {
             const filterWhere = roomFilterWhere(query.filter);
-            return (
-                await prisma.room.findMany({
-                    where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: compileSort(resolveSort(query.sort, roomSort), {
-                        code: (direction) => ({ code: direction }),
-                        id: (direction) => ({ id: direction })
-                    })
+            return await prisma.room.findMany({
+                where: filterWhere.length > 0 ? { AND: filterWhere } : {},
+                orderBy: compileSort(resolveSort(query.sort, roomSort), {
+                    code: (direction) => ({ code: direction }),
+                    id: (direction) => ({ id: direction })
                 })
-            ).map((room) => ({
-                ...room,
-                _paths: { entity: `/rooms/${room.id}` }
-            }));
+            });
         },
         async getById(id) {
             const room = await prisma.room.findUnique({ where: { id } });
             return room
-                ? ok({ ...room, _paths: { entity: `/rooms/${room.id}` } })
+                ? ok(room)
                 : err(
                       ResourceNotFoundProblem.create({
                           detail: "Room not found"

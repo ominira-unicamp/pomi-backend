@@ -55,15 +55,13 @@ const courseRequirementSchema = z
         courseCode: z.string().nullable(),
         courseName: z.string().nullable(),
         prefix: z.string().nullable(),
-        catalogCourseId: z.number().int().nullable(),
-        _paths: z.object({ catalogCourse: z.string().nullable() }).strict()
+        catalogCourseId: z.number().int().nullable()
     })
     .openapi("CourseRequirement", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "CourseRequirement",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 
@@ -132,9 +130,7 @@ const catalogProgramEntity = z
         programCode: z.number().int(),
         programName: z.string(),
         shift: z.enum(["DAYTIME", "NIGHT"]).nullable(),
-        creditLimitType: z
-            .enum(["NONE", "FIXED", "CR_FORMULA"])
-            .nullable(),
+        creditLimitType: z.enum(["NONE", "FIXED", "CR_FORMULA"]).nullable(),
         creditLimitFixedCredits: z.number().int().nullable(),
         creditLimitBeforeThresholdCredits: z.number().int().nullable(),
         creditLimitThresholdCredits: z.number().int().nullable(),
@@ -143,13 +139,7 @@ const catalogProgramEntity = z
         professionalPracticeDescription: z.string().nullable(),
         base: courseBlockSetSchema,
         variants: z.array(catalogProgramVariantSchema),
-        languages: z.array(catalogProgramLanguageSchema),
-        _paths: z.object({
-            self: z.string(),
-            catalog: z.string(),
-            program: z.string(),
-            curriculumSuggestions: z.string()
-        })
+        languages: z.array(catalogProgramLanguageSchema)
     })
     .strict()
     .openapi("CatalogProgramEntity", {
@@ -157,7 +147,6 @@ const catalogProgramEntity = z
             kind: "entity",
             publicName: "CatalogProgram",
             identityFields: ["id"],
-            transportFields: ["_paths"],
             relations: {
                 catalogId: { resource: "catalogs", cardinality: "one" },
                 programId: { resource: "programs", cardinality: "one" },

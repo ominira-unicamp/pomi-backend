@@ -168,23 +168,14 @@ const catalogCourseEntity = z
         syllabus: z.string().nullable(),
         bibliography: z.string().nullable(),
         sourceUrl: z.string().nullable(),
-        prerequisites,
-        _paths: z
-            .object({
-                self: z.string(),
-                catalog: z.string(),
-                course: z.string(),
-                coordinator: z.string().nullable()
-            })
-            .strict()
+        prerequisites
     })
     .strict()
     .openapi("CatalogCourseEntity", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "CatalogCourse",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

@@ -41,18 +41,14 @@ const coordinatorEntity = z
     .object({
         id: z.number().int(),
         name: z.string().min(1),
-        catalogCoursesCount: z.number().int(),
-        _paths: z
-            .object({ self: z.string(), catalogCourses: z.string() })
-            .strict()
+        catalogCoursesCount: z.number().int()
     })
     .strict()
     .openapi("CoordinatorEntity", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "Coordinator",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

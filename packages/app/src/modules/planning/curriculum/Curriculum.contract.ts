@@ -75,21 +75,14 @@ const curriculumEntity = z
         courses: z.array(course),
         periods: z.array(period),
         createdAt: z.string().datetime(),
-        updatedAt: z.string().datetime(),
-        _paths: z
-            .object({
-                self: z.string(),
-                student: z.string()
-            })
-            .strict()
+        updatedAt: z.string().datetime()
     })
     .strict()
     .openapi("CurriculumEntity", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "Curriculum",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 
@@ -101,21 +94,14 @@ const curriculumSummaryEntity = z
         isFavorite: z.boolean(),
         selection,
         createdAt: z.string().datetime(),
-        updatedAt: z.string().datetime(),
-        _paths: z
-            .object({
-                self: z.string(),
-                student: z.string()
-            })
-            .strict()
+        updatedAt: z.string().datetime()
     })
     .strict()
     .openapi("CurriculumSummaryEntity", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "CurriculumSummary",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

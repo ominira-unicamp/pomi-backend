@@ -40,3 +40,38 @@ test("class contract exposes reservation programs instead of legacy codes", () =
     assert.equal("reservations" in (schema.properties ?? {}), false);
     assert.equal(schema.required?.includes("reservationPrograms"), true);
 });
+
+test("exposes links only in pagination envelopes", () => {
+    const document = generateDataOpenApiDocument();
+    assert.equal(JSON.stringify(document).includes('"_paths"'), false);
+
+    for (const [name, value] of Object.entries(
+        document.components?.schemas ?? {}
+    )) {
+        if (!("properties" in value) || !value.properties?.links) continue;
+        assert.equal(
+            value["x-pomi-schema"]?.kind,
+            "page",
+            `${name} exposes links outside a page schema`
+        );
+    }
+
+    const links = document.components?.schemas?.PaginationLinks as {
+        properties?: Record<string, unknown>;
+        required?: string[];
+    };
+    assert.deepEqual(Object.keys(links.properties ?? {}), [
+        "self",
+        "first",
+        "last",
+        "next",
+        "previous"
+    ]);
+    assert.deepEqual(links.required, [
+        "self",
+        "first",
+        "last",
+        "next",
+        "previous"
+    ]);
+});

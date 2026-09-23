@@ -67,16 +67,7 @@ function buildStudentCourseEntity(
                   code: classData.code,
                   professors: classData.professors
               }
-            : null,
-        _paths: {
-            self: `/student/${attempt.studentId}/course-attempts/${attempt.id}`,
-            student: `/student/${attempt.studentId}`,
-            course: `/courses/${course.id}`,
-            studyPeriod: resolvedStudyPeriod
-                ? `/study-periods/${resolvedStudyPeriod.id}`
-                : null,
-            class: classData ? `/classes/${classData.id}` : null
-        }
+            : null
     };
 }
 

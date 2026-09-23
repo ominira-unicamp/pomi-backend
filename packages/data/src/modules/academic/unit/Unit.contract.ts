@@ -34,21 +34,14 @@ const unitEntity = z
     .object({
         id: z.number().int(),
         code: z.string(),
-        name: z.string(),
-        _paths: z
-            .object({
-                classes: z.string(),
-                courses: z.string()
-            })
-            .strict()
+        name: z.string()
     })
     .strict()
     .openapi("UnitEntity", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "Unit",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

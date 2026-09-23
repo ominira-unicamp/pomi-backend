@@ -1,4 +1,3 @@
-import { resourcesPaths } from "#/Controllers.js";
 import IO from "#/modules/schedule/study-period/StudyPeriod.contract.js";
 import { MyPrisma } from "@pomi/db";
 import z from "zod";
@@ -6,30 +5,10 @@ import z from "zod";
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 type PrismaStudyPeriodPayload = MyPrisma.StudyPeriodGetPayload<{}>;
 
-const relatedPathsForStudyPeriod = (studyPeriodId: number) => {
-    return {
-        classes: resourcesPaths.class.list({
-            studyPeriodId: studyPeriodId
-        }),
-        classSchedules: resourcesPaths.classSchedule.list({
-            filter: [
-                {
-                    path: ["studyPeriod", "id"],
-                    operator: "eq",
-                    values: [studyPeriodId]
-                }
-            ]
-        })
-    };
-};
-
 function buildStudyPeriodEntity(
     studyPeriod: PrismaStudyPeriodPayload
 ): z.infer<typeof IO.schema> {
-    return {
-        ...studyPeriod,
-        _paths: relatedPathsForStudyPeriod(studyPeriod.id)
-    };
+    return studyPeriod;
 }
 
 export default {

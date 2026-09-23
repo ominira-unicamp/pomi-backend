@@ -118,22 +118,12 @@ export const curriculumSuggestionSort = defineSort({
 });
 
 const curriculumSuggestionEntitySchema = curriculumSuggestionDataSchema
-    .extend({
-        _paths: z
-            .object({
-                self: z.string().min(1),
-                catalogProgram: z.string().min(1),
-                specialization: z.string().min(1).nullable()
-            })
-            .strict()
-    })
     .strict()
     .openapi("CurriculumSuggestionEntity", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "CurriculumSuggestion",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

@@ -62,16 +62,14 @@ const schema = z
         date: z.iso.date(),
         meals: z.array(mealSchema),
         createdAt: z.iso.datetime(),
-        updatedAt: z.iso.datetime(),
-        _paths: z.object({ self: z.string() }).strict()
+        updatedAt: z.iso.datetime()
     })
     .strict()
     .openapi("DailyMenu", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "DailyMenu",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

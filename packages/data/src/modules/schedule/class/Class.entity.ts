@@ -1,4 +1,3 @@
-import { resourcesPaths } from "#/Controllers.js";
 import IO from "#/modules/schedule/class/Class.contract.js";
 import { MyPrisma, selectIdCode, selectIdName } from "@pomi/db";
 import z from "zod";
@@ -31,37 +30,6 @@ type PrismaClassPayload = MyPrisma.ClassGetPayload<
     typeof prismaClassFieldSelection
 >;
 
-function relatedPathsForClass(classPayload: PrismaClassPayload) {
-    return {
-        studyPeriod: resourcesPaths.studyPeriod.entity(
-            classPayload.studyPeriod.id
-        ),
-        unit: classPayload.course.unit
-            ? resourcesPaths.unit.entity(classPayload.course.unit.id)
-            : null,
-        course: resourcesPaths.course.entity(classPayload.course.id),
-        class: resourcesPaths.class.entity(classPayload.id),
-        classSchedules: resourcesPaths.classSchedule.list({
-            filter: [
-                {
-                    path: ["class", "id"],
-                    operator: "eq",
-                    values: [classPayload.id]
-                }
-            ]
-        }),
-        professors: resourcesPaths.professor.list({
-            filter: [
-                {
-                    path: ["classId"],
-                    operator: "eq",
-                    values: [classPayload.id]
-                }
-            ]
-        })
-    };
-}
-
 function buildClassEntity(
     classData: PrismaClassPayload
 ): z.infer<typeof IO.schema> {
@@ -76,8 +44,7 @@ function buildClassEntity(
         unitId: course.unit?.id ?? null,
         unitCode: course.unit?.code ?? null,
         professorIds: classData.professors.map((p) => p.id),
-        reservationPrograms: reservationPrograms.map(({ program }) => program),
-        _paths: relatedPathsForClass(classData)
+        reservationPrograms: reservationPrograms.map(({ program }) => program)
     };
 }
 

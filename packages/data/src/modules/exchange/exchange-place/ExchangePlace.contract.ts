@@ -31,15 +31,13 @@ const specsBuilder = new SpecBuilder(
 const schema = z
     .object({
         id: z.number().int().positive(),
-        name: z.string(),
-        _paths: z.object({ notices: z.string() }).strict()
+        name: z.string()
     })
     .strict()
     .openapi("ExchangePlaceListItem", {
         "x-pomi-schema": {
             kind: "projection",
-            publicName: "ExchangePlaceListItem",
-            transportFields: ["_paths"]
+            publicName: "ExchangePlaceListItem"
         }
     });
 

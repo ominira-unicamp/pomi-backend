@@ -61,7 +61,6 @@ export function createProfessorService({
             const total = await prisma.professor.count({ where });
             const professors = await prisma.professor.findMany({
                 where,
-                include: { dataPortalProfile: { select: { id: true } } },
                 orderBy: compileSort(resolveSort(query.sort, professorSort), {
                     name: (direction) => ({ name: direction }),
                     id: (direction) => ({ id: direction })
@@ -76,36 +75,15 @@ export function createProfessorService({
             });
             return {
                 total,
-                items: professors.map(
-                    ({ dataPortalProfile, ...professor }) => ({
-                        ...professor,
-                        _paths: {
-                            entity: `/professors/${professor.id}`,
-                            dataPortalProfile: dataPortalProfile
-                                ? `/professor-data-portal-profiles/${dataPortalProfile.id}`
-                                : null
-                        }
-                    })
-                ) as ProfessorEntity[]
+                items: professors as ProfessorEntity[]
             };
         },
         async getById(id) {
             const professor = await prisma.professor.findUnique({
-                where: { id },
-                include: { dataPortalProfile: { select: { id: true } } }
+                where: { id }
             });
             return professor
-                ? ok(
-                      (({ dataPortalProfile, ...professor }) => ({
-                          ...professor,
-                          _paths: {
-                              entity: `/professors/${professor.id}`,
-                              dataPortalProfile: dataPortalProfile
-                                  ? `/professor-data-portal-profiles/${dataPortalProfile.id}`
-                                  : null
-                          }
-                      }))(professor) as ProfessorEntity
-                  )
+                ? ok(professor as ProfessorEntity)
                 : err(
                       ResourceNotFoundProblem.create({
                           detail: "Professor not found"

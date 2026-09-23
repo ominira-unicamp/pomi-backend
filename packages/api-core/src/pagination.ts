@@ -181,17 +181,29 @@ export function buildPaginationPath(
     return `${path}${search ? `?${search}` : ""}`;
 }
 
+export const paginationLinksSchema = z
+    .object({
+        self: z.string().openapi({ format: "uri-reference" }),
+        first: z.string().openapi({ format: "uri-reference" }),
+        last: z.string().openapi({ format: "uri-reference" }),
+        next: z.string().nullable().openapi({ format: "uri-reference" }),
+        previous: z.string().nullable().openapi({ format: "uri-reference" })
+    })
+    .strict()
+    .openapi("PaginationLinks", {
+        "x-pomi-schema": {
+            kind: "transport",
+            publicName: "PaginationLinks",
+            generate: false
+        }
+    });
+
 export function getPaginatedSchema<T extends z.ZodType>(dataSchema: T) {
     return z.object({
         data: z.array(dataSchema),
         quantity: z.number().int(),
         total: z.number().int(),
-        _paths: z.object({
-            firstPage: z.string(),
-            lastPage: z.string(),
-            next: z.string().nullable(),
-            prev: z.string().nullable()
-        })
+        links: paginationLinksSchema
     });
 }
 
@@ -246,11 +258,12 @@ export function buildPaginationResponse<T extends z.ZodType>(
             data: items,
             quantity: items.length,
             total: totalItems,
-            _paths: {
-                firstPage: path,
-                lastPage: path,
+            links: {
+                self: path,
+                first: path,
+                last: path,
                 next: null,
-                prev: null
+                previous: null
             }
         };
     }
@@ -261,11 +274,12 @@ export function buildPaginationResponse<T extends z.ZodType>(
         data: items,
         quantity: items.length,
         total: totalItems,
-        _paths: {
-            firstPage: path(1),
-            lastPage: path(totalPages),
+        links: {
+            self: path(resolved.page),
+            first: path(1),
+            last: path(totalPages),
             next: resolved.page < totalPages ? path(resolved.page + 1) : null,
-            prev: resolved.page > 1 ? path(resolved.page - 1) : null
+            previous: resolved.page > 1 ? path(resolved.page - 1) : null
         }
     };
 }

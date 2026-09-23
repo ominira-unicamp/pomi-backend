@@ -127,7 +127,7 @@ export function assertSdkMetadataConsistency(
         schemaHasPath(responseBody as z.ZodType, "data") &&
         schemaHasPath(responseBody as z.ZodType, "quantity") &&
         schemaHasPath(responseBody as z.ZodType, "total") &&
-        schemaHasPath(responseBody as z.ZodType, "_paths.next");
+        schemaHasPath(responseBody as z.ZodType, "links.next");
 
     if (responseBody instanceof z.ZodArray) {
         throw new Error(

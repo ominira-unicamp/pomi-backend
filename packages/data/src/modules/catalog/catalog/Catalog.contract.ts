@@ -33,18 +33,13 @@ const catalogEntitySchema = z
         programsCount: z.number().int().openapi({ example: 5 }),
         coursesCount: z.number().int().openapi({ example: 8996 }),
         studentsCount: z.number().int().openapi({ example: 150 }),
-        programIds: z.array(z.number().int()).openapi({ example: [1, 2, 3] }),
-        links: z.object({
-            self: z.string().openapi({ example: "/catalogs/1" })
-        }),
-        _paths: z.object({ self: z.string(), courses: z.string() }).strict()
+        programIds: z.array(z.number().int()).openapi({ example: [1, 2, 3] })
     })
     .openapi("Catalog", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "Catalog",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

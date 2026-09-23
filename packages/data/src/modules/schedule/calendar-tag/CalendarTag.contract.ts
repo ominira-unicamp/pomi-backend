@@ -29,18 +29,14 @@ const specsBuilder = new SpecBuilder(basePath, tags, "id", {
 const schema = z
     .object({
         id: z.number().int(),
-        name: z.string(),
-        _paths: z.object({
-            entity: z.string()
-        })
+        name: z.string()
     })
     .strict()
     .openapi("CalendarTag", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "CalendarTag",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

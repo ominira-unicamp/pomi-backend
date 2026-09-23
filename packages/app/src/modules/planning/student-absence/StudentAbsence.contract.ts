@@ -54,25 +54,14 @@ const absenceEntity = z
         classCode: z.string(),
         dayOfWeek: dayOfWeekSchema,
         start: z.string(),
-        end: z.string(),
-        _paths: z
-            .object({
-                self: z.string(),
-                courseAttempt: z.string(),
-                classSchedule: z.string(),
-                class: z.string(),
-                course: z.string(),
-                studyPeriod: z.string()
-            })
-            .strict()
+        end: z.string()
     })
     .strict()
     .openapi("StudentAbsence", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "StudentAbsence",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

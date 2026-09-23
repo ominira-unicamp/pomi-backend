@@ -50,22 +50,14 @@ const courseEntity = z
         credits: z.number().int().min(0),
         prefix: z.string().min(1),
         unitId: z.number().int().nullable(),
-        unitCode: z.string().min(1).nullable(),
-        _paths: z
-            .object({
-                classes: z.string(),
-                unit: z.string().nullable(),
-                catalogCourses: z.string()
-            })
-            .strict()
+        unitCode: z.string().min(1).nullable()
     })
     .strict()
     .openapi("CourseEntity", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "Course",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 
@@ -114,8 +106,7 @@ const PageCoursesSchema = getPaginatedSchema(courseEntity).openapi(
     {
         "x-pomi-schema": {
             kind: "page",
-            publicName: "PageCourses",
-            transportFields: ["_paths"]
+            publicName: "PageCourses"
         }
     }
 );

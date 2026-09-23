@@ -30,17 +30,13 @@ const schema = z
     .object({
         id: z.number().int(),
         name: z.string(),
-        catalogLanguagesCount: z.number().int(),
-        _paths: z.object({
-            self: z.string()
-        })
+        catalogLanguagesCount: z.number().int()
     })
     .openapi("Language", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "Language",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

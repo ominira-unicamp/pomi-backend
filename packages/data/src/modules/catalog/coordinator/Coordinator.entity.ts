@@ -1,4 +1,3 @@
-import { resourcesPaths } from "#/Controllers.js";
 import IO from "#/modules/catalog/coordinator/Coordinator.contract.js";
 import { MyPrisma } from "@pomi/db";
 import z from "zod";
@@ -19,19 +18,7 @@ function buildCoordinatorEntity(
     return {
         id: coordinator.id,
         name: coordinator.name,
-        catalogCoursesCount: coordinator._count.catalogCourses,
-        _paths: {
-            self: resourcesPaths.coordinator.entity(coordinator.id),
-            catalogCourses: resourcesPaths.catalogCourse.list({
-                filter: [
-                    {
-                        path: ["coordinatorId"],
-                        operator: "eq",
-                        values: [coordinator.id]
-                    }
-                ]
-            })
-        }
+        catalogCoursesCount: coordinator._count.catalogCourses
     };
 }
 

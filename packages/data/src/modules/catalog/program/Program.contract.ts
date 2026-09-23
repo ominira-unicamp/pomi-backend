@@ -37,18 +37,13 @@ const schema = z
             code: z.string()
         }),
         catalogProgramsCount: z.number().int(),
-        studentsCount: z.number().int(),
-        _paths: z.object({
-            self: z.string(),
-            unit: z.string()
-        })
+        studentsCount: z.number().int()
     })
     .openapi("Program", {
         "x-pomi-schema": {
             kind: "entity",
             publicName: "Program",
-            identityFields: ["id"],
-            transportFields: ["_paths"]
+            identityFields: ["id"]
         }
     });
 

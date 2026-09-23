@@ -55,11 +55,12 @@ test("builds Express, OpenAPI and authorization registries from one contract", (
                     data: [],
                     quantity: 0,
                     total: 0,
-                    _paths: {
-                        firstPage: "/items?page=1&pageSize=20",
-                        lastPage: "/items?page=1&pageSize=20",
+                    links: {
+                        self: "/items?page=1&pageSize=20",
+                        first: "/items?page=1&pageSize=20",
+                        last: "/items?page=1&pageSize=20",
                         next: null,
-                        prev: null
+                        previous: null
                     }
                 })
         },
@@ -114,11 +115,12 @@ test("exports declarative SDK metadata with an endpoint", () => {
                     data: [],
                     quantity: 0,
                     total: 0,
-                    _paths: {
-                        firstPage: "/items?page=1&pageSize=20",
-                        lastPage: "/items?page=1&pageSize=20",
+                    links: {
+                        self: "/items?page=1&pageSize=20",
+                        first: "/items?page=1&pageSize=20",
+                        last: "/items?page=1&pageSize=20",
                         next: null,
-                        prev: null
+                        previous: null
                     }
                 })
         },
