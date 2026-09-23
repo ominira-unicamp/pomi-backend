@@ -24,6 +24,18 @@ import { loadInjectionEnv } from "./env.js";
 import { injectionNames } from "./registry.js";
 import type { InjectionRunMode } from "./runner.js";
 import { runInjection } from "./runner.js";
+import {
+    advanceWorkflow,
+    enqueueCatalogProgramWorkflows,
+    isWorkflowName,
+    parseWorkflowProfile,
+    retryWorkflow,
+    validateWorkflowConfig,
+    workflowNames,
+    workflowParameters,
+    workflowStageParameters,
+    workflowStatus
+} from "./workflows.js";
 
 const program = new Command().name("pomi-injection").version("0.1.0");
 const cliLogger = pino({
@@ -33,6 +45,8 @@ const cliLogger = pino({
 program.addHelpText(
     "after",
     `\nInjections predefinidas:\n${injectionNames
+        .map((name) => `  - ${name}`)
+        .join("\n")}\n\nWorkflows predefinidos:\n${workflowNames
         .map((name) => `  - ${name}`)
         .join("\n")}\n`
 );
@@ -49,12 +63,15 @@ program.command("list").action(async () => {
         process.stdout.write(
             `${injection.name}\t${injection.description ?? ""}\n`
         );
+    for (const workflow of workflowNames)
+        process.stdout.write(`${workflow}\tWorkflow de domínio\n`);
 });
 
 program.command("validate").action(async () => {
     const config = await loadInjectionConfig(program.opts().config);
+    validateWorkflowConfig(config);
     process.stdout.write(
-        `${config.injections.length} injection(s) válida(s)\n`
+        `${config.injections.length} injection(s) e ${workflowNames.length} workflow(s) válido(s)\n`
     );
 });
 
@@ -65,17 +82,41 @@ program
     .option("--last-year <year>", "último ano da partição", parseYear)
     .option("--institute-code <code>", "sigla do instituto")
     .option("--partition-key <key>", "identificador da partição")
+    .option("--profile <profile>", "perfil do workflow", "available")
     .action(async (name: string, mode = "all", options: PartitionOptions) => {
         loadInjectionEnv();
         const config = await loadInjectionConfig(program.opts().config);
-        const injection = config.injections.find((item) => item.name === name);
-        if (!injection) throw new Error(`Injection não encontrada: ${name}`);
         if (!(["all", "obtain", "inject"] as string[]).includes(mode))
             throw new Error(`Modo inválido: ${mode}`);
         const database = createDatabaseClient(process.env.DATABASE_URL ?? "", {
             max: 1
         });
         try {
+            if (isWorkflowName(name)) {
+                validateWorkflowConfig(config);
+                const firstYear = options.firstYear ?? options.lastYear;
+                const lastYear = options.lastYear ?? options.firstYear;
+                if (firstYear === undefined || lastYear === undefined)
+                    throw new Error(
+                        "Workflows requerem --first-year e/ou --last-year"
+                    );
+                const jobs = await enqueueCatalogProgramWorkflows(database, {
+                    firstYear,
+                    lastYear,
+                    profile: parseWorkflowProfile(options.profile),
+                    mode: mode as InjectionRunMode,
+                    requestedBy: process.env.POMI_JOB_REQUESTED_BY ?? "cli"
+                });
+                for (const job of jobs) process.stdout.write(`${job.id}\n`);
+                return;
+            }
+            const injection = config.injections.find(
+                (item) => item.name === name
+            );
+            if (!injection)
+                throw new Error(
+                    `Injection ou workflow não encontrado: ${name}`
+                );
             const job = await withTrace(
                 "injection.job.request",
                 () => {
@@ -118,9 +159,22 @@ program.command("job-status <id>").action(async (id: string) => {
         max: 1
     });
     try {
-        const job = await database.jobRequest.findUnique({ where: { id } });
-        if (!job) throw new Error("Job não encontrado");
-        process.stdout.write(`${JSON.stringify(job)}\n`);
+        const status = await workflowStatus(database, id);
+        process.stdout.write(`${JSON.stringify(status)}\n`);
+    } finally {
+        await database.$disconnect();
+    }
+});
+
+program.command("retry <id>").action(async (id: string) => {
+    loadInjectionEnv();
+    const config = await loadInjectionConfig(program.opts().config);
+    const database = createDatabaseClient(process.env.DATABASE_URL ?? "", {
+        max: 1
+    });
+    try {
+        await retryWorkflow(database, config, id);
+        process.stdout.write(`${id}\n`);
     } finally {
         await database.$disconnect();
     }
@@ -215,6 +269,20 @@ program.command("watch").action(async () => {
                 claimNextJob(database, JobRequestType.INJECTION)
             );
             if (job) {
+                const workflow = workflowParameters(job.parameters);
+                if (isWorkflowName(job.name) && workflow) {
+                    try {
+                        await advanceWorkflow(database, config, job.id);
+                    } catch (error) {
+                        await finishJob(database, job.id, {
+                            errorMessage:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error)
+                        });
+                    }
+                    continue;
+                }
                 const injection = config.injections.find(
                     (item) => item.name === job.name
                 );
@@ -252,6 +320,15 @@ program.command("watch").action(async () => {
                         await finishJob(database, job.id, {
                             runId: result.runId
                         });
+                        if (
+                            job.parentJobId &&
+                            workflowStageParameters(job.parameters)
+                        )
+                            await reconcileWorkflowParent(
+                                database,
+                                config,
+                                job.parentJobId
+                            );
                     } catch (error) {
                         await finishJob(database, job.id, {
                             errorMessage:
@@ -259,6 +336,15 @@ program.command("watch").action(async () => {
                                     ? error.message
                                     : String(error)
                         });
+                        if (
+                            job.parentJobId &&
+                            workflowStageParameters(job.parameters)
+                        )
+                            await reconcileWorkflowParent(
+                                database,
+                                config,
+                                job.parentJobId
+                            );
                         cliLogger.error(
                             {
                                 err: error,
@@ -277,6 +363,20 @@ program.command("watch").action(async () => {
         await rm(lockDirectory, { recursive: true, force: true });
     }
 });
+
+async function reconcileWorkflowParent(
+    database: ReturnType<typeof createDatabaseClient>,
+    config: Awaited<ReturnType<typeof loadInjectionConfig>>,
+    parentId: string
+) {
+    try {
+        await advanceWorkflow(database, config, parentId);
+    } catch (error) {
+        await finishJob(database, parentId, {
+            errorMessage: error instanceof Error ? error.message : String(error)
+        });
+    }
+}
 
 async function main() {
     try {
@@ -299,6 +399,7 @@ type PartitionOptions = {
     lastYear?: number;
     partitionKey?: string;
     instituteCode?: string;
+    profile: string;
 };
 
 function parseYear(value: string) {

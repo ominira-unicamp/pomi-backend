@@ -41,6 +41,38 @@
             }
         },
         {
+            "name": "catalogs",
+            "description": "Catálogos e currículos",
+            "obtain": {
+                "command": "node",
+                "args": [
+                    "unicamp-scrapper-cli/dist/index.js",
+                    "catalogo-curriculos",
+                    "--first-year",
+                    "2021",
+                    "--last-year",
+                    "${POMI_CURRENT_YEAR}",
+                    "--output",
+                    "${POMI_INJECTION_OUTPUT}",
+                    "--concurrency",
+                    "1"
+                ],
+                "cwd": "../scrapper-aulas",
+                "env": {},
+                "timeoutMs": 7200000
+            },
+            "input": {
+                "directory": "data/injections/catalogs",
+                "fileName": "catalogs.json"
+            },
+            "allowIssues": true,
+            "partitioning": { "kind": "year", "firstYear": 2021 },
+            "options": {
+                "transactionTimeout": 600000,
+                "transactionMaxWait": 60000
+            }
+        },
+        {
             "name": "catalog-disciplines",
             "description": "Disciplinas e relações do catálogo",
             "schedule": { "cron": "0 2 1 * *" },
@@ -150,6 +182,39 @@
             "allowIssues": true,
             "options": {
                 "transactionTimeout": 600000,
+                "transactionMaxWait": 60000
+            }
+        },
+        {
+            "name": "suggestions",
+            "description": "Sugestões de currículo",
+            "obtain": {
+                "command": "node",
+                "args": [
+                    "unicamp-scrapper-cli/dist/index.js",
+                    "sugestao-curriculo",
+                    "--first-year",
+                    "2021",
+                    "--last-year",
+                    "${POMI_CURRENT_YEAR}",
+                    "--output",
+                    "${POMI_INJECTION_OUTPUT}",
+                    "--concurrency",
+                    "1"
+                ],
+                "cwd": "../scrapper-aulas",
+                "env": {},
+                "timeoutMs": 7200000
+            },
+            "input": {
+                "directory": "data/injections/suggestions",
+                "fileName": "suggestions.json"
+            },
+            "allowIssues": true,
+            "partitioning": { "kind": "year", "firstYear": 2021 },
+            "options": {
+                "concurrency": 4,
+                "transactionTimeout": 120000,
                 "transactionMaxWait": 60000
             }
         },

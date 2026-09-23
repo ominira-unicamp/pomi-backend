@@ -23,6 +23,10 @@ import { loadInjectionEnv } from "./env.js";
 import { createInjectionLogger } from "./logger.js";
 import { runProcess } from "./process.js";
 import { createInjectionService, type InjectionService } from "./registry.js";
+import {
+    validateWorkflowArtifact,
+    workflowStageParameters
+} from "./workflows.js";
 
 export type InjectionRunMode = "all" | "obtain" | "inject";
 export type InjectionRunContext = Pick<
@@ -205,6 +209,17 @@ async function runInjectionInternal(
         } else {
             await access(inputPath);
             logger.info({ inputPath }, "Usando arquivo existente para injeção");
+        }
+        const workflowStage = workflowStageParameters(parameters);
+        if (workflowStage) {
+            const validation = await validateWorkflowArtifact(
+                inputPath,
+                workflowStage
+            );
+            logger.info(
+                { workflow: workflowStage.workflowName, ...validation },
+                "Artefato do workflow validado"
+            );
         }
         if (mode === "obtain")
             return { name: definition.name, runId, inputPath, mode };

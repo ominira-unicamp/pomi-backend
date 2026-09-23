@@ -108,12 +108,21 @@ npm run injection:watch
 
 # Enfileirar uma execução manual (retorna o ID do job)
 npm run injection:request -- academic-data all
+npm run injection:request -- catalog-programs all --first-year 2026 --last-year 2026 --profile complete
 npm run notifier:request
 
 # Consultar o estado de um job
 npm run injection:job-status -- <job-id>
+npm run injection:retry -- <workflow-job-id>
 npm run notifier:job-status -- <job-id>
 ```
+
+`catalog-programs` é um workflow anual. O perfil `core` garante o vínculo do
+programa com o catálogo, `available` coleta os componentes suportados pela
+fonte daquele ano e `complete` exige currículos, informações institucionais e
+sugestões dos catálogos modernos (2021 em diante). O job retornado agrega as
+etapas técnicas; em caso de falha, `injection:retry` preserva as etapas já
+concluídas e retoma a partir da primeira pendente.
 
 O `watch` executa uma injection por vez, registra falhas e aguarda a próxima
 ocorrência cron definida em cada entrada. As expressões usam cinco campos e o
