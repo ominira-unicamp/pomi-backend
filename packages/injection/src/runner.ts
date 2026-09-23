@@ -7,6 +7,7 @@ import {
     readFile,
     rename,
     rm,
+    stat,
     writeFile
 } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
@@ -23,6 +24,7 @@ import { loadInjectionEnv } from "./env.js";
 import { createInjectionLogger } from "./logger.js";
 import { runProcess } from "./process.js";
 import { createInjectionService, type InjectionService } from "./registry.js";
+import { readSnapshotManifest } from "./snapshots.js";
 import {
     validateWorkflowArtifact,
     workflowStageParameters
@@ -96,21 +98,58 @@ async function runInjectionInternal(
     const databaseUrl = process.env.DATABASE_URL;
     const runId = randomUUID();
     const logger = createInjectionLogger(definition.name, runId);
+    const workflowStage = workflowStageParameters(parameters);
+    const snapshot = definition.snapshot;
     const baseInputPath = resolveInputPath(
         definition,
         config.rootDirectory,
         config.configDirectory
     );
-    const inputPath = partitionInputPath(
-        baseInputPath,
-        parameters.partitionKey
-    );
-    const temporaryPath = `${inputPath}.${runId}.partial`;
+    const snapshotId =
+        workflowStage?.snapshotId ??
+        (typeof parameters.snapshotId === "string"
+            ? parameters.snapshotId
+            : (executionContext.jobId ?? runId));
+    const snapshotPartitionKey = snapshot
+        ? resolveSnapshotPartitionKey(snapshot, parameters, new Date())
+        : undefined;
+    const inputPath = workflowStage
+        ? join(
+              config.rootDirectory,
+              "data",
+              "snapshots",
+              workflowStage.workflowName,
+              String(workflowStage.workflowYear),
+              workflowStage.snapshotId
+          )
+        : snapshot
+          ? join(
+                config.rootDirectory,
+                "data",
+                "snapshots",
+                snapshot.provider,
+                snapshotPartitionKey ??
+                    (() => {
+                        throw new Error("Partição de snapshot ausente");
+                    })(),
+                snapshotId
+            )
+          : partitionInputPath(baseInputPath, parameters.partitionKey);
+    const temporaryPath =
+        workflowStage || snapshot
+            ? `${inputPath}.partial`
+            : `${inputPath}.${runId}.partial`;
     const variables: Record<string, string> = {
         POMI_INJECTION_NAME: definition.name,
         POMI_INJECTION_RUN_ID: runId,
         POMI_INJECTION_OUTPUT: temporaryPath,
         POMI_INJECTION_INPUT: inputPath,
+        POMI_PROVIDER_OUTPUT: temporaryPath,
+        POMI_PROVIDER_INPUT: inputPath,
+        ...(workflowStage || snapshot ? { POMI_SNAPSHOT_ID: snapshotId } : {}),
+        ...(snapshot
+            ? { POMI_SNAPSHOT_PARTITION_KEY: snapshotPartitionKey }
+            : {}),
         POMI_CURRENT_YEAR: String(new Date().getFullYear()),
         POMI_CURRENT_SEMESTER: new Date().getMonth() < 6 ? "1" : "2"
     };
@@ -210,7 +249,6 @@ async function runInjectionInternal(
             await access(inputPath);
             logger.info({ inputPath }, "Usando arquivo existente para injeção");
         }
-        const workflowStage = workflowStageParameters(parameters);
         if (workflowStage) {
             const validation = await validateWorkflowArtifact(
                 inputPath,
@@ -220,6 +258,35 @@ async function runInjectionInternal(
                 { workflow: workflowStage.workflowName, ...validation },
                 "Artefato do workflow validado"
             );
+        } else if (snapshot) {
+            const manifest = await readSnapshotManifest(inputPath, {
+                protocol: `pomi.${snapshot.provider}.snapshot`,
+                version: 1
+            });
+            if (manifest.snapshotId !== snapshotId)
+                throw new Error("Snapshot não corresponde à execução");
+            if (
+                snapshot.partition === "current-year" &&
+                manifest.partition.year !== Number(snapshotPartitionKey)
+            )
+                throw new Error(
+                    "Partição do snapshot não corresponde à execução"
+                );
+            if (
+                snapshot.partition === "date-range" &&
+                `${manifest.partition.firstDate}..${manifest.partition.lastDate}` !==
+                    snapshotPartitionKey
+            )
+                throw new Error(
+                    "Partição do snapshot não corresponde à execução"
+                );
+            if (
+                snapshot.partition === "collection-time" &&
+                manifest.partition.collectionKey !== snapshotPartitionKey
+            )
+                throw new Error(
+                    "Partição do snapshot não corresponde à execução"
+                );
         }
         if (mode === "obtain")
             return { name: definition.name, runId, inputPath, mode };
@@ -275,8 +342,35 @@ async function runInjectionInternal(
         if (persistenceError) throw persistenceError;
         return { name: definition.name, runId, inputPath, mode };
     } finally {
-        await rm(temporaryPath, { force: true });
+        await rm(temporaryPath, { recursive: true, force: true });
     }
+}
+
+function resolveSnapshotPartitionKey(
+    snapshot: NonNullable<InjectionDefinition["snapshot"]>,
+    parameters: Record<string, unknown>,
+    now: Date
+) {
+    if (typeof parameters.partitionKey === "string" && parameters.partitionKey)
+        return parameters.partitionKey;
+    if (snapshot.partition === "partition-key") {
+        if (
+            typeof parameters.partitionKey !== "string" ||
+            !parameters.partitionKey
+        )
+            throw new Error("Snapshot requer --partition-key");
+        return parameters.partitionKey;
+    }
+    if (snapshot.partition === "current-year") return String(now.getFullYear());
+    if (snapshot.partition === "collection-time")
+        return now
+            .toISOString()
+            .replace(/[-:.TZ]/g, "")
+            .slice(0, 14);
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const date = (offset: number) =>
+        new Date(today + offset * 86_400_000).toISOString().slice(0, 10);
+    return `${date(-snapshot.pastDays)}..${date(snapshot.futureDays)}`;
 }
 
 function partitionArgs(args: string[], parameters: Record<string, unknown>) {
@@ -325,7 +419,11 @@ async function writeInjectionIssuesFile({
 }) {
     const issuesPath = `${inputPath}.issues.json`;
     try {
-        const input = JSON.parse(await readFile(inputPath, "utf8")) as {
+        const inputStats = await stat(inputPath);
+        const issuesInputPath = inputStats.isDirectory()
+            ? join(inputPath, "issues.json")
+            : inputPath;
+        const input = JSON.parse(await readFile(issuesInputPath, "utf8")) as {
             issues?: unknown;
         };
         const report = {

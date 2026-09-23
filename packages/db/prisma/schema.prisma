@@ -239,6 +239,26 @@ enum JobRequestTrigger {
   @@schema("app")
 }
 
+enum DataSnapshotStatus {
+  COLLECTING
+  VALIDATED
+  PERSISTING
+  PUBLISHED
+  INVALID
+  FAILED
+
+  @@schema("app")
+}
+
+enum DataSnapshotComponentStatus {
+  COMPLETE
+  UNAVAILABLE
+  FAILED
+  PERSISTED
+
+  @@schema("app")
+}
+
 model AuthUser {
   id          Int            @id @default(autoincrement())
   issuer      String
@@ -283,12 +303,61 @@ model JobRequest {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  parent     JobRequest?  @relation("JobRequestPartitions", fields: [parentJobId], references: [id], onDelete: SetNull)
-  partitions JobRequest[] @relation("JobRequestPartitions")
+  parent     JobRequest?    @relation("JobRequestPartitions", fields: [parentJobId], references: [id], onDelete: SetNull)
+  partitions JobRequest[]   @relation("JobRequestPartitions")
+  snapshots  DataSnapshot[]
 
   @@index([type, status, availableAt])
   @@index([type, name, status])
   @@index([type, name, partitionKey, status])
+  @@schema("app")
+}
+
+model DataSnapshot {
+  id              String             @id
+  protocol        String
+  protocolVersion Int
+  workflow        String
+  partitionKey    String
+  profile         String
+  status          DataSnapshotStatus @default(COLLECTING)
+  manifestPath    String
+  manifestSha256  String?
+  producer        Json?
+  jobRequestId    String?
+  collectedAt     DateTime?
+  validatedAt     DateTime?
+  persistedAt     DateTime?
+  publishedAt     DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  jobRequest JobRequest?             @relation(fields: [jobRequestId], references: [id], onDelete: SetNull)
+  components DataSnapshotComponent[]
+
+  @@index([workflow, partitionKey, status])
+  @@index([jobRequestId])
+  @@schema("app")
+}
+
+model DataSnapshotComponent {
+  id             Int                         @id @default(autoincrement())
+  snapshotId     String
+  name           String
+  schemaVersion  Int
+  status         DataSnapshotComponentStatus
+  artifactPath   String?
+  artifactSha256 String?
+  recordCount    Int?
+  issueCount     Int                         @default(0)
+  persistedAt    DateTime?
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  snapshot DataSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@unique([snapshotId, name])
+  @@index([status])
   @@schema("app")
 }
 

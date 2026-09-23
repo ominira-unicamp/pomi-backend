@@ -83,6 +83,7 @@ program
     .option("--institute-code <code>", "sigla do instituto")
     .option("--partition-key <key>", "identificador da partição")
     .option("--profile <profile>", "perfil do workflow", "available")
+    .option("--snapshot-id <id>", "snapshot validado para o modo inject")
     .action(async (name: string, mode = "all", options: PartitionOptions) => {
         loadInjectionEnv();
         const config = await loadInjectionConfig(program.opts().config);
@@ -100,12 +101,15 @@ program
                     throw new Error(
                         "Workflows requerem --first-year e/ou --last-year"
                     );
+                if (mode === "inject" && !options.snapshotId)
+                    throw new Error("O modo inject requer --snapshot-id");
                 const jobs = await enqueueCatalogProgramWorkflows(database, {
                     firstYear,
                     lastYear,
                     profile: parseWorkflowProfile(options.profile),
                     mode: mode as InjectionRunMode,
-                    requestedBy: process.env.POMI_JOB_REQUESTED_BY ?? "cli"
+                    requestedBy: process.env.POMI_JOB_REQUESTED_BY ?? "cli",
+                    snapshotId: options.snapshotId
                 });
                 for (const job of jobs) process.stdout.write(`${job.id}\n`);
                 return;
@@ -185,7 +189,13 @@ program
     .description(
         `executa uma injection (${injectionNames.join(", ")}); modo: all, obtain ou inject`
     )
-    .action(async (name: string, mode = "all") => {
+    .option("--first-year <year>", "primeiro ano da partição", parseYear)
+    .option("--last-year <year>", "último ano da partição", parseYear)
+    .option("--semester <semester>", "semestre da partição", parseSemester)
+    .option("--institute-code <code>", "sigla do instituto")
+    .option("--partition-key <key>", "identificador da partição")
+    .option("--snapshot-id <id>", "snapshot existente para o modo inject")
+    .action(async (name: string, mode = "all", options: PartitionOptions) => {
         if (!["all", "obtain", "inject"].includes(mode))
             throw new Error(
                 `Modo inválido: ${mode}. Use all, obtain ou inject.`
@@ -193,12 +203,15 @@ program
         const config = await loadInjectionConfig(program.opts().config);
         const injection = config.injections.find((item) => item.name === name);
         if (!injection) throw new Error(`Injection não encontrada: ${name}`);
+        if (mode === "inject" && injection.snapshot && !options.snapshotId)
+            throw new Error("O modo inject requer --snapshot-id");
         await runInjection(
             config,
             injection,
             undefined,
             undefined,
-            mode as InjectionRunMode
+            mode as InjectionRunMode,
+            partitionParameters(options) ?? {}
         );
     });
 
@@ -230,9 +243,42 @@ program.command("watch").action(async () => {
                 : []
         )
     );
+    const nextWorkflowRun = new Map(
+        config.workflows.map((item) => [
+            item.name,
+            nextCronOccurrence(item.schedule.cron)
+        ])
+    );
     try {
         while (!controller.signal.aborted) {
             const now = new Date();
+            for (const workflow of config.workflows) {
+                const scheduledAt = nextWorkflowRun.get(workflow.name);
+                if (!scheduledAt || scheduledAt > now) continue;
+                nextWorkflowRun.set(
+                    workflow.name,
+                    nextCronOccurrence(
+                        workflow.schedule.cron,
+                        new Date(now.getTime() + 1_000)
+                    )
+                );
+                try {
+                    await enqueueCatalogProgramWorkflows(database, {
+                        firstYear: new Date().getFullYear(),
+                        lastYear: new Date().getFullYear(),
+                        profile: workflow.profile,
+                        mode: "all",
+                        requestedBy: "scheduler",
+                        trigger: JobRequestTrigger.SCHEDULED,
+                        scheduledFor: scheduledAt
+                    });
+                } catch (error) {
+                    cliLogger.debug(
+                        { err: error, workflow: workflow.name },
+                        "Workflow já pendente"
+                    );
+                }
+            }
             for (const injection of config.injections) {
                 if (!injection.schedule) continue;
                 const scheduledAt = nextRun.get(injection.name);
@@ -399,7 +445,9 @@ type PartitionOptions = {
     lastYear?: number;
     partitionKey?: string;
     instituteCode?: string;
+    semester?: 1 | 2;
     profile: string;
+    snapshotId?: string;
 };
 
 function parseYear(value: string) {
@@ -409,11 +457,18 @@ function parseYear(value: string) {
     return year;
 }
 
+function parseSemester(value: string): 1 | 2 {
+    if (value !== "1" && value !== "2") throw new Error("Semestre inválido");
+    return Number(value) as 1 | 2;
+}
+
 function partitionParameters(options: PartitionOptions) {
     if (
         options.firstYear === undefined &&
         options.lastYear === undefined &&
-        options.instituteCode === undefined
+        options.semester === undefined &&
+        options.instituteCode === undefined &&
+        options.snapshotId === undefined
     )
         return undefined;
     const firstYear = options.firstYear ?? options.lastYear;
@@ -430,7 +485,13 @@ function partitionParameters(options: PartitionOptions) {
         ...(lastYear === undefined ? {} : { lastYear }),
         ...(options.instituteCode === undefined
             ? {}
-            : { instituteCode: options.instituteCode })
+            : { instituteCode: options.instituteCode }),
+        ...(options.semester === undefined
+            ? {}
+            : { semester: options.semester }),
+        ...(options.snapshotId === undefined
+            ? {}
+            : { snapshotId: options.snapshotId })
     };
 }
 

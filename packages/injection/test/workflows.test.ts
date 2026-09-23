@@ -5,7 +5,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import {
-    catalogProgramCapabilities,
     catalogProgramStages,
     parseWorkflowProfile,
     validateWorkflowArtifact,
@@ -15,22 +14,10 @@ import {
 } from "../src/workflows.js";
 
 test("resolve etapas por era e perfil", () => {
-    assert.deepEqual(catalogProgramStages(1998, "core"), [
-        "historical-programs"
-    ]);
-    assert.deepEqual(catalogProgramStages(2020, "available"), [
-        "historical-programs"
-    ]);
-    assert.deepEqual(catalogProgramStages(2026, "core"), ["catalogs"]);
-    assert.deepEqual(catalogProgramStages(2026, "complete"), [
-        "catalogs",
-        "catalog-information",
-        "suggestions"
-    ]);
-    assert.throws(
-        () => catalogProgramStages(2020, "complete"),
-        /2021 ou posterior/
-    );
+    for (const year of [1998, 2020, 2026])
+        assert.deepEqual(catalogProgramStages(year, "complete"), [
+            "catalog-programs-snapshot"
+        ]);
 });
 
 test("avança em ordem e retoma sem repetir etapas bem-sucedidas", () => {
@@ -98,27 +85,6 @@ test("avança em ordem e retoma sem repetir etapas bem-sucedidas", () => {
     );
 });
 
-test("expõe capabilities sem transformar ausência histórica em null", () => {
-    assert.deepEqual(catalogProgramCapabilities(1998, "available"), {
-        adapter: "LEGACY_CLASSIC",
-        requestedProfile: "available",
-        components: {
-            programs: "available",
-            curricula: "unsupported-format",
-            information: "unsupported-format",
-            suggestions: "unsupported-format"
-        }
-    });
-    assert.equal(
-        catalogProgramCapabilities(2020, "core").adapter,
-        "LEGACY_INTERMEDIATE"
-    );
-    assert.equal(
-        catalogProgramCapabilities(2021, "complete").adapter,
-        "MODERN"
-    );
-});
-
 test("valida parâmetros persistidos de workflow e etapa", () => {
     assert.deepEqual(
         workflowParameters({
@@ -141,17 +107,19 @@ test("valida parâmetros persistidos de workflow e etapa", () => {
     assert.deepEqual(
         workflowStageParameters({
             workflowName: "catalog-programs",
-            workflowStage: "catalogs",
-            workflowYear: 2026,
-            workflowProfile: "complete",
-            workflowAttempt: 2
-        }),
-        {
-            workflowName: "catalog-programs",
-            workflowStage: "catalogs",
+            workflowStage: "catalog-programs-snapshot",
             workflowYear: 2026,
             workflowProfile: "complete",
             workflowAttempt: 2,
+            snapshotId: "snapshot-1"
+        }),
+        {
+            workflowName: "catalog-programs",
+            workflowStage: "catalog-programs-snapshot",
+            workflowYear: 2026,
+            workflowProfile: "complete",
+            workflowAttempt: 2,
+            snapshotId: "snapshot-1",
             firstYear: 2026,
             lastYear: 2026,
             partitionKey: "2026"
@@ -161,42 +129,60 @@ test("valida parâmetros persistidos de workflow e etapa", () => {
 
 test("valida envelope antes da persistência do workflow", async () => {
     const directory = await mkdtemp(join(tmpdir(), "pomi-workflow-"));
-    const path = join(directory, "artifact.json");
+    const path = join(directory, "manifest.json");
     const parameters = workflowStageParameters({
         workflowName: "catalog-programs",
-        workflowStage: "catalogs",
+        workflowStage: "catalog-programs-snapshot",
         workflowYear: 2026,
         workflowProfile: "complete",
-        workflowAttempt: 1
+        workflowAttempt: 1,
+        snapshotId: "snapshot-1"
     })!;
     try {
         await writeFile(
             path,
-            JSON.stringify({ data: {}, issues: [], pages: [{ adapter: "x" }] })
+            JSON.stringify({
+                protocol: "pomi.catalog-programs.snapshot",
+                version: 1,
+                snapshotId: "snapshot-1",
+                partition: { year: 2026 },
+                profile: "complete",
+                status: "COMPLETE",
+                components: {},
+                issues: []
+            })
         );
-        assert.deepEqual(await validateWorkflowArtifact(path, parameters), {
-            pages: 1,
-            issues: 0,
-            blockingIssues: 0
-        });
+        assert.deepEqual(
+            await validateWorkflowArtifact(directory, parameters),
+            {
+                pages: null,
+                issues: 0,
+                blockingIssues: 0
+            }
+        );
 
         await writeFile(
             path,
             JSON.stringify({
-                data: {},
-                issues: [{ code: "load-error" }],
-                pages: []
+                protocol: "pomi.catalog-programs.snapshot",
+                version: 1,
+                snapshotId: "snapshot-1",
+                partition: { year: 2026 },
+                profile: "complete",
+                status: "PARTIAL",
+                components: {},
+                issues: [{ blocksCompleteness: true }]
             })
         );
         await assert.rejects(
-            validateWorkflowArtifact(path, parameters),
-            /Artefato incompleto/
+            validateWorkflowArtifact(directory, parameters),
+            /inválido ou incompatível/
         );
 
-        await writeFile(path, JSON.stringify({ data: {} }));
+        await writeFile(path, JSON.stringify({ protocol: "inválido" }));
         await assert.rejects(
-            validateWorkflowArtifact(path, parameters),
-            /data, issues e pages/
+            validateWorkflowArtifact(directory, parameters),
+            /Manifest de snapshot inválido/
         );
     } finally {
         await rm(directory, { recursive: true, force: true });

@@ -8,8 +8,7 @@ import {
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { InjectionConfig, InjectionDefinition } from "./config.js";
-import { resolveInputPath } from "./config.js";
+import type { InjectionConfig } from "./config.js";
 
 export const workflowNames = ["catalog-programs"] as const;
 export type WorkflowName = (typeof workflowNames)[number];
@@ -20,6 +19,7 @@ export type WorkflowParameters = {
     year: number;
     profile: WorkflowProfile;
     attempt: number;
+    snapshotId?: string;
 };
 
 export type WorkflowStageParameters = {
@@ -28,24 +28,13 @@ export type WorkflowStageParameters = {
     workflowYear: number;
     workflowProfile: WorkflowProfile;
     workflowAttempt: number;
+    snapshotId: string;
     firstYear: number;
     lastYear: number;
     partitionKey: string;
 };
 
 type JobExecutor = Pick<PrismaClient, "jobRequest">;
-
-const ignoredIssue = (value: unknown) => {
-    if (!value || typeof value !== "object") return false;
-    const issue = value as Record<string, unknown>;
-    return (
-        issue.code === "invalid-format" &&
-        issue.adapter === "catalogo-disciplinas-prefixo" &&
-        typeof issue.path === "string" &&
-        issue.path.endsWith(".minimumAttendancePercent") &&
-        issue.actual === "$disc.perMinFreq%"
-    );
-};
 
 export function isWorkflowName(value: string): value is WorkflowName {
     return workflowNames.includes(value as WorkflowName);
@@ -59,48 +48,16 @@ export function parseWorkflowProfile(value: string): WorkflowProfile {
 
 export function catalogProgramStages(
     year: number,
-    profile: WorkflowProfile
+    _profile: WorkflowProfile
 ): string[] {
     if (!Number.isInteger(year) || year < 1998 || year > 3000)
         throw new Error(`Ano de catálogo inválido: ${year}`);
-    if (profile === "complete" && year < 2021)
-        throw new Error(
-            `O perfil complete de catalog-programs requer catálogo de 2021 ou posterior: ${year}`
-        );
-    if (year < 2021) return ["historical-programs"];
-    if (profile === "core") return ["catalogs"];
-    return ["catalogs", "catalog-information", "suggestions"];
-}
-
-export function catalogProgramCapabilities(
-    year: number,
-    profile: WorkflowProfile
-) {
-    const modern = year >= 2021;
-    return {
-        adapter: modern
-            ? "MODERN"
-            : year <= 2011
-              ? "LEGACY_CLASSIC"
-              : "LEGACY_INTERMEDIATE",
-        requestedProfile: profile,
-        components: {
-            programs: "available",
-            curricula: modern ? "available" : "unsupported-format",
-            information: modern ? "available" : "unsupported-format",
-            suggestions: modern ? "available" : "unsupported-format"
-        }
-    } as const;
+    return ["catalog-programs-snapshot"];
 }
 
 export function validateWorkflowConfig(config: InjectionConfig) {
     const configured = new Set(config.injections.map(({ name }) => name));
-    const required = [
-        "historical-programs",
-        "catalogs",
-        "catalog-information",
-        "suggestions"
-    ];
+    const required = ["catalog-programs-snapshot"];
     const missing = required.filter((name) => !configured.has(name));
     if (missing.length > 0)
         throw new Error(
@@ -122,7 +79,10 @@ export function workflowParameters(value: unknown): WorkflowParameters | null {
         workflow: true,
         year: candidate.year as number,
         profile: parseWorkflowProfile(candidate.profile),
-        attempt: candidate.attempt as number
+        attempt: candidate.attempt as number,
+        ...(typeof candidate.snapshotId === "string"
+            ? { snapshotId: candidate.snapshotId }
+            : {})
     };
 }
 
@@ -136,7 +96,8 @@ export function workflowStageParameters(
         typeof candidate.workflowStage !== "string" ||
         !Number.isInteger(candidate.workflowYear) ||
         typeof candidate.workflowProfile !== "string" ||
-        !Number.isInteger(candidate.workflowAttempt)
+        !Number.isInteger(candidate.workflowAttempt) ||
+        typeof candidate.snapshotId !== "string"
     )
         return null;
     const year = candidate.workflowYear as number;
@@ -146,6 +107,7 @@ export function workflowStageParameters(
         workflowYear: year,
         workflowProfile: parseWorkflowProfile(candidate.workflowProfile),
         workflowAttempt: candidate.workflowAttempt as number,
+        snapshotId: candidate.snapshotId,
         firstYear: year,
         lastYear: year,
         partitionKey: String(year)
@@ -197,13 +159,19 @@ export async function enqueueCatalogProgramWorkflows(
         lastYear,
         profile,
         mode,
-        requestedBy
+        requestedBy,
+        trigger = JobRequestTrigger.MANUAL,
+        scheduledFor,
+        snapshotId
     }: {
         firstYear: number;
         lastYear: number;
         profile: WorkflowProfile;
         mode: "all" | "obtain" | "inject";
         requestedBy: string;
+        trigger?: JobRequestTrigger;
+        scheduledFor?: Date;
+        snapshotId?: string;
     }
 ) {
     if (firstYear > lastYear)
@@ -233,13 +201,15 @@ export async function enqueueCatalogProgramWorkflows(
                     name: "catalog-programs",
                     partitionKey: String(year),
                     mode,
-                    trigger: JobRequestTrigger.MANUAL,
+                    trigger,
+                    scheduledFor,
                     requestedBy,
                     parameters: {
                         workflow: true,
                         year,
                         profile,
-                        attempt: 1
+                        attempt: 1,
+                        ...(snapshotId ? { snapshotId } : {})
                     }
                 }
             })
@@ -248,46 +218,38 @@ export async function enqueueCatalogProgramWorkflows(
     return jobs;
 }
 
-export function workflowInputPath(
-    config: InjectionConfig,
-    definition: InjectionDefinition,
-    year: number
-) {
-    const base = resolveInputPath(
-        definition,
-        config.rootDirectory,
-        config.configDirectory
-    );
-    const extension = base.slice(base.lastIndexOf("."));
-    return `${base.slice(0, -extension.length)}.${year}${extension}`;
-}
-
 export async function validateWorkflowArtifact(
     inputPath: string,
     parameters: WorkflowStageParameters
 ) {
-    const parsed = JSON.parse(await readFile(inputPath, "utf8")) as {
-        data?: unknown;
-        issues?: unknown;
-        pages?: unknown;
-    };
+    const parsed = JSON.parse(
+        await readFile(join(inputPath, "manifest.json"), "utf8")
+    ) as Record<string, unknown>;
     if (
-        !("data" in parsed) ||
-        !Array.isArray(parsed.issues) ||
-        !Array.isArray(parsed.pages)
+        parsed.protocol !== "pomi.catalog-programs.snapshot" ||
+        parsed.version !== 1 ||
+        parsed.snapshotId !== parameters.snapshotId ||
+        parsed.profile !== parameters.workflowProfile ||
+        parsed.status !== "COMPLETE" ||
+        typeof parsed.components !== "object" ||
+        !Array.isArray(parsed.issues)
     )
-        throw new Error(
-            `Artefato do workflow ${parameters.workflowName}/${parameters.workflowStage} deve conter data, issues e pages`
-        );
+        throw new Error("Manifest de snapshot inválido ou incompatível");
+    const partition = parsed.partition as { year?: unknown } | undefined;
+    if (partition?.year !== parameters.workflowYear)
+        throw new Error("Partição do snapshot não corresponde ao workflow");
     const blockingIssues = parsed.issues.filter(
-        (issue) => !ignoredIssue(issue)
+        (issue) =>
+            issue &&
+            typeof issue === "object" &&
+            (issue as Record<string, unknown>).blocksCompleteness === true
     );
-    if (parameters.workflowProfile === "complete" && blockingIssues.length > 0)
+    if (blockingIssues.length > 0)
         throw new Error(
-            `Artefato incompleto em ${parameters.workflowStage}: ${blockingIssues.length} issue(s)`
+            `Snapshot possui ${blockingIssues.length} issue(s) bloqueante(s)`
         );
     return {
-        pages: parsed.pages.length,
+        pages: null,
         issues: parsed.issues.length,
         blockingIssues: blockingIssues.length
     };
@@ -295,7 +257,8 @@ export async function validateWorkflowArtifact(
 
 function stageParameters(
     workflow: WorkflowParameters,
-    stage: string
+    stage: string,
+    snapshotId: string
 ): WorkflowStageParameters {
     return {
         workflowName: "catalog-programs",
@@ -303,6 +266,7 @@ function stageParameters(
         workflowYear: workflow.year,
         workflowProfile: workflow.profile,
         workflowAttempt: workflow.attempt,
+        snapshotId,
         firstYear: workflow.year,
         lastYear: workflow.year,
         partitionKey: String(workflow.year)
@@ -325,7 +289,14 @@ async function enqueueStage(
             trigger: parent.trigger,
             scheduledFor: parent.scheduledFor,
             requestedBy: parent.requestedBy,
-            parameters: stageParameters(workflow, stage),
+            parameters: stageParameters(
+                workflow,
+                stage,
+                workflow.snapshotId ??
+                    (workflow.attempt === 1
+                        ? parent.id
+                        : `${parent.id}-${workflow.attempt}`)
+            ),
             deduplicationKey: `workflow:${parent.id}:${workflow.attempt}:${stage}`
         }
     });
@@ -461,12 +432,17 @@ export async function writeWorkflowManifest(
     const stages = await Promise.all(
         status.stages.map(async (job) => {
             const parameters = workflowStageParameters(job.parameters);
-            const definition = config.injections.find(
-                (candidate) => candidate.name === job.name
-            );
-            const artifact = definition
+            const artifact = parameters
                 ? await artifactSummary(
-                      workflowInputPath(config, definition, workflow.year)
+                      join(
+                          config.rootDirectory,
+                          "data",
+                          "snapshots",
+                          parameters.workflowName,
+                          String(parameters.workflowYear),
+                          parameters.snapshotId,
+                          "manifest.json"
+                      )
                   )
                 : null;
             return {
@@ -488,7 +464,6 @@ export async function writeWorkflowManifest(
         mode: status.mode,
         status: status.status,
         generatedAt: new Date().toISOString(),
-        source: catalogProgramCapabilities(workflow.year, workflow.profile),
         stages
     };
     const path = join(
@@ -498,7 +473,7 @@ export async function writeWorkflowManifest(
         "catalog-programs",
         String(workflow.year),
         parentId,
-        "manifest.json"
+        "workflow-status.json"
     );
     await mkdir(dirname(path), { recursive: true });
     const temporary = `${path}.partial`;

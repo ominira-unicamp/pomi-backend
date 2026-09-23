@@ -120,17 +120,23 @@ npm run notifier:job-status -- <job-id>
 `catalog-programs` é um workflow anual. O perfil `core` garante o vínculo do
 programa com o catálogo, `available` coleta os componentes suportados pela
 fonte daquele ano e `complete` exige currículos, informações institucionais e
-sugestões dos catálogos modernos (2021 em diante). O job retornado agrega as
-etapas técnicas; em caso de falha, `injection:retry` preserva as etapas já
-concluídas e retoma a partir da primeira pendente.
+sugestões dos catálogos modernos (2021 em diante). O job executa obtenção,
+validação e persistência de um snapshot imutável. Os artefatos ficam em
+`data/snapshots/catalog-programs/<ano>/<snapshot-id>`, com manifesto, hashes e
+componentes versionados; a injection consome somente esse contrato JSON e não
+importa código do provider. O modo `inject` exige `--snapshot-id`. São
+preservados os três snapshots publicados mais recentes por ano e snapshots
+com falha por sete dias.
 
 O `watch` executa uma injection por vez, registra falhas e aguarda a próxima
 ocorrência cron definida em cada entrada. As expressões usam cinco campos e o
 fuso horário local do processo (configurável por `TZ`). O diretório de dados e
 o lock do scheduler ficam sob a raiz configurada, sem remover arquivos
-existentes. Os tipos predefinidos são
-`academic-data`, `calendar`, `catalogs`, `catalog-information`,
-`catalog-disciplines`, `daily-menus`, `exchange-notices` e `suggestions`.
+existentes. As configurações de catálogo usam somente
+`catalog-programs-snapshot`; os persistidores de currículos, informações e
+sugestões permanecem internos ao consumidor composto. Os demais tipos
+configuráveis incluem `academic-data`, `calendar`, `catalog-disciplines`,
+`daily-menus` e `exchange-notices`.
 As alterações persistidas são emitidas como eventos JSON pelo Pino no stdout;
 o nível pode ser ajustado com `LOG_LEVEL` (ou, por compatibilidade,
 `POMI_INJECTION_LOG_LEVEL`). O envio opcional para OpenObserve usa

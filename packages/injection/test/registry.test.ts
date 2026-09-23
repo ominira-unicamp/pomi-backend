@@ -14,8 +14,10 @@ test("resolve todas as injections predefinidas", () => {
     for (const name of [
         "academic-data",
         "calendar",
+        "calendar-snapshot",
         "catalogs",
         "catalog-information",
+        "catalog-programs-snapshot",
         "catalog-disciplines",
         "daily-menus",
         "exchange-notices",

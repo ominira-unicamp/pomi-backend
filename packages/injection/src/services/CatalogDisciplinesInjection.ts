@@ -64,11 +64,11 @@ type ExistingCourse = {
 };
 
 const offeringPeriods: Record<string, CourseOfferingPeriod> = {
-    "todos os períodos": "ALL_PERIODS",
-    "1º período - períodos ímpares": "ODD_PERIODS",
-    "1o período - períodos impares": "ODD_PERIODS",
-    "2º período - períodos pares": "EVEN_PERIODS",
-    "2o período - períodos pares": "EVEN_PERIODS",
+    "todos os periodos": "ALL_PERIODS",
+    "1º periodo - periodos impares": "ODD_PERIODS",
+    "1o periodo - periodos impares": "ODD_PERIODS",
+    "2º periodo - periodos pares": "EVEN_PERIODS",
+    "2o periodo - periodos pares": "EVEN_PERIODS",
     "a criterio da unidade de ensino": "UNIT_DISCRETION"
 };
 
@@ -195,8 +195,13 @@ export async function injectCatalogDisciplines(
         { phase, result, issues: errors.length },
         "Injeção de disciplinas concluída"
     );
-    if (errors.length > 0)
+    if (errors.length > 0) {
+        logger.error(
+            { phase, issues: errors.length, examples: errors.slice(0, 10) },
+            "Injeção de disciplinas encontrou issues bloqueantes"
+        );
         throw new Error(`Injeção concluída com ${errors.length} issue(s)`);
+    }
 }
 
 type PhaseContext = {
@@ -608,7 +613,11 @@ function prerequisiteGroups(
     source: Discipline,
     courseByCode: Map<string, ExistingCourse>,
     catalogYear: number,
-    code: string
+    code: string,
+    unresolvedPrerequisites: Map<
+        string,
+        { catalogYear: number; code: string; prerequisite: unknown }
+    >
 ) {
     const groups: Array<{
         items: Array<{
@@ -647,11 +656,10 @@ function prerequisiteGroups(
                     : courseByCode.get(prerequisiteCode);
             const isPrefix = /^[A-Z0-9]+-+$/.test(prerequisiteCode);
             if (kind !== "SPECIAL" && !course && !isPrefix)
-                throw issue("Pré-requis não resolvido", {
-                    catalogYear,
-                    code,
-                    prerequisite: raw
-                });
+                unresolvedPrerequisites.set(
+                    `${catalogYear}:${code}:${prerequisiteCode}:${kind}`,
+                    { catalogYear, code, prerequisite: raw }
+                );
             items.push({
                 code: isPrefix
                     ? prerequisiteCode.replace(/-+$/, "")
@@ -747,6 +755,10 @@ async function injectRelationshipsPhase(context: PhaseContext) {
     let imported = 0;
     let skipped = 0;
     let savepointCounter = 0;
+    const unresolvedPrerequisites = new Map<
+        string,
+        { catalogYear: number; code: string; prerequisite: unknown }
+    >();
     const result = await withAuditTransaction(
         context.prisma,
         context.auditContext,
@@ -771,7 +783,8 @@ async function injectRelationshipsPhase(context: PhaseContext) {
                         source.discipline,
                         courseByCode,
                         source.catalog.year,
-                        source.code
+                        source.code,
+                        unresolvedPrerequisites
                     );
                     const before = canonicalGroups(
                         existing.prerequisites.map((group) => ({
@@ -841,5 +854,13 @@ async function injectRelationshipsPhase(context: PhaseContext) {
             maxWait: context.transactionMaxWait
         }
     );
+    if (unresolvedPrerequisites.size > 0)
+        context.logger.warn(
+            {
+                count: unresolvedPrerequisites.size,
+                examples: [...unresolvedPrerequisites.values()].slice(0, 10)
+            },
+            "Pré-requisitos externos ao catálogo foram preservados sem vínculo"
+        );
     return result;
 }

@@ -25,6 +25,28 @@ const injectionSchema = z.object({
         directory: z.string().min(1),
         fileName: z.string().min(1)
     }),
+    snapshot: z
+        .discriminatedUnion("partition", [
+            z.object({
+                provider: z.string().regex(/^[a-z][a-z0-9-]*$/),
+                partition: z.literal("current-year")
+            }),
+            z.object({
+                provider: z.string().regex(/^[a-z][a-z0-9-]*$/),
+                partition: z.literal("partition-key")
+            }),
+            z.object({
+                provider: z.string().regex(/^[a-z][a-z0-9-]*$/),
+                partition: z.literal("collection-time")
+            }),
+            z.object({
+                provider: z.string().regex(/^[a-z][a-z0-9-]*$/),
+                partition: z.literal("date-range"),
+                pastDays: z.number().int().nonnegative(),
+                futureDays: z.number().int().nonnegative()
+            })
+        ])
+        .optional(),
     options: z.record(z.string(), z.unknown()).default({}),
     allowIssues: z.boolean().default(false),
     partitioning: z
@@ -45,7 +67,20 @@ const injectionSchema = z.object({
 export const injectionConfigSchema = z.object({
     version: z.literal(1),
     rootDirectory: z.string().default("."),
-    injections: z.array(injectionSchema)
+    injections: z.array(injectionSchema),
+    workflows: z
+        .array(
+            z.object({
+                name: z.literal("catalog-programs"),
+                schedule: z
+                    .object({ cron: z.string().trim().min(1) })
+                    .transform((schedule) => ({
+                        cron: validateCronExpression(schedule.cron)
+                    })),
+                profile: z.enum(["core", "available", "complete"])
+            })
+        )
+        .default([])
 });
 
 export type InjectionDefinition = z.infer<typeof injectionSchema>;
