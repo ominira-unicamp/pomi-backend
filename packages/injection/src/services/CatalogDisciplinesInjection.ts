@@ -1,5 +1,6 @@
 import {
-    CatalogCoursePrerequisiteKind,
+    CatalogCoursePrerequisiteFulfillment,
+    CatalogCourseSpecialRequirementType,
     CourseEvaluationMode,
     CourseOfferingPeriod,
     Prisma
@@ -62,6 +63,16 @@ type ExistingCourse = {
     credits: number;
     unitId: number | null;
 };
+
+type PrerequisiteItem =
+    | {
+          courseId: number | null;
+          fulfillment: CatalogCoursePrerequisiteFulfillment;
+      }
+    | {
+          specialRequirementType: CatalogCourseSpecialRequirementType;
+          specialRequirementValue: number;
+      };
 
 const offeringPeriods: Record<string, CourseOfferingPeriod> = {
     "todos os periodos": "ALL_PERIODS",
@@ -269,7 +280,7 @@ async function injectCatalogPhase(context: PhaseContext) {
                         /^\s*\*/,
                         ""
                     )
-                ).replace(/-+$/g, "")
+                )
             )
         )
     );
@@ -609,29 +620,38 @@ async function injectCatalogPhase(context: PhaseContext) {
     return result;
 }
 
+export function parseSpecialRequirement(code: string) {
+    const normalizedCode = normalizeCourseCode(code);
+    if (normalizedCode === "AA200")
+        return {
+            specialRequirementType: "AUTHORIZATION" as const,
+            specialRequirementValue: 0
+        };
+    const progressionCoefficient = /^AA4(\d{2})$/.exec(normalizedCode);
+    if (!progressionCoefficient) return null;
+    return {
+        specialRequirementType: "PROGRESSION_COEFFICIENT" as const,
+        specialRequirementValue: Number(progressionCoefficient[1])
+    };
+}
+
+function canonicalPrerequisiteItem(item: PrerequisiteItem) {
+    return "courseId" in item
+        ? `COURSE:${item.courseId}:${item.fulfillment}`
+        : `SPECIAL:${item.specialRequirementType}:${item.specialRequirementValue}`;
+}
+
 function prerequisiteGroups(
     source: Discipline,
     courseByCode: Map<string, ExistingCourse>,
     catalogYear: number,
-    code: string,
-    unresolvedPrerequisites: Map<
-        string,
-        { catalogYear: number; code: string; prerequisite: unknown }
-    >
+    code: string
 ) {
     const groups: Array<{
-        items: Array<{
-            code: string;
-            kind: CatalogCoursePrerequisiteKind;
-            courseId: number | null;
-        }>;
+        items: PrerequisiteItem[];
     }> = [];
     for (const group of source.prerequisites?.any ?? []) {
-        const items = [] as Array<{
-            code: string;
-            kind: CatalogCoursePrerequisiteKind;
-            courseId: number | null;
-        }>;
+        const items: PrerequisiteItem[] = [];
         for (const raw of group.all) {
             const input =
                 typeof raw === "string"
@@ -649,23 +669,28 @@ function prerequisiteGroups(
             const prerequisiteCode = normalizeCourseCode(
                 input.code.replace(/^\s*\*/, "")
             );
-            const kind = input.kind as CatalogCoursePrerequisiteKind;
-            const course =
-                kind === "SPECIAL"
-                    ? undefined
-                    : courseByCode.get(prerequisiteCode);
-            const isPrefix = /^[A-Z0-9]+-+$/.test(prerequisiteCode);
-            if (kind !== "SPECIAL" && !course && !isPrefix)
-                unresolvedPrerequisites.set(
-                    `${catalogYear}:${code}:${prerequisiteCode}:${kind}`,
-                    { catalogYear, code, prerequisite: raw }
-                );
+            const specialRequirement =
+                parseSpecialRequirement(prerequisiteCode);
+            if (input.kind === "SPECIAL") {
+                if (!specialRequirement)
+                    throw issue("Requisito especial desconhecido", {
+                        catalogYear,
+                        code,
+                        prerequisite: raw
+                    });
+                items.push(specialRequirement);
+                continue;
+            }
+            if (specialRequirement)
+                throw issue("Requisito especial com classificação inválida", {
+                    catalogYear,
+                    code,
+                    prerequisite: raw
+                });
+            const course = courseByCode.get(prerequisiteCode);
             items.push({
-                code: isPrefix
-                    ? prerequisiteCode.replace(/-+$/, "")
-                    : prerequisiteCode,
-                kind,
-                courseId: course?.id ?? null
+                courseId: course?.id ?? null,
+                fulfillment: input.kind as CatalogCoursePrerequisiteFulfillment
             });
         }
         groups.push({ items });
@@ -673,7 +698,7 @@ function prerequisiteGroups(
     const seen = new Set<string>();
     return groups.filter((group) => {
         const key = JSON.stringify(
-            group.items.map(({ code, kind }) => `${code}:${kind}`).sort()
+            group.items.map(canonicalPrerequisiteItem).sort()
         );
         if (seen.has(key)) return false;
         seen.add(key);
@@ -681,15 +706,9 @@ function prerequisiteGroups(
     });
 }
 
-function canonicalGroups(
-    groups: Array<{
-        items: Array<{ code: string; kind: CatalogCoursePrerequisiteKind }>;
-    }>
-) {
+function canonicalGroups(groups: Array<{ items: PrerequisiteItem[] }>) {
     return groups
-        .map((group) =>
-            group.items.map(({ code, kind }) => `${code}:${kind}`).sort()
-        )
+        .map((group) => group.items.map(canonicalPrerequisiteItem).sort())
         .sort();
 }
 
@@ -709,7 +728,7 @@ async function injectRelationshipsPhase(context: PhaseContext) {
                         /^\s*\*/,
                         ""
                     )
-                ).replace(/-+$/g, "")
+                )
             )
         )
     );
@@ -755,10 +774,6 @@ async function injectRelationshipsPhase(context: PhaseContext) {
     let imported = 0;
     let skipped = 0;
     let savepointCounter = 0;
-    const unresolvedPrerequisites = new Map<
-        string,
-        { catalogYear: number; code: string; prerequisite: unknown }
-    >();
     const result = await withAuditTransaction(
         context.prisma,
         context.auditContext,
@@ -783,15 +798,37 @@ async function injectRelationshipsPhase(context: PhaseContext) {
                         source.discipline,
                         courseByCode,
                         source.catalog.year,
-                        source.code,
-                        unresolvedPrerequisites
+                        source.code
                     );
                     const before = canonicalGroups(
                         existing.prerequisites.map((group) => ({
-                            items: group.items.map((item) => ({
-                                code: item.code,
-                                kind: item.kind
-                            }))
+                            items: group.items.map((item) => {
+                                if (item.courseId !== null) {
+                                    if (!item.fulfillment)
+                                        throw issue(
+                                            "Pré-requisito de disciplina persistido sem integralização",
+                                            { id: item.id }
+                                        );
+                                    return {
+                                        courseId: item.courseId,
+                                        fulfillment: item.fulfillment
+                                    };
+                                }
+                                if (
+                                    !item.specialRequirementType ||
+                                    item.specialRequirementValue === null
+                                )
+                                    throw issue(
+                                        "Pré-requisito especial persistido incompleto",
+                                        { id: item.id }
+                                    );
+                                return {
+                                    specialRequirementType:
+                                        item.specialRequirementType,
+                                    specialRequirementValue:
+                                        item.specialRequirementValue
+                                };
+                            })
                         }))
                     );
                     const after = canonicalGroups(groups);
@@ -854,13 +891,5 @@ async function injectRelationshipsPhase(context: PhaseContext) {
             maxWait: context.transactionMaxWait
         }
     );
-    if (unresolvedPrerequisites.size > 0)
-        context.logger.warn(
-            {
-                count: unresolvedPrerequisites.size,
-                examples: [...unresolvedPrerequisites.values()].slice(0, 10)
-            },
-            "Pré-requisitos externos ao catálogo foram preservados sem vínculo"
-        );
     return result;
 }

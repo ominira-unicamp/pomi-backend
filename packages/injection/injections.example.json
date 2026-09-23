@@ -10,46 +10,9 @@
     ],
     "injections": [
         {
-            "name": "academic-data",
-            "description": "Dados acadêmicos",
-            "schedule": { "cron": "0 4 * * *" },
-            "partitioning": { "kind": "period-institute", "firstYear": 2018 },
-            "obtain": {
-                "command": "<obtain-command>",
-                "args": [],
-                "cwd": ".",
-                "env": {},
-                "timeoutMs": 3600000
-            },
-            "input": {
-                "directory": "data/injections/academic-data",
-                "fileName": "academic-data.json"
-            },
-            "options": { "databaseConcurrency": 8 }
-        },
-        {
-            "name": "calendar",
-            "description": "Calendário acadêmico",
-            "schedule": { "cron": "0 5 * * *" },
-            "obtain": {
-                "command": "<obtain-command>",
-                "args": [],
-                "cwd": ".",
-                "env": {},
-                "timeoutMs": 1800000
-            },
-            "input": {
-                "directory": "data/injections/calendar",
-                "fileName": "calendario.json"
-            },
-            "options": {
-                "transactionTimeout": 600000,
-                "transactionMaxWait": 60000
-            }
-        },
-        {
             "name": "academic-data-snapshot",
             "description": "Snapshot versionado de uma partição acadêmica",
+            "schedule": { "cron": "0 3 * * 1" },
             "obtain": {
                 "command": "node",
                 "args": [
@@ -73,12 +36,14 @@
                 "fileName": "snapshot"
             },
             "snapshot": { "provider": "academic-data", "partition": "partition-key" },
+            "partitioning": { "kind": "institute" },
             "allowIssues": true,
             "options": { "databaseConcurrency": 8 }
         },
         {
             "name": "calendar-snapshot",
             "description": "Snapshot versionado do calendário acadêmico",
+            "schedule": { "cron": "0 4 * * *" },
             "obtain": {
                 "command": "node",
                 "args": [
@@ -131,29 +96,9 @@
             "options": {}
         },
         {
-            "name": "catalog-disciplines",
-            "description": "Disciplinas e relações do catálogo",
-            "schedule": { "cron": "0 2 1 * *" },
-            "obtain": {
-                "command": "<obtain-command>",
-                "args": [],
-                "cwd": ".",
-                "env": {},
-                "timeoutMs": 3600000
-            },
-            "input": {
-                "directory": "data/injections/catalog-disciplines",
-                "fileName": "catalog-disciplines.json"
-            },
-            "options": {
-                "phase": "all",
-                "transactionTimeout": 1800000,
-                "transactionMaxWait": 60000
-            }
-        },
-        {
             "name": "catalog-disciplines-snapshot",
             "description": "Snapshot versionado das disciplinas e relações do catálogo",
+            "schedule": { "cron": "0 3 1 * *" },
             "obtain": {
                 "command": "node",
                 "args": [
@@ -181,64 +126,9 @@
             }
         },
         {
-            "name": "daily-menus",
-            "description": "Cardápios dos restaurantes universitários",
-            "schedule": { "cron": "0 */6 * * *" },
-            "obtain": {
-                "command": "node",
-                "args": [
-                    "unicamp-scrapper-cli/dist/index.js",
-                    "cardapios",
-                    "--past-days",
-                    "1",
-                    "--future-days",
-                    "7",
-                    "--output",
-                    "${POMI_INJECTION_OUTPUT}"
-                ],
-                "cwd": "../scrapper-aulas",
-                "env": {},
-                "timeoutMs": 300000
-            },
-            "input": {
-                "directory": "data/injections/daily-menus",
-                "fileName": "daily-menus.json"
-            },
-            "allowIssues": true,
-            "options": {
-                "transactionTimeout": 60000,
-                "transactionMaxWait": 10000
-            }
-        },
-        {
-            "name": "exchange-notices",
-            "description": "Editais de intercâmbio da DERI",
-            "schedule": { "cron": "30 */6 * * *" },
-            "obtain": {
-                "command": "node",
-                "args": [
-                    "unicamp-scrapper-cli/dist/index.js",
-                    "editais-intercambio",
-                    "--output",
-                    "${POMI_INJECTION_OUTPUT}"
-                ],
-                "cwd": "../scrapper-aulas",
-                "env": {},
-                "timeoutMs": 300000
-            },
-            "input": {
-                "directory": "data/injections/exchange-notices",
-                "fileName": "exchange-notices.json"
-            },
-            "allowIssues": true,
-            "options": {
-                "transactionTimeout": 60000,
-                "transactionMaxWait": 10000
-            }
-        },
-        {
             "name": "daily-menus-snapshot",
             "description": "Snapshot versionado dos cardápios dos restaurantes universitários",
+            "schedule": { "cron": "0 */6 * * *" },
             "obtain": {
                 "command": "node",
                 "args": [
@@ -274,6 +164,7 @@
         {
             "name": "exchange-notices-snapshot",
             "description": "Snapshot versionado dos editais de intercâmbio da DERI",
+            "schedule": { "cron": "30 */6 * * *" },
             "obtain": {
                 "command": "node",
                 "args": [
@@ -298,46 +189,17 @@
             }
         },
         {
-            "name": "professors-data-portal",
-            "description": "Perfis de professores do Portal de Dados da Unicamp",
-            "schedule": { "cron": "0 4 * * 1" },
-            "obtain": {
-                "command": "pomi-scraper",
-                "args": [
-                    "professors-data-portal",
-                    "--output",
-                    "${POMI_INJECTION_OUTPUT}",
-                    "--concurrency",
-                    "24",
-                    "--page-concurrency",
-                    "8",
-                    "--request-interval-ms",
-                    "0"
-                ],
-                "cwd": ".",
-                "env": {},
-                "timeoutMs": 7200000
-            },
-            "input": {
-                "directory": "data/injections/professors-data-portal",
-                "fileName": "professors-data-portal.json"
-            },
-            "allowIssues": true,
-            "options": {
-                "databaseConcurrency": 4,
-                "transactionTimeout": 600000,
-                "transactionMaxWait": 60000
-            }
-        },
-        {
             "name": "professors-data-portal-snapshot",
             "description": "Snapshot versionado dos perfis de professores do Portal de Dados",
+            "schedule": { "cron": "0 4 * * 1" },
             "obtain": {
                 "command": "pomi-scraper",
                 "args": [
                     "professors-data-portal",
                     "--snapshot",
                     "--resume",
+                    "--max-response-bytes",
+                    "33554432",
                     "--output",
                     "${POMI_PROVIDER_OUTPUT}"
                 ],

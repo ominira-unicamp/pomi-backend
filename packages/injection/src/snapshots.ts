@@ -159,7 +159,7 @@ export async function publishSnapshot(
             resolve(snapshotDirectory, "..") !== partitionDirectory ||
             basename(snapshotDirectory) !== row.id
         )
-            throw new Error(`Snapshot fora da partição esperada: ${row.id}`);
+            continue;
         await rm(snapshotDirectory, { recursive: true, force: true });
         await context.prisma.$executeRawUnsafe(
             `DELETE FROM app."DataSnapshot" WHERE id = $1`,

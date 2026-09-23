@@ -8,6 +8,59 @@ import {
 import assert from "node:assert/strict";
 import test from "node:test";
 
+test("expõe pré-requisitos sem códigos textuais", () => {
+    const result = IO.schema.safeParse({
+        id: 1,
+        catalogId: 1,
+        catalogYear: 2026,
+        courseId: 10,
+        code: "MC102",
+        name: "Cálculo I",
+        credits: 6,
+        coordinator: null,
+        workload: {
+            theoreticalHours: null,
+            practicalHours: null,
+            laboratoryHours: null,
+            guidedActivityHours: null,
+            distanceHours: null,
+            guidedExtensionHours: null,
+            practicalExtensionHours: null,
+            weeks: null,
+            weeklyClassHours: null,
+            classroomHours: null
+        },
+        offeringPeriod: null,
+        evaluation: null,
+        finalExam: null,
+        minimumAttendancePercent: null,
+        syllabus: null,
+        bibliography: null,
+        sourceUrl: null,
+        prerequisites: {
+            any: [
+                {
+                    all: [
+                        { courseId: 20, fulfillment: "FULL" },
+                        {
+                            specialRequirementType: "PROGRESSION_COEFFICIENT",
+                            specialRequirementValue: 30
+                        }
+                    ]
+                }
+            ]
+        },
+        _paths: {
+            self: "/catalog-courses/1",
+            catalog: "/catalogs/1",
+            course: "/courses/10",
+            coordinator: null
+        }
+    });
+
+    assert.equal(result.success, true);
+});
+
 test("validates and coerces catalog course filters", () => {
     const parsed = IO.list.request.safeParse({
         query: {
@@ -151,9 +204,10 @@ test("compiles catalog course sorting before Prisma pagination", async () => {
                     include: {
                         items: {
                             select: {
-                                code: true,
-                                kind: true,
-                                courseId: true
+                                courseId: true,
+                                fulfillment: true,
+                                specialRequirementType: true,
+                                specialRequirementValue: true
                             }
                         }
                     }

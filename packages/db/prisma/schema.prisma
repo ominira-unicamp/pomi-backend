@@ -42,10 +42,16 @@ enum CourseEvaluationMode {
   @@schema("data")
 }
 
-enum CatalogCoursePrerequisiteKind {
+enum CatalogCoursePrerequisiteFulfillment {
   FULL
   PARTIAL
-  SPECIAL
+
+  @@schema("data")
+}
+
+enum CatalogCourseSpecialRequirementType {
+  AUTHORIZATION
+  PROGRESSION_COEFFICIENT
 
   @@schema("data")
 }
@@ -557,9 +563,11 @@ model CatalogCoursePrerequisiteItem {
   group   CatalogCoursePrerequisiteGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   groupId Int
 
-  code     String
-  kind     CatalogCoursePrerequisiteKind
-  courseId Int?
+  courseId    Int?
+  fulfillment CatalogCoursePrerequisiteFulfillment?
+
+  specialRequirementType  CatalogCourseSpecialRequirementType?
+  specialRequirementValue Int?
 
   course Course? @relation(fields: [courseId], references: [id])
 

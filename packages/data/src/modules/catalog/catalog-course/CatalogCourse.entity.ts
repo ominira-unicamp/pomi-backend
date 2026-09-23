@@ -12,9 +12,10 @@ export const prismaCatalogCourseSelection = {
             include: {
                 items: {
                     select: {
-                        code: true,
-                        kind: true,
-                        courseId: true
+                        courseId: true,
+                        fulfillment: true,
+                        specialRequirementType: true,
+                        specialRequirementValue: true
                     }
                 }
             }
@@ -25,6 +26,28 @@ export const prismaCatalogCourseSelection = {
 type PrismaCatalogCoursePayload = MyPrisma.CatalogCourseGetPayload<
     typeof prismaCatalogCourseSelection
 >;
+
+type CatalogCoursePrerequisite = z.infer<
+    typeof IO.schema
+>["prerequisites"]["any"][number]["all"][number];
+
+function buildCatalogCoursePrerequisite(
+    item: PrismaCatalogCoursePayload["prerequisites"][number]["items"][number]
+): CatalogCoursePrerequisite {
+    if (item.courseId !== null) {
+        if (!item.fulfillment)
+            throw new Error(
+                `Pré-requisito de disciplina ${item.courseId} sem integralização`
+            );
+        return { courseId: item.courseId, fulfillment: item.fulfillment };
+    }
+    if (!item.specialRequirementType || item.specialRequirementValue === null)
+        throw new Error("Pré-requisito especial incompleto");
+    return {
+        specialRequirementType: item.specialRequirementType,
+        specialRequirementValue: item.specialRequirementValue
+    };
+}
 
 function buildCatalogCourseEntity(
     catalogCourse: PrismaCatalogCoursePayload
@@ -60,7 +83,9 @@ function buildCatalogCourseEntity(
         bibliography: data.bibliography,
         sourceUrl: data.sourceUrl,
         prerequisites: {
-            any: prerequisites.map((group) => ({ all: group.items }))
+            any: prerequisites.map((group) => ({
+                all: group.items.map(buildCatalogCoursePrerequisite)
+            }))
         },
         _paths: {
             self: resourcesPaths.catalogCourse.entity(data.id),

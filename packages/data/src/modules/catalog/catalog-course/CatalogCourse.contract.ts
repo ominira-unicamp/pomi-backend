@@ -39,12 +39,21 @@ const specsBuilder = new SpecBuilder(basePath, tags, "id", {
     pathParameters: { id: "catalogCourseId" }
 });
 
-const courseOfferingKindSchema = z
-    .enum(["FULL", "PARTIAL", "SPECIAL"])
-    .openapi("CourseOfferingKind", {
+const prerequisiteFulfillmentSchema = z
+    .enum(["FULL", "PARTIAL"])
+    .openapi("CatalogCoursePrerequisiteFulfillment", {
         "x-pomi-schema": {
             kind: "value-object",
-            publicName: "CourseOfferingKind"
+            publicName: "CatalogCoursePrerequisiteFulfillment"
+        }
+    });
+
+const specialRequirementTypeSchema = z
+    .enum(["AUTHORIZATION", "PROGRESSION_COEFFICIENT"])
+    .openapi("CatalogCourseSpecialRequirementType", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "CatalogCourseSpecialRequirementType"
         }
     });
 
@@ -85,13 +94,20 @@ const workload = z
     })
     .strict();
 
-const prerequisiteItem = z
-    .object({
-        code: z.string().min(1),
-        kind: courseOfferingKindSchema,
-        courseId: z.number().int().nullable()
-    })
-    .strict();
+const prerequisiteItem = z.union([
+    z
+        .object({
+            courseId: z.number().int(),
+            fulfillment: prerequisiteFulfillmentSchema
+        })
+        .strict(),
+    z
+        .object({
+            specialRequirementType: specialRequirementTypeSchema,
+            specialRequirementValue: z.number().int().min(0).max(100)
+        })
+        .strict()
+]);
 
 export type CatalogCourseFilterValue = FilterValue;
 export type CatalogCourseFilter = Filter;
