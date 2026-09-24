@@ -25,6 +25,7 @@ const application = createBaseApplication({
 });
 
 for (const path of [
+    "/",
     "/health",
     "/ready",
     "/version",
