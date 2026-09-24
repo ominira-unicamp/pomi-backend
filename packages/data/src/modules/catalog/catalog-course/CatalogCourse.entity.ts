@@ -40,6 +40,8 @@ function buildCatalogCoursePrerequisite(
             );
         return { courseId: item.courseId, fulfillment: item.fulfillment };
     }
+    if (item.fulfillment)
+        return { courseId: null, fulfillment: item.fulfillment };
     if (!item.specialRequirementType || item.specialRequirementValue === null)
         throw new Error("Pré-requisito especial incompleto");
     return {

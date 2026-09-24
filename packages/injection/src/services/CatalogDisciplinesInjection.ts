@@ -23,7 +23,7 @@ export type CatalogDisciplinesInjectionOptions = {
 type Discipline = {
     code: string;
     name: string;
-    coordinator: string | null;
+    coordinator: string | { code: string | null; name: string } | null;
     workload: Record<string, number | null>;
     credits: number | null;
     offeringPeriod: string | null;
@@ -33,12 +33,21 @@ type Discipline = {
     prerequisites: {
         any: Array<{
             all: Array<
-                string | { code: string; kind: "FULL" | "PARTIAL" | "SPECIAL" }
+                | string
+                | { code: string; kind: "FULL" | "PARTIAL" | "SPECIAL" }
+                | {
+                      type: "course";
+                      code: string;
+                      fulfillment: "FULL" | "PARTIAL";
+                  }
+                | { type: "authorization" }
+                | { type: "progression-coefficient"; minimum: number }
             >;
         }>;
     };
     syllabus: string | null;
     bibliography: string | null;
+    sourceUrl?: string;
 };
 
 type Prefix = {
@@ -47,7 +56,13 @@ type Prefix = {
     courses: Discipline[];
 };
 
-type Catalog = { year: number; sourceUrl: string; prefixes: Prefix[] };
+type Catalog = {
+    year: number;
+    sourceUrl: string;
+    sourceFormat?: string;
+    prefixes?: Prefix[];
+    courses?: Array<Omit<Discipline, "prerequisites">>;
+};
 type ScrapeInput = { catalogs: Catalog[] };
 type ScrapeEnvelope = { data: ScrapeInput; issues?: unknown[] };
 type CatalogCourseSource = {
@@ -75,15 +90,22 @@ type PrerequisiteItem =
       };
 
 const offeringPeriods: Record<string, CourseOfferingPeriod> = {
+    "ODD_PERIODS": "ODD_PERIODS" as CourseOfferingPeriod,
+    "EVEN_PERIODS": "EVEN_PERIODS" as CourseOfferingPeriod,
+    "ALL_PERIODS": "ALL_PERIODS",
+    "UNIT_DISCRETION": "UNIT_DISCRETION",
     "todos os periodos": "ALL_PERIODS",
-    "1º periodo - periodos impares": "ODD_PERIODS",
-    "1o periodo - periodos impares": "ODD_PERIODS",
-    "2º periodo - periodos pares": "EVEN_PERIODS",
-    "2o periodo - periodos pares": "EVEN_PERIODS",
+    "1º periodo - periodos impares": "ODD_PERIODS" as CourseOfferingPeriod,
+    "1o periodo - periodos impares": "ODD_PERIODS" as CourseOfferingPeriod,
+    "2º periodo - periodos pares": "EVEN_PERIODS" as CourseOfferingPeriod,
+    "2o periodo - periodos pares": "EVEN_PERIODS" as CourseOfferingPeriod,
     "a criterio da unidade de ensino": "UNIT_DISCRETION"
 };
 
 const evaluations: Record<string, CourseEvaluationMode> = {
+    "GRADE_AND_ATTENDANCE": "GRADE_AND_ATTENDANCE",
+    "ATTENDANCE": "ATTENDANCE",
+    "CONCEPT": "CONCEPT",
     "nota e frequencia": "GRADE_AND_ATTENDANCE",
     "conceito": "CONCEPT",
     "frequencia": "ATTENDANCE"
@@ -101,31 +123,47 @@ function normalizeName(value: string) {
 function period(value: string | null) {
     if (!value) return null;
     return (
+        offeringPeriods[value] ??
         offeringPeriods[
             value
                 .normalize("NFD")
                 .replace(/[\u0300-\u036f]/g, "")
                 .toLowerCase()
                 .trim()
-        ] ?? null
+        ] ??
+        null
     );
 }
 
 function evaluation(value: string | null) {
     if (!value) return null;
     return (
+        evaluations[value] ??
         evaluations[
             value
                 .normalize("NFD")
                 .replace(/[\u0300-\u036f]/g, "")
                 .toLowerCase()
                 .trim()
-        ] ?? null
+        ] ??
+        null
     );
 }
 
 function issue(message: string, details: Record<string, unknown> = {}) {
     return { message, ...details };
+}
+
+function rawPrerequisiteCode(
+    item:
+        | string
+        | { code: string; kind: "FULL" | "PARTIAL" | "SPECIAL" }
+        | { type: "course"; code: string; fulfillment: "FULL" | "PARTIAL" }
+        | { type: "authorization" }
+        | { type: "progression-coefficient"; minimum: number }
+) {
+    if (typeof item === "string") return item;
+    return "code" in item ? item.code : null;
 }
 
 function isIgnoredSourceIssue(value: unknown) {
@@ -157,8 +195,8 @@ export async function injectCatalogDisciplines(
         | ScrapeEnvelope
         | ScrapeInput;
     const input = unwrapScrapeData(raw) as ScrapeInput;
-    const catalogs = input?.catalogs;
-    if (!Array.isArray(catalogs) || catalogs.length === 0)
+    const catalogs = catalogsForPhase(input, phase);
+    if (catalogs.length === 0)
         throw new Error("Nenhum catálogo encontrado no arquivo de entrada");
 
     const scrapeIssues =
@@ -239,6 +277,54 @@ function sourcesOf(catalogs: Catalog[]): CatalogCourseSource[] {
     );
 }
 
+function catalogsForPhase(
+    input: unknown,
+    phase: CatalogDisciplinesInjectionOptions["phase"]
+): Catalog[] {
+    const catalogs = (input as { catalogs?: unknown })?.catalogs;
+    if (!Array.isArray(catalogs)) return [];
+    return catalogs.flatMap((candidate): Catalog[] => {
+        if (!candidate || typeof candidate !== "object") return [];
+        const catalog = candidate as Catalog;
+        if (
+            !Number.isInteger(catalog.year) ||
+            typeof catalog.sourceUrl !== "string"
+        )
+            return [];
+        if (Array.isArray(catalog.prefixes)) return [catalog];
+        if (!Array.isArray(catalog.courses)) return [];
+        const courses = catalog.courses.map((course) => ({
+            ...course,
+            prerequisites: (course as Discipline).prerequisites ?? { any: [] }
+        })) as Discipline[];
+        if (phase === "relationships")
+            return [
+                {
+                    ...catalog,
+                    prefixes: [
+                        {
+                            prefix: "",
+                            url: catalog.sourceUrl,
+                            courses
+                        }
+                    ]
+                }
+            ];
+        return [
+            {
+                ...catalog,
+                prefixes: [
+                    {
+                        prefix: "",
+                        url: catalog.sourceUrl,
+                        courses
+                    }
+                ]
+            }
+        ];
+    });
+}
+
 async function setTransactionLimits(
     tx: Prisma.TransactionClient,
     timeout: number
@@ -274,14 +360,12 @@ async function injectCatalogPhase(context: PhaseContext) {
     const years = [...new Set(context.catalogs.map(({ year }) => year))];
     const prerequisiteCodes = sources.flatMap(({ discipline }) =>
         (discipline.prerequisites?.any ?? []).flatMap(({ all }) =>
-            all.map((item) =>
-                normalizeCourseCode(
-                    (typeof item === "string" ? item : item.code).replace(
-                        /^\s*\*/,
-                        ""
-                    )
-                )
-            )
+            all.flatMap((item) => {
+                const code = rawPrerequisiteCode(item);
+                return code
+                    ? [normalizeCourseCode(code.replace(/^\s*\*/, ""))]
+                    : [];
+            })
         )
     );
     const codes = [
@@ -458,7 +542,9 @@ async function injectCatalogPhase(context: PhaseContext) {
                             after: { code: source.code, ...courseData }
                         });
                     const coordinatorName =
-                        source.discipline.coordinator?.trim();
+                        typeof source.discipline.coordinator === "string"
+                            ? source.discipline.coordinator.trim()
+                            : source.discipline.coordinator?.name.trim();
                     const coordinator = coordinatorName
                         ? coordinatorByName.get(normalizeName(coordinatorName))
                         : undefined;
@@ -501,7 +587,8 @@ async function injectCatalogPhase(context: PhaseContext) {
                             source.discipline.minimumAttendancePercent,
                         syllabus: source.discipline.syllabus,
                         bibliography: source.discipline.bibliography,
-                        sourceUrl: source.prefix.url
+                        sourceUrl:
+                            source.discipline.sourceUrl ?? source.prefix.url
                     };
                     if (
                         source.discipline.offeringPeriod &&
@@ -653,6 +740,28 @@ function prerequisiteGroups(
     for (const group of source.prerequisites?.any ?? []) {
         const items: PrerequisiteItem[] = [];
         for (const raw of group.all) {
+            if (
+                typeof raw !== "string" &&
+                "type" in raw &&
+                raw.type === "authorization"
+            ) {
+                items.push({
+                    specialRequirementType: "AUTHORIZATION",
+                    specialRequirementValue: 0
+                });
+                continue;
+            }
+            if (
+                typeof raw !== "string" &&
+                "type" in raw &&
+                raw.type === "progression-coefficient"
+            ) {
+                items.push({
+                    specialRequirementType: "PROGRESSION_COEFFICIENT",
+                    specialRequirementValue: raw.minimum
+                });
+                continue;
+            }
             const input =
                 typeof raw === "string"
                     ? {
@@ -665,7 +774,12 @@ function prerequisiteGroups(
                                 ? "SPECIAL"
                                 : "FULL"
                       }
-                    : raw;
+                    : "type" in raw && raw.type === "course"
+                      ? {
+                            code: raw.code,
+                            kind: raw.fulfillment
+                        }
+                      : raw;
             const prerequisiteCode = normalizeCourseCode(
                 input.code.replace(/^\s*\*/, "")
             );
@@ -722,14 +836,12 @@ async function injectRelationshipsPhase(context: PhaseContext) {
     const catalogIds = new Map(catalogRows.map((row) => [row.year, row.id]));
     const prerequisiteCodes = sources.flatMap(({ discipline }) =>
         (discipline.prerequisites?.any ?? []).flatMap(({ all }) =>
-            all.map((item) =>
-                normalizeCourseCode(
-                    (typeof item === "string" ? item : item.code).replace(
-                        /^\s*\*/,
-                        ""
-                    )
-                )
-            )
+            all.flatMap((item) => {
+                const code = rawPrerequisiteCode(item);
+                return code
+                    ? [normalizeCourseCode(code.replace(/^\s*\*/, ""))]
+                    : [];
+            })
         )
     );
     const codes = [

@@ -25,15 +25,15 @@ origem sem ser interpretado pelo consumer.
 
 ## Protocolos e componentes
 
-| Provider | `protocol` | Partição | Componentes obrigatórios no perfil operacional |
-| --- | --- | --- | --- |
-| Calendar | `pomi.calendar.snapshot` | `year` | `events` |
-| Daily menus | `pomi.daily-menus.snapshot` | `firstDate`, `lastDate` | `menus` |
-| Exchange notices | `pomi.exchange-notices.snapshot` | `collectionKey` | `notices` |
-| Catalog disciplines | `pomi.catalog-disciplines.snapshot` | `year` | componentes emitidos pelo scraper |
-| Catalog programs | `pomi.catalog-programs.snapshot` | `year` | `programs`; no perfil `complete`, também `curricula`, `information` e `suggestions` |
-| Professors data portal | `pomi.professors-data-portal.snapshot` | `collectionKey` | `profiles` |
-| Academic data | `pomi.academic-data.snapshot` | `year`, `semester`, `instituteCode` | componente acadêmico emitido pelo scraper |
+| Provider               | `protocol`                             | Partição                            | Componentes obrigatórios no perfil operacional                                      |
+| ---------------------- | -------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------- |
+| Calendar               | `pomi.calendar.snapshot`               | `year`                              | `events`                                                                            |
+| Daily menus            | `pomi.daily-menus.snapshot`            | `firstDate`, `lastDate`             | `menus`                                                                             |
+| Exchange notices       | `pomi.exchange-notices.snapshot`       | `collectionKey`                     | `notices`                                                                           |
+| Catalog disciplines    | `pomi.catalog-disciplines.snapshot`    | `year`                              | `catalog` e `relationships`                                                         |
+| Catalog programs       | `pomi.catalog-programs.snapshot`       | `year`                              | `programs`; no perfil `complete`, também `curricula`, `information` e `suggestions` |
+| Professors data portal | `pomi.professors-data-portal.snapshot` | `collectionKey`                     | `profiles`                                                                          |
+| Academic data          | `pomi.academic-data.snapshot`          | `year`, `semester`, `instituteCode` | componente acadêmico emitido pelo scraper                                           |
 
 O workflow `catalog-programs` usa `catalog-programs-snapshot` como etapa; essa
 entrada não possui schedule próprio para evitar duas fontes de execução.
@@ -68,3 +68,15 @@ A validação ponta a ponta em homologação deve executar o producer real, vali
 o manifesto, publicar o snapshot, executar a injection e consultar
 `DataSnapshot` como `PUBLISHED`. Falhas de coleta devem gerar `FAILED` e o
 retry deve reutilizar o mesmo contrato antes de uma nova publicação.
+
+## Disciplinas de catálogo V2
+
+O protocolo de disciplinas na versão 2 separa os componentes `catalog` e
+`relationships`. O primeiro contém cursos planos, sem agrupamento pela página
+de origem; o segundo contém exclusivamente os pré-requisitos. Os valores de
+oferecimento são `ODD_PERIODS`, `EVEN_PERIODS`, `ALL_PERIODS` e
+`UNIT_DISCRETION`, e os valores de avaliação são `GRADE_AND_ATTENDANCE`,
+`ATTENDANCE` e `CONCEPT`.
+
+A injection aceita a versão 1 durante a transição e normaliza seus valores
+textuais antes da persistência. Producers devem emitir somente a versão 2.

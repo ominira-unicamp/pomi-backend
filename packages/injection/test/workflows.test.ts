@@ -170,13 +170,13 @@ test("valida envelope antes da persistência do workflow", async () => {
                 partition: { year: 2026 },
                 profile: "complete",
                 status: "PARTIAL",
-                components: {},
+                components: { curricula: { status: "FAILED" } },
                 issues: [{ blocksCompleteness: true }]
             })
         );
         await assert.rejects(
             validateWorkflowArtifact(directory, parameters),
-            /inválido ou incompatível/
+            /Snapshot incompleto: status PARTIAL; componentes: curricula=FAILED; 1 issue\(s\) bloqueante\(s\)/
         );
 
         await writeFile(path, JSON.stringify({ protocol: "inválido" }));

@@ -151,6 +151,10 @@ const services: Record<
 
 export const injectionNames = Object.keys(services);
 
+export function isInjectionName(value: string): boolean {
+    return value in services;
+}
+
 export function createInjectionService(definition: InjectionDefinition) {
     const factory = services[definition.name];
     if (!factory)

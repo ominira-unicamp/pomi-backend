@@ -230,7 +230,6 @@ export async function validateWorkflowArtifact(
         parsed.version !== 1 ||
         parsed.snapshotId !== parameters.snapshotId ||
         parsed.profile !== parameters.workflowProfile ||
-        parsed.status !== "COMPLETE" ||
         typeof parsed.components !== "object" ||
         !Array.isArray(parsed.issues)
     )
@@ -238,6 +237,22 @@ export async function validateWorkflowArtifact(
     const partition = parsed.partition as { year?: unknown } | undefined;
     if (partition?.year !== parameters.workflowYear)
         throw new Error("Partição do snapshot não corresponde ao workflow");
+    if (parsed.status !== "COMPLETE") {
+        const components = Object.entries(
+            parsed.components as Record<string, { status?: unknown }>
+        )
+            .filter(([, component]) => component.status !== "COMPLETE")
+            .map(([name, component]) => `${name}=${String(component.status)}`);
+        const blockingIssues = parsed.issues.filter(
+            (issue) =>
+                issue &&
+                typeof issue === "object" &&
+                (issue as Record<string, unknown>).blocksCompleteness === true
+        );
+        throw new Error(
+            `Snapshot incompleto: status ${String(parsed.status)}; componentes: ${components.join(", ") || "nenhum"}; ${blockingIssues.length} issue(s) bloqueante(s)`
+        );
+    }
     const blockingIssues = parsed.issues.filter(
         (issue) =>
             issue &&

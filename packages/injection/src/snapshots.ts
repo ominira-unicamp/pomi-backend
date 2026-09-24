@@ -31,7 +31,7 @@ export async function readSnapshotManifest(
         requiredComponents = []
     }: {
         protocol: string;
-        version: number;
+        version: number | number[];
         requiredComponents?: string[];
     }
 ) {
@@ -40,7 +40,9 @@ export async function readSnapshotManifest(
     ) as SnapshotManifest;
     if (
         manifest.protocol !== protocol ||
-        manifest.version !== version ||
+        !(Array.isArray(version) ? version : [version]).includes(
+            manifest.version
+        ) ||
         manifest.status !== "COMPLETE" ||
         typeof manifest.snapshotId !== "string" ||
         !manifest.partition ||

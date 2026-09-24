@@ -103,3 +103,36 @@ test("rejeita componente obrigatório ausente e snapshot parcial", async () => {
         await rm(directory, { recursive: true, force: true });
     }
 });
+
+test("aceita versões explicitamente compatíveis do protocolo", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "pomi-snapshot-v2-"));
+    try {
+        await writeFile(
+            join(directory, "manifest.json"),
+            JSON.stringify({
+                protocol: "pomi.catalog-disciplines.snapshot",
+                version: 2,
+                snapshotId: "catalog-2020-v2",
+                partition: { year: 2020 },
+                status: "COMPLETE",
+                components: {
+                    catalog: {
+                        status: "COMPLETE",
+                        path: "catalog.json",
+                        sha256: "hash",
+                        schemaVersion: 2,
+                        records: 1
+                    }
+                }
+            })
+        );
+        const manifest = await readSnapshotManifest(directory, {
+            protocol: "pomi.catalog-disciplines.snapshot",
+            version: [1, 2],
+            requiredComponents: ["catalog"]
+        });
+        assert.equal(manifest.version, 2);
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});

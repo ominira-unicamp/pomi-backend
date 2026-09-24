@@ -107,6 +107,7 @@ npm run injection:run -- academic-data
 npm run injection:watch
 
 # Enfileirar uma execução manual (retorna o ID do job)
+# `request` usa apenas capabilities registradas no código; o worker usa o JSON operacional.
 npm run injection:request -- academic-data all
 npm run injection:request -- catalog-programs all --first-year 2026 --last-year 2026 --profile complete
 npm run notifier:request
@@ -120,7 +121,8 @@ npm run notifier:job-status -- <job-id>
 `catalog-programs` é um workflow anual. O perfil `core` garante o vínculo do
 programa com o catálogo, `available` coleta os componentes suportados pela
 fonte daquele ano e `complete` exige currículos, informações institucionais e
-sugestões dos catálogos modernos (2021 em diante). O job executa obtenção,
+sugestões. Para catálogos históricos, `complete` só publica quando os quatro
+componentes foram coletados e validados; o backfill de 1998–2020 é manual. O job executa obtenção,
 validação e persistência de um snapshot imutável. Os artefatos ficam em
 `data/snapshots/catalog-programs/<ano>/<snapshot-id>`, com manifesto, hashes e
 componentes versionados; a injection consome somente esse contrato JSON e não

@@ -22,6 +22,10 @@ import pino from "pino";
 import { loadInjectionConfig, type InjectionDefinition } from "./config.js";
 import { loadInjectionEnv } from "./env.js";
 import { injectionNames } from "./registry.js";
+import {
+    injectionRequestPartition,
+    isRequestableInjection
+} from "./request.js";
 import type { InjectionRunMode } from "./runner.js";
 import { runInjection } from "./runner.js";
 import {
@@ -86,7 +90,6 @@ program
     .option("--snapshot-id <id>", "snapshot validado para o modo inject")
     .action(async (name: string, mode = "all", options: PartitionOptions) => {
         loadInjectionEnv();
-        const config = await loadInjectionConfig(program.opts().config);
         if (!(["all", "obtain", "inject"] as string[]).includes(mode))
             throw new Error(`Modo inválido: ${mode}`);
         const database = createDatabaseClient(process.env.DATABASE_URL ?? "", {
@@ -94,7 +97,6 @@ program
         });
         try {
             if (isWorkflowName(name)) {
-                validateWorkflowConfig(config);
                 const firstYear = options.firstYear ?? options.lastYear;
                 const lastYear = options.lastYear ?? options.firstYear;
                 if (firstYear === undefined || lastYear === undefined)
@@ -114,33 +116,21 @@ program
                 for (const job of jobs) process.stdout.write(`${job.id}\n`);
                 return;
             }
-            const injection = config.injections.find(
-                (item) => item.name === name
-            );
-            if (!injection)
+            if (!isRequestableInjection(name))
                 throw new Error(
-                    `Injection ou workflow não encontrado: ${name}`
+                    `Injection ou workflow não registrado: ${name}`
                 );
             const job = await withTrace(
                 "injection.job.request",
                 () => {
-                    const explicitPartition =
-                        options.partitionKey ?? partitionKey(options);
-                    const shouldExpand =
-                        Boolean(injection.partitioning) &&
-                        explicitPartition === undefined &&
-                        options.firstYear === undefined &&
-                        options.lastYear === undefined &&
-                        options.instituteCode === undefined;
+                    const request = injectionRequestPartition(options);
                     return enqueueJob(database, {
                         type: JobRequestType.INJECTION,
                         name,
                         mode: mode as "all" | "obtain" | "inject",
                         trigger: JobRequestTrigger.MANUAL,
-                        partitionKey: explicitPartition,
-                        parameters: shouldExpand
-                            ? { root: true }
-                            : partitionParameters(options),
+                        partitionKey: request.partitionKey,
+                        parameters: request.parameters,
                         requestedBy: process.env.POMI_JOB_REQUESTED_BY ?? "cli"
                     });
                 },
@@ -334,7 +324,7 @@ program.command("watch").action(async () => {
                 );
                 if (!injection) {
                     await finishJob(database, job.id, {
-                        errorMessage: `Injection não encontrada: ${job.name}`
+                        errorMessage: `Injection não configurada no worker: ${job.name}`
                     });
                 } else {
                     try {
@@ -660,11 +650,4 @@ async function expandRootJob(
             });
         }
     });
-}
-
-function partitionKey(options: PartitionOptions) {
-    const parameters = partitionParameters(options);
-    return parameters
-        ? `${parameters.firstYear}-${parameters.lastYear}`
-        : undefined;
 }

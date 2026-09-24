@@ -42,6 +42,7 @@ test("expõe pré-requisitos sem códigos textuais", () => {
                 {
                     all: [
                         { courseId: 20, fulfillment: "FULL" },
+                        { courseId: null, fulfillment: "PARTIAL" },
                         {
                             specialRequirementType: "PROGRESSION_COEFFICIENT",
                             specialRequirementValue: 30

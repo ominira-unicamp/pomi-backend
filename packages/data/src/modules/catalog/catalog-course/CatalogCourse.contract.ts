@@ -72,6 +72,15 @@ const offeringPeriod = z
         }
     });
 
+const evaluation = z
+    .enum(["GRADE_AND_ATTENDANCE", "ATTENDANCE", "CONCEPT"])
+    .openapi("CourseEvaluationMode", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "CourseEvaluationMode"
+        }
+    });
+
 const coordinator = z
     .object({
         id: z.number().int(),
@@ -97,7 +106,7 @@ const workload = z
 const prerequisiteItem = z.union([
     z
         .object({
-            courseId: z.number().int(),
+            courseId: z.number().int().nullable(),
             fulfillment: prerequisiteFulfillmentSchema
         })
         .strict(),
@@ -162,7 +171,7 @@ const catalogCourseEntity = z
         coordinator: coordinator.nullable(),
         workload,
         offeringPeriod: offeringPeriod.nullable(),
-        evaluation: z.string().nullable(),
+        evaluation: evaluation.nullable(),
         finalExam: z.boolean().nullable(),
         minimumAttendancePercent: z.number().int().nullable(),
         syllabus: z.string().nullable(),
