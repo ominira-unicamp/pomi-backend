@@ -9,6 +9,7 @@ import {
     compileFilterWhere,
     compileSort,
     err,
+    InconsistentResourceStateError,
     ok,
     prismaWhereFor,
     resolveSort,
@@ -80,22 +81,132 @@ const positionWhereDefinitions = {
 >;
 
 function buildPosition(value: PositionValue) {
-    return {
-        id: value.id,
-        canonicalKey: value.canonicalKey,
-        role: value.role,
-        affiliationType: value.affiliationType,
-        programCode: value.programCode,
-        postdoctoralModality: value.postdoctoralModality,
-        careerReference: value.careerReference
-            ? {
+    const career = value.careerReference
+        ? {
+              reference: {
                   career: value.careerReference.career,
                   code: value.careerReference.code,
                   rank: value.careerReference.rank,
                   category: value.careerReference.category,
                   progressionOrder: value.careerReference.progressionOrder
               }
-            : null
+          }
+        : null;
+    const invalid = (reason: string): never => {
+        throw new InconsistentResourceStateError(
+            "AcademicPosition",
+            value.id,
+            reason
+        );
+    };
+    let affiliation!:
+        | { type: "CAREER"; career: NonNullable<typeof career> }
+        | { type: "COLLABORATOR" }
+        | {
+              type: "SENIOR";
+              senior:
+                  | { kind: "GENERAL" }
+                  | {
+                        kind: "CAREER";
+                        career: NonNullable<typeof career>;
+                        programCode: string;
+                    };
+          }
+        | { type: "VISITING_INVITED" }
+        | {
+              type: "VISITING_SPECIALIST";
+              visitingSpecialist: { programCode: string };
+          }
+        | {
+              type: "POSTDOCTORAL_PROGRAM";
+              postdoctoralProgram: {
+                  modality: string;
+                  programCode: string | null;
+              };
+          };
+    switch (value.affiliationType) {
+        case "CAREER":
+            if (
+                !career ||
+                value.programCode !== null ||
+                value.postdoctoralModality !== null
+            )
+                invalid("career_affiliation_has_invalid_data");
+            affiliation = { type: "CAREER", career: career! };
+            break;
+        case "COLLABORATOR":
+            if (
+                career ||
+                value.programCode !== null ||
+                value.postdoctoralModality !== null
+            )
+                invalid("collaborator_affiliation_has_invalid_data");
+            affiliation = { type: "COLLABORATOR" };
+            break;
+        case "SENIOR":
+            if (
+                !career &&
+                value.programCode === null &&
+                value.postdoctoralModality === null
+            ) {
+                affiliation = { type: "SENIOR", senior: { kind: "GENERAL" } };
+                break;
+            }
+            if (
+                !career ||
+                value.programCode === null ||
+                value.postdoctoralModality !== null
+            )
+                invalid("senior_affiliation_has_invalid_data");
+            affiliation = {
+                type: "SENIOR",
+                senior: {
+                    kind: "CAREER",
+                    career: career!,
+                    programCode: value.programCode!
+                }
+            };
+            break;
+        case "VISITING_INVITED":
+            if (
+                career ||
+                value.programCode !== null ||
+                value.postdoctoralModality !== null
+            )
+                invalid("visiting_invited_affiliation_has_invalid_data");
+            affiliation = { type: "VISITING_INVITED" };
+            break;
+        case "VISITING_SPECIALIST":
+            if (
+                career ||
+                value.programCode === null ||
+                value.postdoctoralModality !== null
+            )
+                invalid("visiting_specialist_affiliation_has_invalid_data");
+            affiliation = {
+                type: "VISITING_SPECIALIST",
+                visitingSpecialist: { programCode: value.programCode! }
+            };
+            break;
+        case "POSTDOCTORAL_PROGRAM":
+            if (!value.postdoctoralModality || career)
+                invalid("postdoctoral_affiliation_has_invalid_data");
+            affiliation = {
+                type: "POSTDOCTORAL_PROGRAM",
+                postdoctoralProgram: {
+                    modality: value.postdoctoralModality!,
+                    programCode: value.programCode
+                }
+            };
+            break;
+        default:
+            invalid("unknown_affiliation_type");
+    }
+    return {
+        id: value.id,
+        canonicalKey: value.canonicalKey,
+        role: value.role,
+        affiliation
     };
 }
 

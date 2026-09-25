@@ -48,15 +48,6 @@ const prerequisiteFulfillmentSchema = z
         }
     });
 
-const specialRequirementTypeSchema = z
-    .enum(["AUTHORIZATION", "PROGRESSION_COEFFICIENT"])
-    .openapi("CatalogCourseSpecialRequirementType", {
-        "x-pomi-schema": {
-            kind: "value-object",
-            publicName: "CatalogCourseSpecialRequirementType"
-        }
-    });
-
 const offeringPeriodValues = [
     "ALL_PERIODS",
     "ODD_PERIODS",
@@ -103,20 +94,111 @@ const workload = z
     })
     .strict();
 
-const prerequisiteItem = z.union([
-    z
-        .object({
-            courseId: z.number().int().nullable(),
-            fulfillment: prerequisiteFulfillmentSchema
-        })
-        .strict(),
-    z
-        .object({
-            specialRequirementType: specialRequirementTypeSchema,
-            specialRequirementValue: z.number().int().min(0).max(100)
-        })
-        .strict()
-]);
+const coursePrerequisiteDetailsSchema = z
+    .object({
+        courseId: z.number().int().nullable(),
+        fulfillment: prerequisiteFulfillmentSchema
+    })
+    .openapi("CatalogCoursePrerequisiteCourseDetails", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "CatalogCoursePrerequisiteCourseDetails"
+        }
+    });
+
+const authorizationSpecialRequirementSchema = z
+    .object({ type: z.literal("AUTHORIZATION") })
+    .openapi("AuthorizationSpecialRequirement", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "AuthorizationSpecialRequirement"
+        }
+    });
+
+const progressionCoefficientSpecialRequirementSchema = z
+    .object({
+        type: z.literal("PROGRESSION_COEFFICIENT"),
+        progressionCoefficient: z
+            .object({ value: z.number().int().min(0).max(100) })
+            .openapi("ProgressionCoefficientSpecialRequirementDetails", {
+                "x-pomi-schema": {
+                    kind: "value-object",
+                    publicName:
+                        "ProgressionCoefficientSpecialRequirementDetails"
+                }
+            })
+    })
+    .openapi("ProgressionCoefficientSpecialRequirement", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "ProgressionCoefficientSpecialRequirement"
+        }
+    });
+
+const specialRequirementSchema = z
+    .discriminatedUnion("type", [
+        authorizationSpecialRequirementSchema,
+        progressionCoefficientSpecialRequirementSchema
+    ])
+    .openapi("CatalogCourseSpecialRequirement", {
+        "discriminator": {
+            propertyName: "type",
+            mapping: {
+                AUTHORIZATION:
+                    "#/components/schemas/AuthorizationSpecialRequirement",
+                PROGRESSION_COEFFICIENT:
+                    "#/components/schemas/ProgressionCoefficientSpecialRequirement"
+            }
+        },
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "CatalogCourseSpecialRequirement"
+        }
+    });
+
+const coursePrerequisiteSchema = z
+    .object({
+        type: z.literal("COURSE"),
+        course: coursePrerequisiteDetailsSchema
+    })
+    .openapi("CourseCatalogCoursePrerequisite", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "CourseCatalogCoursePrerequisite"
+        }
+    });
+
+const specialRequirementPrerequisiteSchema = z
+    .object({
+        type: z.literal("SPECIAL_REQUIREMENT"),
+        specialRequirement: specialRequirementSchema
+    })
+    .openapi("SpecialRequirementCatalogCoursePrerequisite", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "SpecialRequirementCatalogCoursePrerequisite"
+        }
+    });
+
+const prerequisiteItem = z
+    .discriminatedUnion("type", [
+        coursePrerequisiteSchema,
+        specialRequirementPrerequisiteSchema
+    ])
+    .openapi("CatalogCoursePrerequisiteItem", {
+        "discriminator": {
+            propertyName: "type",
+            mapping: {
+                COURSE: "#/components/schemas/CourseCatalogCoursePrerequisite",
+                SPECIAL_REQUIREMENT:
+                    "#/components/schemas/SpecialRequirementCatalogCoursePrerequisite"
+            }
+        },
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "CatalogCoursePrerequisiteItem"
+        }
+    });
 
 export type CatalogCourseFilterValue = FilterValue;
 export type CatalogCourseFilter = Filter;

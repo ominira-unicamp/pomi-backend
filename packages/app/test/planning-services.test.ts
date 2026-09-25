@@ -7,6 +7,8 @@ import {
 } from "#/modules/planning/curriculum/Curriculum.problems.js";
 import { createCurriculumService } from "#/modules/planning/curriculum/Curriculum.service.js";
 import periodPlanContracts, {
+    guideInputSchema,
+    guideSchema,
     patchBody
 } from "#/modules/planning/period-plan/PeriodPlan.contract.js";
 import {
@@ -110,6 +112,25 @@ test("period planning visibility updates do not require class changes", () => {
     });
 
     assert.equal(result.success, true);
+});
+
+test("planning guides use nested discriminated variants", () => {
+    const saved = {
+        mode: "CURRICULUM",
+        manualCourseIds: [1, 2],
+        curriculum: { source: "SAVED", saved: { curriculumId: 7 } }
+    };
+    assert.equal(guideInputSchema.safeParse(saved).success, true);
+    assert.equal(guideSchema.safeParse(saved).success, true);
+    assert.equal(
+        guideInputSchema.safeParse({
+            mode: "CURRICULUM",
+            manualCourseIds: [],
+            curriculumSource: "SAVED",
+            curriculumId: 7
+        }).success,
+        false
+    );
 });
 
 function curriculumEntityFixture(selection: {

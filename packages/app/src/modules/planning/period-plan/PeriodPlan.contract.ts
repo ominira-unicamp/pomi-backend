@@ -20,22 +20,6 @@ import z from "zod";
 
 extendZodWithOpenApi(z);
 
-const planningGuideModeSchema = z
-    .enum(["CURRICULUM", "PROGRAM", "NONE"])
-    .openapi("PlanningGuideMode", {
-        "x-pomi-schema": {
-            kind: "value-object",
-            publicName: "PlanningGuideMode"
-        }
-    });
-const planningCurriculumSourceSchema = z
-    .enum(["SAVED", "SUGGESTION"])
-    .openapi("PlanningCurriculumSource", {
-        "x-pomi-schema": {
-            kind: "value-object",
-            publicName: "PlanningCurriculumSource"
-        }
-    });
 const planningVisibilitySchema = z
     .enum(["PRIVATE", "FRIENDS", "PUBLIC"])
     .openapi("PlanningVisibility", {
@@ -61,23 +45,231 @@ const periodPlannings = defineResource({
     }
 });
 
-export const guideSchema = z
+const manualCourseIdsSchema = z.array(z.number().int());
+
+const programPlanningGuideDetailsSchema = z
     .object({
-        mode: planningGuideModeSchema,
-        curriculumSource: planningCurriculumSourceSchema.nullable(),
-        curriculumId: z.number().int().nullable(),
-        suggestionId: z.number().int().nullable(),
-        suggestionCatalogProgramId: z.number().int().nullable().optional(),
-        catalogProgramId: z.number().int().nullable(),
-        catalogProgramVariantId: z.number().int().nullable(),
-        languageId: z.number().int().nullable(),
-        manualCourseIds: z
-            .array(z.number().int())
-            .transform((arr) => [...new Set(arr)])
+        catalogProgramId: z.number().int(),
+        catalogProgramVariantId: z.number().int(),
+        languageId: z.number().int()
+    })
+    .openapi("ProgramPlanningGuideDetails", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "ProgramPlanningGuideDetails"
+        }
+    });
+const savedCurriculumPlanningGuideDetailsSchema = z
+    .object({ curriculumId: z.number().int() })
+    .openapi("SavedCurriculumPlanningGuideDetails", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "SavedCurriculumPlanningGuideDetails"
+        }
+    });
+const suggestionCurriculumPlanningGuideDetailsSchema = z
+    .object({
+        suggestionId: z.number().int(),
+        catalogProgramId: z.number().int()
+    })
+    .openapi("SuggestionCurriculumPlanningGuideDetails", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "SuggestionCurriculumPlanningGuideDetails"
+        }
+    });
+const savedCurriculumPlanningGuideSchema = z
+    .object({
+        source: z.literal("SAVED"),
+        saved: savedCurriculumPlanningGuideDetailsSchema
+    })
+    .openapi("SavedCurriculumPlanningGuide", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "SavedCurriculumPlanningGuide"
+        }
+    });
+const suggestionCurriculumPlanningGuideSchema = z
+    .object({
+        source: z.literal("SUGGESTION"),
+        suggestion: suggestionCurriculumPlanningGuideDetailsSchema
+    })
+    .openapi("SuggestionCurriculumPlanningGuide", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "SuggestionCurriculumPlanningGuide"
+        }
+    });
+const curriculumPlanningGuideDetailsSchema = z
+    .discriminatedUnion("source", [
+        savedCurriculumPlanningGuideSchema,
+        suggestionCurriculumPlanningGuideSchema
+    ])
+    .openapi("CurriculumPlanningGuideDetails", {
+        "discriminator": {
+            propertyName: "source",
+            mapping: {
+                SAVED: "#/components/schemas/SavedCurriculumPlanningGuide",
+                SUGGESTION:
+                    "#/components/schemas/SuggestionCurriculumPlanningGuide"
+            }
+        },
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "CurriculumPlanningGuideDetails"
+        }
+    });
+const nonePlanningGuideSchema = z
+    .object({
+        mode: z.literal("NONE"),
+        manualCourseIds: manualCourseIdsSchema
+    })
+    .openapi("NonePlanningGuide", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "NonePlanningGuide"
+        }
+    });
+const programPlanningGuideSchema = z
+    .object({
+        mode: z.literal("PROGRAM"),
+        manualCourseIds: manualCourseIdsSchema,
+        program: programPlanningGuideDetailsSchema
+    })
+    .openapi("ProgramPlanningGuide", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "ProgramPlanningGuide"
+        }
+    });
+const curriculumPlanningGuideSchema = z
+    .object({
+        mode: z.literal("CURRICULUM"),
+        manualCourseIds: manualCourseIdsSchema,
+        curriculum: curriculumPlanningGuideDetailsSchema
+    })
+    .openapi("CurriculumPlanningGuide", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "CurriculumPlanningGuide"
+        }
+    });
+
+export const guideSchema = z
+    .discriminatedUnion("mode", [
+        nonePlanningGuideSchema,
+        programPlanningGuideSchema,
+        curriculumPlanningGuideSchema
+    ])
+    .openapi("PlanningGuide", {
+        "discriminator": {
+            propertyName: "mode",
+            mapping: {
+                NONE: "#/components/schemas/NonePlanningGuide",
+                PROGRAM: "#/components/schemas/ProgramPlanningGuide",
+                CURRICULUM: "#/components/schemas/CurriculumPlanningGuide"
+            }
+        },
+        "x-pomi-schema": { kind: "value-object", publicName: "PlanningGuide" }
+    });
+
+const programPlanningGuideInputDetailsSchema = z
+    .object({
+        catalogProgramId: z.number().int(),
+        catalogProgramVariantId: z.number().int(),
+        languageId: z.number().int()
     })
     .strict()
-    .openapi("PlanningGuide", {
-        "x-pomi-schema": { kind: "value-object", publicName: "PlanningGuide" }
+    .openapi("ProgramPlanningGuideInputDetails", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "ProgramPlanningGuideInputDetails"
+        }
+    });
+const savedCurriculumPlanningGuideInputSchema = z
+    .object({
+        source: z.literal("SAVED"),
+        saved: z.object({ curriculumId: z.number().int() }).strict()
+    })
+    .strict()
+    .openapi("SavedCurriculumPlanningGuideInput", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "SavedCurriculumPlanningGuideInput"
+        }
+    });
+const suggestionCurriculumPlanningGuideInputSchema = z
+    .object({
+        source: z.literal("SUGGESTION"),
+        suggestion: z
+            .object({
+                suggestionId: z.number().int(),
+                catalogProgramId: z.number().int()
+            })
+            .strict()
+    })
+    .strict()
+    .openapi("SuggestionCurriculumPlanningGuideInput", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "SuggestionCurriculumPlanningGuideInput"
+        }
+    });
+const curriculumPlanningGuideInputSchema = z.discriminatedUnion("source", [
+    savedCurriculumPlanningGuideInputSchema,
+    suggestionCurriculumPlanningGuideInputSchema
+]);
+const nonePlanningGuideInputSchema = z
+    .object({ mode: z.literal("NONE"), manualCourseIds: manualCourseIdsSchema })
+    .strict()
+    .openapi("NonePlanningGuideInput", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "NonePlanningGuideInput"
+        }
+    });
+const programPlanningGuideInputSchema = z
+    .object({
+        mode: z.literal("PROGRAM"),
+        manualCourseIds: manualCourseIdsSchema,
+        program: programPlanningGuideInputDetailsSchema
+    })
+    .strict()
+    .openapi("ProgramPlanningGuideInput", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "ProgramPlanningGuideInput"
+        }
+    });
+const curriculumPlanningGuideInputBranchSchema = z
+    .object({
+        mode: z.literal("CURRICULUM"),
+        manualCourseIds: manualCourseIdsSchema,
+        curriculum: curriculumPlanningGuideInputSchema
+    })
+    .strict()
+    .openapi("CurriculumPlanningGuideInput", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "CurriculumPlanningGuideInput"
+        }
+    });
+export const guideInputSchema = z
+    .discriminatedUnion("mode", [
+        nonePlanningGuideInputSchema,
+        programPlanningGuideInputSchema,
+        curriculumPlanningGuideInputBranchSchema
+    ])
+    .openapi("PlanningGuideInput", {
+        "discriminator": {
+            propertyName: "mode",
+            mapping: {
+                NONE: "#/components/schemas/NonePlanningGuideInput",
+                PROGRAM: "#/components/schemas/ProgramPlanningGuideInput",
+                CURRICULUM: "#/components/schemas/CurriculumPlanningGuideInput"
+            }
+        },
+        "x-pomi-schema": { kind: "input", publicName: "PlanningGuideInput" }
     });
 
 const periodPlanningProfessorSchema = z
@@ -237,7 +429,7 @@ export const createBodyWireSchema = z
         name: z.string().trim().min(1).optional(),
         studyPeriodId: z.number().int(),
         curriculumId: z.number().int().nullable().optional(),
-        guide: guideSchema.optional(),
+        guide: guideInputSchema.optional(),
         classes: z.array(z.number().int())
     })
     .strict()
@@ -283,7 +475,7 @@ export const patchBodyWireSchema = z
         name: z.string().trim().min(1).optional(),
         visibility: planningVisibilitySchema.optional(),
         curriculumId: z.number().int().nullable().optional(),
-        guide: guideSchema.optional(),
+        guide: guideInputSchema.optional(),
         classes: z
             .object({
                 set: z.array(z.number().int()),

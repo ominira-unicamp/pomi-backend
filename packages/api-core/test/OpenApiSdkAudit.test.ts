@@ -69,3 +69,41 @@ test("rejects schema metadata that references an absent field", () => {
         /references missing field/
     );
 });
+
+test("validates union root metadata against every referenced branch", () => {
+    const unionDocument = document(operation);
+    unionDocument.components.schemas = {
+        Example: {
+            "oneOf": [
+                { $ref: "#/components/schemas/ExampleA" },
+                { $ref: "#/components/schemas/ExampleB" }
+            ],
+            "x-pomi-schema": {
+                kind: "entity",
+                publicName: "Example",
+                identityFields: ["id"]
+            }
+        },
+        ExampleA: {
+            "type": "object",
+            "properties": { id: { type: "integer" }, type: { enum: ["A"] } },
+            "x-pomi-schema": { kind: "variant", publicName: "ExampleA" }
+        },
+        ExampleB: {
+            "type": "object",
+            "properties": { id: { type: "integer" }, type: { enum: ["B"] } },
+            "x-pomi-schema": { kind: "variant", publicName: "ExampleB" }
+        }
+    } as never;
+
+    assert.doesNotThrow(() => assertOpenApiSdkCoverage(unionDocument));
+    delete (
+        unionDocument.components.schemas.ExampleB as never as {
+            properties: { id?: unknown };
+        }
+    ).properties.id;
+    assert.throws(
+        () => assertOpenApiSdkCoverage(unionDocument),
+        /references missing field/
+    );
+});

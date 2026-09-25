@@ -107,3 +107,27 @@ test("returns a domain problem when the catalog program does not exist", async (
         assert.equal(result.error.type, "urn:pomi:problem:resource-not-found");
     }
 });
+
+test("course requirements expose only the active named facet", () => {
+    assert.equal(
+        IO.schemas.courseRequirementSchema.safeParse({
+            id: 1,
+            type: "specific",
+            specific: {
+                courseId: 2,
+                courseCode: "MC102",
+                courseName: "Algoritmos",
+                catalogCourseId: null
+            }
+        }).success,
+        true
+    );
+    assert.equal(
+        IO.schemas.courseRequirementSchema.safeParse({
+            id: 1,
+            type: "specific",
+            courseId: 2
+        }).success,
+        false
+    );
+});

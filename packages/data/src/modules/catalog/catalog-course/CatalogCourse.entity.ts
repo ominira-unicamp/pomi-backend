@@ -1,4 +1,5 @@
 import IO from "#/modules/catalog/catalog-course/CatalogCourse.contract.js";
+import { InconsistentResourceStateError } from "@pomi/api-core";
 import { MyPrisma } from "@pomi/db";
 import z from "zod";
 
@@ -34,19 +35,66 @@ function buildCatalogCoursePrerequisite(
     item: PrismaCatalogCoursePayload["prerequisites"][number]["items"][number]
 ): CatalogCoursePrerequisite {
     if (item.courseId !== null) {
-        if (!item.fulfillment)
-            throw new Error(
-                `Pré-requisito de disciplina ${item.courseId} sem integralização`
+        if (
+            !item.fulfillment ||
+            item.specialRequirementType !== null ||
+            item.specialRequirementValue !== null
+        )
+            throw new InconsistentResourceStateError(
+                "CatalogCoursePrerequisiteItem",
+                item.courseId,
+                "course_item_has_invalid_variant_data"
             );
-        return { courseId: item.courseId, fulfillment: item.fulfillment };
+        return {
+            type: "COURSE",
+            course: { courseId: item.courseId, fulfillment: item.fulfillment }
+        };
     }
-    if (item.fulfillment)
-        return { courseId: null, fulfillment: item.fulfillment };
-    if (!item.specialRequirementType || item.specialRequirementValue === null)
-        throw new Error("Pré-requisito especial incompleto");
+    if (item.fulfillment) {
+        if (
+            item.specialRequirementType !== null ||
+            item.specialRequirementValue !== null
+        )
+            throw new InconsistentResourceStateError(
+                "CatalogCoursePrerequisiteItem",
+                "unknown",
+                "unresolved_course_item_has_special_requirement_data"
+            );
+        return {
+            type: "COURSE",
+            course: { courseId: null, fulfillment: item.fulfillment }
+        };
+    }
+    if (!item.specialRequirementType)
+        throw new InconsistentResourceStateError(
+            "CatalogCoursePrerequisiteItem",
+            "unknown",
+            "special_requirement_without_type"
+        );
+    if (item.specialRequirementType === "AUTHORIZATION") {
+        if (item.specialRequirementValue !== 0)
+            throw new InconsistentResourceStateError(
+                "CatalogCoursePrerequisiteItem",
+                "unknown",
+                "authorization_with_nonzero_value"
+            );
+        return {
+            type: "SPECIAL_REQUIREMENT",
+            specialRequirement: { type: "AUTHORIZATION" }
+        };
+    }
+    if (item.specialRequirementValue === null)
+        throw new InconsistentResourceStateError(
+            "CatalogCoursePrerequisiteItem",
+            "unknown",
+            "progression_coefficient_without_value"
+        );
     return {
-        specialRequirementType: item.specialRequirementType,
-        specialRequirementValue: item.specialRequirementValue
+        type: "SPECIAL_REQUIREMENT",
+        specialRequirement: {
+            type: "PROGRESSION_COEFFICIENT",
+            progressionCoefficient: { value: item.specialRequirementValue }
+        }
     };
 }
 

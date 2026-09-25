@@ -16,6 +16,32 @@ function stringField(value: JsonObject, field: string) {
     return typeof value[field] === "string" ? value[field] : undefined;
 }
 
+function schemaHasPath(
+    document: OpenApiDocument,
+    schema: unknown,
+    parts: readonly string[]
+): boolean {
+    if (!isRecord(schema)) return false;
+    const reference = stringField(schema, "$ref");
+    const prefix = "#/components/schemas/";
+    const resolved = reference?.startsWith(prefix)
+        ? document.components?.schemas?.[reference.slice(prefix.length)]
+        : schema;
+    if (!isRecord(resolved)) return false;
+    if (Array.isArray(resolved.oneOf)) {
+        return (
+            resolved.oneOf.length > 0 &&
+            resolved.oneOf.every((branch) =>
+                schemaHasPath(document, branch, parts)
+            )
+        );
+    }
+    const [part, ...remaining] = parts;
+    if (!part) return true;
+    if (!isRecord(resolved.properties)) return false;
+    return schemaHasPath(document, resolved.properties[part], remaining);
+}
+
 export function assertOpenApiSdkCoverage(document: OpenApiDocument) {
     const operationIds = new Set<string>();
     const sdkMethods = new Set<string>();
@@ -95,7 +121,6 @@ export function assertOpenApiSdkCoverage(document: OpenApiDocument) {
         if (!isRecord(metadata)) {
             throw new Error(`OpenAPI schema "${name}" has no x-pomi-schema`);
         }
-        const properties = isRecord(value.properties) ? value.properties : {};
         for (const field of [
             ...(Array.isArray(metadata.transportFields)
                 ? metadata.transportFields
@@ -110,7 +135,10 @@ export function assertOpenApiSdkCoverage(document: OpenApiDocument) {
                 isRecord(metadata.relations) ? metadata.relations : {}
             )
         ]) {
-            if (typeof field !== "string" || !(field in properties)) {
+            if (
+                typeof field !== "string" ||
+                !schemaHasPath(document, value, field.split("."))
+            ) {
                 throw new Error(
                     `OpenAPI schema "${name}" metadata references missing field "${String(field)}"`
                 );

@@ -47,15 +47,168 @@ const careerReference = z
     .openapi("CareerReference", {
         "x-pomi-schema": { kind: "entity", publicName: "CareerReference" }
     });
+const careerPositionAffiliationDetailsSchema = z
+    .object({ reference: careerReference })
+    .openapi("CareerAcademicPositionAffiliationDetails", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "CareerAcademicPositionAffiliationDetails"
+        }
+    });
+const careerAcademicPositionAffiliationSchema = z
+    .object({
+        type: z.literal("CAREER"),
+        career: careerPositionAffiliationDetailsSchema
+    })
+    .openapi("CareerAcademicPositionAffiliation", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "CareerAcademicPositionAffiliation"
+        }
+    });
+const collaboratorAcademicPositionAffiliationSchema = z
+    .object({ type: z.literal("COLLABORATOR") })
+    .openapi("CollaboratorAcademicPositionAffiliation", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "CollaboratorAcademicPositionAffiliation"
+        }
+    });
+const generalSeniorAffiliationSchema = z
+    .object({ kind: z.literal("GENERAL") })
+    .openapi("GeneralSeniorAcademicPositionAffiliation", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "GeneralSeniorAcademicPositionAffiliation"
+        }
+    });
+const careerSeniorAffiliationSchema = z
+    .object({
+        kind: z.literal("CAREER"),
+        career: careerPositionAffiliationDetailsSchema,
+        programCode: z.string()
+    })
+    .openapi("CareerSeniorAcademicPositionAffiliation", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "CareerSeniorAcademicPositionAffiliation"
+        }
+    });
+const seniorAffiliationDetailsSchema = z
+    .discriminatedUnion("kind", [
+        generalSeniorAffiliationSchema,
+        careerSeniorAffiliationSchema
+    ])
+    .openapi("SeniorAcademicPositionAffiliationDetails", {
+        "discriminator": {
+            propertyName: "kind",
+            mapping: {
+                GENERAL:
+                    "#/components/schemas/GeneralSeniorAcademicPositionAffiliation",
+                CAREER: "#/components/schemas/CareerSeniorAcademicPositionAffiliation"
+            }
+        },
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "SeniorAcademicPositionAffiliationDetails"
+        }
+    });
+const seniorAcademicPositionAffiliationSchema = z
+    .object({
+        type: z.literal("SENIOR"),
+        senior: seniorAffiliationDetailsSchema
+    })
+    .openapi("SeniorAcademicPositionAffiliation", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "SeniorAcademicPositionAffiliation"
+        }
+    });
+const visitingInvitedAcademicPositionAffiliationSchema = z
+    .object({ type: z.literal("VISITING_INVITED") })
+    .openapi("VisitingInvitedAcademicPositionAffiliation", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "VisitingInvitedAcademicPositionAffiliation"
+        }
+    });
+const visitingSpecialistAffiliationDetailsSchema = z
+    .object({ programCode: z.string() })
+    .openapi("VisitingSpecialistAcademicPositionAffiliationDetails", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "VisitingSpecialistAcademicPositionAffiliationDetails"
+        }
+    });
+const visitingSpecialistAcademicPositionAffiliationSchema = z
+    .object({
+        type: z.literal("VISITING_SPECIALIST"),
+        visitingSpecialist: visitingSpecialistAffiliationDetailsSchema
+    })
+    .openapi("VisitingSpecialistAcademicPositionAffiliation", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "VisitingSpecialistAcademicPositionAffiliation"
+        }
+    });
+const postdoctoralProgramAffiliationDetailsSchema = z
+    .object({
+        modality: z.string(),
+        programCode: z.string().nullable()
+    })
+    .openapi("PostdoctoralProgramAcademicPositionAffiliationDetails", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "PostdoctoralProgramAcademicPositionAffiliationDetails"
+        }
+    });
+const postdoctoralProgramAcademicPositionAffiliationSchema = z
+    .object({
+        type: z.literal("POSTDOCTORAL_PROGRAM"),
+        postdoctoralProgram: postdoctoralProgramAffiliationDetailsSchema
+    })
+    .openapi("PostdoctoralProgramAcademicPositionAffiliation", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "PostdoctoralProgramAcademicPositionAffiliation"
+        }
+    });
+const affiliation = z
+    .discriminatedUnion("type", [
+        careerAcademicPositionAffiliationSchema,
+        collaboratorAcademicPositionAffiliationSchema,
+        seniorAcademicPositionAffiliationSchema,
+        visitingInvitedAcademicPositionAffiliationSchema,
+        visitingSpecialistAcademicPositionAffiliationSchema,
+        postdoctoralProgramAcademicPositionAffiliationSchema
+    ])
+    .openapi("AcademicPositionAffiliation", {
+        "discriminator": {
+            propertyName: "type",
+            mapping: {
+                CAREER: "#/components/schemas/CareerAcademicPositionAffiliation",
+                COLLABORATOR:
+                    "#/components/schemas/CollaboratorAcademicPositionAffiliation",
+                SENIOR: "#/components/schemas/SeniorAcademicPositionAffiliation",
+                VISITING_INVITED:
+                    "#/components/schemas/VisitingInvitedAcademicPositionAffiliation",
+                VISITING_SPECIALIST:
+                    "#/components/schemas/VisitingSpecialistAcademicPositionAffiliation",
+                POSTDOCTORAL_PROGRAM:
+                    "#/components/schemas/PostdoctoralProgramAcademicPositionAffiliation"
+            }
+        },
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "AcademicPositionAffiliation"
+        }
+    });
 const position = z
     .object({
         id: profileId,
         canonicalKey: z.string(),
         role: z.string(),
-        affiliationType: z.string(),
-        programCode: z.string().nullable(),
-        postdoctoralModality: z.string().nullable(),
-        careerReference: careerReference.nullable()
+        affiliation
     })
     .strict()
     .openapi("ProfessorPosition", {

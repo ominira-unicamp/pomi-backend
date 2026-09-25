@@ -1,4 +1,7 @@
-import IO from "#/modules/planning/period-plan/PeriodPlan.contract.js";
+import IO, {
+    guideSchema
+} from "#/modules/planning/period-plan/PeriodPlan.contract.js";
+import { InconsistentResourceStateError } from "@pomi/api-core";
 import { MyPrisma, selectIdCode, selectIdName } from "@pomi/db";
 import z from "zod";
 
@@ -60,17 +63,111 @@ type PrismaPeriodPlanningPayload = MyPrisma.PeriodPlanningGetPayload<
     typeof prismaPeriodPlanningFieldSelection
 >;
 
+function buildPlanningGuide(
+    periodPlanning: PrismaPeriodPlanningPayload
+): z.infer<typeof guideSchema> {
+    const invalid = (reason: string): never => {
+        throw new InconsistentResourceStateError(
+            "PeriodPlanning",
+            periodPlanning.id,
+            reason
+        );
+    };
+    const manualCourseIds = periodPlanning.manualCourses.map(
+        ({ courseId }) => courseId
+    );
+
+    if (periodPlanning.guideMode === "NONE") {
+        if (
+            periodPlanning.curriculumSource !== null ||
+            periodPlanning.curriculum !== null ||
+            periodPlanning.curriculumSuggestion !== null ||
+            periodPlanning.catalogProgram !== null ||
+            periodPlanning.catalogProgramVariant !== null ||
+            periodPlanning.language !== null
+        )
+            invalid("none_with_variant_data");
+        return { mode: "NONE", manualCourseIds };
+    }
+
+    if (periodPlanning.guideMode === "PROGRAM") {
+        const program = periodPlanning.catalogProgram;
+        const variant = periodPlanning.catalogProgramVariant;
+        const language = periodPlanning.language;
+        if (
+            periodPlanning.curriculumSource !== null ||
+            periodPlanning.curriculum !== null ||
+            periodPlanning.curriculumSuggestion !== null ||
+            program === null ||
+            variant === null ||
+            language === null
+        )
+            return invalid("invalid_program_variant");
+        return {
+            mode: "PROGRAM",
+            manualCourseIds,
+            program: {
+                catalogProgramId: program.id,
+                catalogProgramVariantId: variant.id,
+                languageId: language.id
+            }
+        };
+    }
+
+    if (periodPlanning.guideMode !== "CURRICULUM") invalid("unknown_mode");
+    if (
+        periodPlanning.catalogProgram !== null ||
+        periodPlanning.catalogProgramVariant !== null ||
+        periodPlanning.language !== null
+    )
+        invalid("curriculum_with_program_data");
+
+    if (periodPlanning.curriculumSource === "SAVED") {
+        const curriculum = periodPlanning.curriculum;
+        if (curriculum === null || periodPlanning.curriculumSuggestion !== null)
+            return invalid("invalid_saved_curriculum_variant");
+        return {
+            mode: "CURRICULUM",
+            manualCourseIds,
+            curriculum: {
+                source: "SAVED",
+                saved: { curriculumId: curriculum.id }
+            }
+        };
+    }
+
+    if (periodPlanning.curriculumSource === "SUGGESTION") {
+        const suggestion = periodPlanning.curriculumSuggestion;
+        if (periodPlanning.curriculum !== null || suggestion === null)
+            return invalid("invalid_suggestion_curriculum_variant");
+        return {
+            mode: "CURRICULUM",
+            manualCourseIds,
+            curriculum: {
+                source: "SUGGESTION",
+                suggestion: {
+                    suggestionId: suggestion.id,
+                    catalogProgramId:
+                        suggestion.catalogProgramVariant.catalogProgramId
+                }
+            }
+        };
+    }
+
+    return invalid("curriculum_without_source");
+}
+
 function buildPeriodPlanningEntity(
     periodPlanning: PrismaPeriodPlanningPayload
 ): z.infer<typeof IO.schema> {
     const {
         studyPeriod,
         curriculum,
-        curriculumSuggestion,
-        catalogProgram,
-        catalogProgramVariant,
-        language,
-        manualCourses,
+        curriculumSuggestion: _curriculumSuggestion,
+        catalogProgram: _catalogProgram,
+        catalogProgramVariant: _catalogProgramVariant,
+        language: _language,
+        manualCourses: _manualCourses,
         classes,
         ...rest
     } = periodPlanning;
@@ -82,19 +179,7 @@ function buildPeriodPlanningEntity(
         studyPeriodYear: studyPeriod.year,
         studyPeriodYearPeriod: studyPeriod.yearPeriod,
         curriculumId: curriculum?.id ?? null,
-        guide: {
-            mode: periodPlanning.guideMode,
-            curriculumSource: periodPlanning.curriculumSource,
-            curriculumId: curriculum?.id ?? null,
-            suggestionId: curriculumSuggestion?.id ?? null,
-            suggestionCatalogProgramId:
-                curriculumSuggestion?.catalogProgramVariant.catalogProgramId ??
-                null,
-            catalogProgramId: catalogProgram?.id ?? null,
-            catalogProgramVariantId: catalogProgramVariant?.id ?? null,
-            languageId: language?.id ?? null,
-            manualCourseIds: manualCourses.map(({ courseId }) => courseId)
-        },
+        guide: buildPlanningGuide(periodPlanning),
         classes: classes.map((c) => {
             const { course, professors, reservationPrograms, ...classRest } = c;
             return {

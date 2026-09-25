@@ -41,3 +41,19 @@ export class ConflictError extends AppError {
     readonly type = "urn:pomi:problem:conflict";
     readonly title = "Conflito ao concluir a ação";
 }
+
+export class InconsistentResourceStateError extends AppError {
+    readonly status = 500;
+    readonly type = "urn:pomi:problem:inconsistent-resource-state";
+    readonly title = "Estado interno do recurso inconsistente";
+
+    constructor(
+        readonly resource: string,
+        readonly resourceId: string | number,
+        readonly reason: string
+    ) {
+        super(
+            "O recurso não pôde ser representado porque seus dados estão inconsistentes."
+        );
+    }
+}

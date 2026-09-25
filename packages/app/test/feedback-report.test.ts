@@ -18,7 +18,7 @@ test("declares anonymous and identified feedback paths", () => {
             path: { sid: "1" },
             body: {
                 kind: "SUGGESTION",
-                target: { type: "FEATURE", featureKey: "agenda" },
+                target: { type: "FEATURE", feature: { key: "agenda" } },
                 title: "Melhorar a agenda",
                 description:
                     "Seria útil exibir as próximas aulas de forma resumida."
@@ -174,8 +174,7 @@ test("rejects an academic feedback report for an unknown resource", async () => 
         kind: "DATA_ISSUE",
         target: {
             type: "ACADEMIC_RESOURCE",
-            academicResourceType: "CATALOG_COURSE",
-            academicResourceId: 10
+            academicResource: { type: "CATALOG_COURSE", id: 10 }
         },
         title: "Pré-requisito incorreto",
         description:

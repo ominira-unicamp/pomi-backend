@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+    InconsistentResourceStateError,
+    InconsistentResourceStateProblemSchema,
     ReferenceNotFoundProblem,
     ResourceNotFoundProblem,
+    appErrorProblem,
     createResultResponder,
     err,
     ok,
@@ -11,6 +14,23 @@ import {
     problemInput,
     problemResponse
 } from "../src/index.js";
+
+test("serializes inconsistent resource states as a safe server problem", () => {
+    const error = new InconsistentResourceStateError(
+        "CourseRequirement",
+        42,
+        "missing_course_id"
+    );
+    const problem = appErrorProblem(error, "/catalog-program/7");
+
+    assert.equal(problem.type, "urn:pomi:problem:inconsistent-resource-state");
+    assert.equal(problem.status, 500);
+    assert.equal(problem.detail.includes("missing_course_id"), false);
+    assert.equal(
+        InconsistentResourceStateProblemSchema.safeParse(problem).success,
+        true
+    );
+});
 
 test("creates domain problems without HTTP status", () => {
     const problem = ResourceNotFoundProblem.create({

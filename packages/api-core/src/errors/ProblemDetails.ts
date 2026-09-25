@@ -294,6 +294,32 @@ export const InternalServerErrorProblemSchema = ProblemDetailsSchema.extend({
         }
     });
 
+export const InconsistentResourceStateProblemSchema =
+    ProblemDetailsSchema.extend({
+        type: z.literal(problemType("inconsistent-resource-state")),
+        title: z.literal("Estado interno do recurso inconsistente"),
+        status: z.literal(500)
+    })
+        .strict()
+        .openapi("InconsistentResourceStateProblem", {
+            "x-pomi-schema": {
+                kind: "problem",
+                publicName: "InconsistentResourceStateProblem"
+            }
+        });
+
+export const ServerErrorProblemSchema = z
+    .discriminatedUnion("type", [
+        InternalServerErrorProblemSchema,
+        InconsistentResourceStateProblemSchema
+    ])
+    .openapi("ServerErrorProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "ServerErrorProblem"
+        }
+    });
+
 type ProblemInput = Omit<ProblemDetails, "instance"> & { instance?: string };
 
 export function withProblemInstance<T extends ProblemInput>(

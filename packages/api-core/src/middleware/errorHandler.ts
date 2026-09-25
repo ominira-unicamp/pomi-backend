@@ -1,5 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
-import { AppError } from "../errors/AppError.js";
+import {
+    AppError,
+    InconsistentResourceStateError
+} from "../errors/AppError.js";
 import {
     appErrorProblem,
     internalServerErrorProblem
@@ -14,6 +17,23 @@ function errorHandler(
     _next: NextFunction
 ) {
     if (err instanceof AppError) {
+        if (err.status >= 500) {
+            requestLogger(res)?.error(
+                {
+                    err,
+                    event: "resource.inconsistent_state",
+                    method: req.method,
+                    ...(err instanceof InconsistentResourceStateError
+                        ? {
+                              resource: err.resource,
+                              resourceId: err.resourceId,
+                              reason: err.reason
+                          }
+                        : {})
+                },
+                "Estado interno inconsistente durante requisição HTTP"
+            );
+        }
         sendProblem(res, appErrorProblem(err, req.path));
         return;
     }

@@ -70,6 +70,7 @@ export type SdkOperationMetadata = {
 export type SdkSchemaMetadata = {
     kind:
         | "entity"
+        | "variant"
         | "value-object"
         | "projection"
         | "input"

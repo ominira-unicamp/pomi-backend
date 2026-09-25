@@ -32,32 +32,89 @@ export const CourseBlockType = {
     elective: "elective"
 } as const;
 
-export const CourseRequirementType = {
-    any: "any",
-    prefix: "prefix",
-    specific: "specific"
-} as const;
-
-const courseRequirementTypeSchema = z
-    .enum(CourseRequirementType)
-    .openapi("CourseRequirementType", {
+const prefixCourseRequirementDetailsSchema = z
+    .object({ value: z.string().min(1) })
+    .openapi("PrefixCourseRequirementDetails", {
         "x-pomi-schema": {
             kind: "value-object",
-            publicName: "CourseRequirementType"
+            publicName: "PrefixCourseRequirementDetails"
+        }
+    });
+
+const specificCourseRequirementDetailsSchema = z
+    .object({
+        courseId: z.number().int(),
+        courseCode: z.string(),
+        courseName: z.string(),
+        catalogCourseId: z.number().int().nullable()
+    })
+    .openapi("SpecificCourseRequirementDetails", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "SpecificCourseRequirementDetails",
+            relations: {
+                catalogCourseId: {
+                    resource: "catalogCourses",
+                    cardinality: "one",
+                    nullable: true
+                }
+            }
+        }
+    });
+
+const anyCourseRequirementSchema = z
+    .object({ id: z.number().int(), type: z.literal("any") })
+    .openapi("AnyCourseRequirement", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "AnyCourseRequirement",
+            identityFields: ["id"]
+        }
+    });
+
+const prefixCourseRequirementSchema = z
+    .object({
+        id: z.number().int(),
+        type: z.literal("prefix"),
+        prefix: prefixCourseRequirementDetailsSchema
+    })
+    .openapi("PrefixCourseRequirement", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "PrefixCourseRequirement",
+            identityFields: ["id"]
+        }
+    });
+
+const specificCourseRequirementSchema = z
+    .object({
+        id: z.number().int(),
+        type: z.literal("specific"),
+        specific: specificCourseRequirementDetailsSchema
+    })
+    .openapi("SpecificCourseRequirement", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "SpecificCourseRequirement",
+            identityFields: ["id"]
         }
     });
 
 const courseRequirementSchema = z
-    .object({
-        id: z.number().int(),
-        type: courseRequirementTypeSchema,
-        courseId: z.number().int().nullable(),
-        courseCode: z.string().nullable(),
-        courseName: z.string().nullable(),
-        prefix: z.string().nullable(),
-        catalogCourseId: z.number().int().nullable()
-    })
+    .discriminatedUnion("type", [
+        anyCourseRequirementSchema,
+        prefixCourseRequirementSchema,
+        specificCourseRequirementSchema
+    ])
     .openapi("CourseRequirement", {
+        "discriminator": {
+            propertyName: "type",
+            mapping: {
+                any: "#/components/schemas/AnyCourseRequirement",
+                prefix: "#/components/schemas/PrefixCourseRequirement",
+                specific: "#/components/schemas/SpecificCourseRequirement"
+            }
+        },
         "x-pomi-schema": {
             kind: "entity",
             publicName: "CourseRequirement",
@@ -83,26 +140,79 @@ const courseBlockSetSchema = z
         "x-pomi-schema": { kind: "value-object", publicName: "CourseBlockSet" }
     });
 
-const catalogProgramVariantSchema = z
+const catalogProgramVariantSharedFields = {
+    id: z.number().int(),
+    curriculumSuggestionId: z.number().int().nullable(),
+    code: z.string(),
+    name: z.string(),
+    integralizationCredits: z.number().int().nullable(),
+    integralizationSupervisedHours: z.number().int().nullable(),
+    integralizationExtensionHours: z.number().int().nullable(),
+    integralizationSemesters: z.number().int().nullable(),
+    integralizationMaximumSemesters: z.number().int().nullable(),
+    professionalDescription: z.string().nullable(),
+    recognitionDescription: z.string().nullable(),
+    blocks: courseBlockSetSchema
+};
+
+const programCatalogProgramVariantSchema = z
     .object({
-        id: z.number().int(),
-        programId: z.number().int().nullable(),
-        specializationId: z.number().int().nullable(),
-        curriculumSuggestionId: z.number().int().nullable(),
-        code: z.string(),
-        name: z.string(),
-        integralizationCredits: z.number().int().nullable(),
-        integralizationSupervisedHours: z.number().int().nullable(),
-        integralizationExtensionHours: z.number().int().nullable(),
-        integralizationSemesters: z.number().int().nullable(),
-        integralizationMaximumSemesters: z.number().int().nullable(),
-        professionalDescription: z.string().nullable(),
-        recognitionDescription: z.string().nullable(),
-        blocks: courseBlockSetSchema
+        ...catalogProgramVariantSharedFields,
+        type: z.literal("PROGRAM"),
+        program: z.object({ programId: z.number().int() })
     })
-    .openapi("CatalogProgramVariant", {
+    .openapi("ProgramCatalogProgramVariant", {
         "x-pomi-schema": {
-            kind: "projection",
+            kind: "variant",
+            publicName: "ProgramCatalogProgramVariant",
+            identityFields: ["id"],
+            relations: {
+                curriculumSuggestionId: {
+                    resource: "curriculumSuggestions",
+                    cardinality: "one",
+                    nullable: true
+                }
+            }
+        }
+    });
+
+const specializationCatalogProgramVariantSchema = z
+    .object({
+        ...catalogProgramVariantSharedFields,
+        type: z.literal("SPECIALIZATION"),
+        specialization: z.object({ specializationId: z.number().int() })
+    })
+    .openapi("SpecializationCatalogProgramVariant", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "SpecializationCatalogProgramVariant",
+            identityFields: ["id"],
+            relations: {
+                curriculumSuggestionId: {
+                    resource: "curriculumSuggestions",
+                    cardinality: "one",
+                    nullable: true
+                }
+            }
+        }
+    });
+
+const catalogProgramVariantSchema = z
+    .discriminatedUnion("type", [
+        programCatalogProgramVariantSchema,
+        specializationCatalogProgramVariantSchema
+    ])
+    .openapi("CatalogProgramVariant", {
+        "discriminator": {
+            propertyName: "type",
+            mapping: {
+                PROGRAM: "#/components/schemas/ProgramCatalogProgramVariant",
+                SPECIALIZATION:
+                    "#/components/schemas/SpecializationCatalogProgramVariant"
+            }
+        },
+        "x-pomi-schema": {
+            kind: "value-object",
             publicName: "CatalogProgramVariant"
         }
     });
@@ -232,6 +342,7 @@ export default {
     list,
     schemas: {
         catalogProgramEntity,
+        catalogProgramVariantSchema,
         courseRequirementSchema,
         electiveBlockSchema,
         courseBlockSetSchema

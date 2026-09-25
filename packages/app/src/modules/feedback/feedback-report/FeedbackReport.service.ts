@@ -8,12 +8,24 @@ import {
     feedbackReportNotFoundProblem,
     type FeedbackReportProblem
 } from "#/modules/feedback/feedback-report/FeedbackReport.problems.js";
-import { compileSort, err, ok, resolveSort, type Result } from "@pomi/api-core";
+import {
+    compileSort,
+    err,
+    InconsistentResourceStateError,
+    ok,
+    resolveSort,
+    type Result
+} from "@pomi/api-core";
 import type { FeedbackReportStatus, PrismaClient } from "@pomi/db";
 import z from "zod";
 
 type Input = z.infer<typeof IO.body>;
 type Report = z.infer<typeof IO.schemas.report>;
+type FeatureTarget = Extract<Report["target"], { type: "FEATURE" }>;
+type AcademicResourceTarget = Extract<
+    Report["target"],
+    { type: "ACADEMIC_RESOURCE" }
+>;
 type AdminPatchInput = z.infer<typeof IO.patchAdmin.request>["body"];
 type StudentListQuery = z.infer<typeof IO.listStudent.request>["query"];
 type AdminListQuery = z.infer<typeof IO.listAdmin.request>["query"];
@@ -35,29 +47,67 @@ function buildReport(report: {
     createdAt: Date;
     updatedAt: Date;
 }): Report {
-    const target =
+    if (report.targetType === "GENERAL") {
+        if (
+            report.featureKey !== null ||
+            report.academicResourceType !== null ||
+            report.academicResourceId !== null
+        )
+            throw new InconsistentResourceStateError(
+                "FeedbackReport",
+                report.id,
+                "general_target_with_variant_data"
+            );
+    }
+    if (report.targetType === "FEATURE" && report.featureKey === null)
+        throw new InconsistentResourceStateError(
+            "FeedbackReport",
+            report.id,
+            "feature_target_without_key"
+        );
+    if (
+        report.targetType === "FEATURE" &&
+        (report.academicResourceType !== null ||
+            report.academicResourceId !== null)
+    )
+        throw new InconsistentResourceStateError(
+            "FeedbackReport",
+            report.id,
+            "feature_target_with_academic_data"
+        );
+    if (
+        report.targetType === "ACADEMIC_RESOURCE" &&
+        (report.academicResourceType === null ||
+            report.academicResourceId === null)
+    )
+        throw new InconsistentResourceStateError(
+            "FeedbackReport",
+            report.id,
+            "academic_target_without_reference"
+        );
+    if (report.targetType === "ACADEMIC_RESOURCE" && report.featureKey !== null)
+        throw new InconsistentResourceStateError(
+            "FeedbackReport",
+            report.id,
+            "academic_target_with_feature_data"
+        );
+
+    const target: Report["target"] =
         report.targetType === "GENERAL"
-            ? { type: "GENERAL" as const }
+            ? { type: "GENERAL" }
             : report.targetType === "FEATURE"
               ? {
-                    type: "FEATURE" as const,
-                    featureKey: report.featureKey as Report["target"] extends {
-                        type: "FEATURE";
-                        featureKey: infer FeatureKey;
+                    type: "FEATURE",
+                    feature: {
+                        key: report.featureKey as FeatureTarget["feature"]["key"]
                     }
-                        ? FeatureKey
-                        : never
                 }
               : {
-                    type: "ACADEMIC_RESOURCE" as const,
-                    academicResourceType:
-                        report.academicResourceType as Report["target"] extends {
-                            type: "ACADEMIC_RESOURCE";
-                            academicResourceType: infer ResourceType;
-                        }
-                            ? ResourceType
-                            : never,
-                    academicResourceId: report.academicResourceId!
+                    type: "ACADEMIC_RESOURCE",
+                    academicResource: {
+                        type: report.academicResourceType as AcademicResourceTarget["academicResource"]["type"],
+                        id: report.academicResourceId!
+                    }
                 };
     return {
         id: report.id,
@@ -96,7 +146,7 @@ async function academicResourceExists(
     type: Extract<
         Input["target"],
         { type: "ACADEMIC_RESOURCE" }
-    >["academicResourceType"],
+    >["academicResource"]["type"],
     id: number
 ) {
     switch (type) {
@@ -170,14 +220,14 @@ async function validateAcademicResource(prisma: PrismaClient, input: Input) {
     if (input.target.type !== "ACADEMIC_RESOURCE") return undefined;
     const found = await academicResourceExists(
         prisma,
-        input.target.academicResourceType,
-        input.target.academicResourceId
+        input.target.academicResource.type,
+        input.target.academicResource.id
     );
     if (found) return undefined;
     return feedbackReferenceNotFoundProblem([
         {
             code: "REFERENCE_NOT_FOUND",
-            path: ["target", "academicResourceId"],
+            path: ["target", "academicResource", "id"],
             message: "O dado acadêmico informado não foi encontrado."
         }
     ]);
@@ -229,15 +279,15 @@ export function createFeedbackReportService({
                 targetType: input.target.type,
                 featureKey:
                     input.target.type === "FEATURE"
-                        ? input.target.featureKey
+                        ? input.target.feature.key
                         : null,
                 academicResourceType:
                     input.target.type === "ACADEMIC_RESOURCE"
-                        ? input.target.academicResourceType
+                        ? input.target.academicResource.type
                         : null,
                 academicResourceId:
                     input.target.type === "ACADEMIC_RESOURCE"
-                        ? input.target.academicResourceId
+                        ? input.target.academicResource.id
                         : null,
                 title: input.title,
                 description: input.description,

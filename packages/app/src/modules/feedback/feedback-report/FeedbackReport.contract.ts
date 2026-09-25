@@ -80,25 +80,75 @@ const studentPath = z.object({
     sid: pathParam.integer()
 });
 
+const featureTargetDetailsSchema = z
+    .object({ key: feedbackFeatureKeySchema })
+    .openapi("FeedbackFeatureTargetDetails", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "FeedbackFeatureTargetDetails"
+        }
+    });
+const academicResourceTargetDetailsSchema = z
+    .object({
+        type: feedbackAcademicResourceTypeSchema,
+        id: z.number().int().positive()
+    })
+    .openapi("FeedbackAcademicResourceTargetDetails", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "FeedbackAcademicResourceTargetDetails"
+        }
+    });
+const generalFeedbackTargetSchema = z
+    .object({ type: z.literal("GENERAL") })
+    .openapi("GeneralFeedbackReportTarget", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "GeneralFeedbackReportTarget"
+        }
+    });
+const featureFeedbackTargetSchema = z
+    .object({
+        type: z.literal("FEATURE"),
+        feature: featureTargetDetailsSchema
+    })
+    .openapi("FeatureFeedbackReportTarget", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "FeatureFeedbackReportTarget"
+        }
+    });
+const academicResourceFeedbackTargetSchema = z
+    .object({
+        type: z.literal("ACADEMIC_RESOURCE"),
+        academicResource: academicResourceTargetDetailsSchema
+    })
+    .openapi("AcademicResourceFeedbackReportTarget", {
+        "x-pomi-schema": {
+            kind: "variant",
+            publicName: "AcademicResourceFeedbackReportTarget"
+        }
+    });
 const target = z
     .discriminatedUnion("type", [
-        z.object({ type: z.literal("GENERAL") }).strict(),
-        z
-            .object({
-                type: z.literal("FEATURE"),
-                featureKey: feedbackFeatureKeySchema
-            })
-            .strict(),
-        z
-            .object({
-                type: z.literal("ACADEMIC_RESOURCE"),
-                academicResourceType: feedbackAcademicResourceTypeSchema,
-                academicResourceId: z.number().int().positive()
-            })
-            .strict()
+        generalFeedbackTargetSchema,
+        featureFeedbackTargetSchema,
+        academicResourceFeedbackTargetSchema
     ])
     .openapi("FeedbackReportTarget", {
-        "x-pomi-schema": { kind: "entity", publicName: "FeedbackReportTarget" }
+        "discriminator": {
+            propertyName: "type",
+            mapping: {
+                GENERAL: "#/components/schemas/GeneralFeedbackReportTarget",
+                FEATURE: "#/components/schemas/FeatureFeedbackReportTarget",
+                ACADEMIC_RESOURCE:
+                    "#/components/schemas/AcademicResourceFeedbackReportTarget"
+            }
+        },
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "FeedbackReportTarget"
+        }
     });
 
 const body = z

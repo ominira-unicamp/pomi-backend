@@ -2,8 +2,8 @@ import type { RouteConfig } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 
 import {
-    InternalServerErrorProblemSchema,
-    InvalidRequestProblemSchema
+    InvalidRequestProblemSchema,
+    ServerErrorProblemSchema
 } from "../errors/ProblemDetails.js";
 import type { EndpointContract } from "../http/EndpointContract.js";
 import { pathSegmentToOpenApiPath } from "../PathSegment.js";
@@ -62,7 +62,7 @@ export function openApiFromEndpoint(
             description: "Não foi possível concluir a ação",
             content: {
                 "application/problem+json": {
-                    schema: InternalServerErrorProblemSchema
+                    schema: ServerErrorProblemSchema
                 }
             }
         };
