@@ -53,6 +53,7 @@ type TokenPayload = jose.JWTPayload & {
     email?: string;
     email_verified?: boolean;
     name?: string;
+    preferred_username?: string;
 };
 
 async function verifyAccessToken(token: string): Promise<TokenPayload> {
@@ -80,10 +81,16 @@ function studentIdentityFromToken(payload: TokenPayload) {
     if (!email) return undefined;
     const match = /^([a-z])([0-9]{6})@dac\.unicamp\.br$/i.exec(email);
     if (!match) return undefined;
-    return { email, ra: match[2], displayName: payload.name };
+    const displayName =
+        payload.name?.trim() || payload.preferred_username?.trim() || email;
+    return { email, ra: match[2], displayName };
 }
 
-async function resolvePrincipal(payload: TokenPayload, req: Request) {
+export async function resolvePrincipal(
+    payload: TokenPayload,
+    req: Request,
+    options: Readonly<{ provisionStudent?: boolean }> = {}
+) {
     const tokenIssuer = payload.iss;
     const subject = payload.sub;
     if (!tokenIssuer || !subject) throw new ForbiddenError();
@@ -114,26 +121,37 @@ async function resolvePrincipal(payload: TokenPayload, req: Request) {
         });
     }
 
+    if (authUser.status === "DISABLED") throw new ForbiddenError();
+
     const studentIdentity = studentIdentityFromToken(payload);
     if (
+        options.provisionStudent !== false &&
         authUser.studentId === null &&
         authUser.roles.some((entry) => entry.role === AuthRoles.STUDENT) &&
         studentIdentity
     ) {
-        const student = await req.prisma.student.findUnique({
-            where: { ra: studentIdentity.ra },
-            select: { id: true }
-        });
-        if (student) {
-            await req.prisma.authUser.update({
-                where: { id: authUser.id },
+        authUser.studentId = await req.prisma.$transaction(async (tx) => {
+            const student = await tx.student.upsert({
+                where: { ra: studentIdentity.ra },
+                update: {},
+                create: {
+                    ra: studentIdentity.ra,
+                    name: studentIdentity.displayName
+                },
+                select: { id: true }
+            });
+            const linked = await tx.authUser.updateMany({
+                where: { id: authUser.id, studentId: null },
                 data: { studentId: student.id }
             });
-            authUser.studentId = student.id;
-        }
+            if (linked.count > 0) return student.id;
+            const current = await tx.authUser.findUnique({
+                where: { id: authUser.id },
+                select: { studentId: true }
+            });
+            return current?.studentId ?? null;
+        });
     }
-
-    if (authUser.status === "DISABLED") throw new ForbiddenError();
 
     return {
         authUserId: authUser.id,
@@ -265,7 +283,9 @@ class AuthRegistry {
             }
 
             try {
-                const principal = await resolvePrincipal(payload, req);
+                const principal = await resolvePrincipal(payload, req, {
+                    provisionStudent: policy.kind !== "student-registration"
+                });
                 req.user = payload;
                 req.principal = principal;
                 req.scope.register({ principal: asValue(principal) });
