@@ -25,8 +25,7 @@ test("lists specializations through its service", async () => {
                         programName: "Engenharia de Computação",
                         code: "AA",
                         name: "Sistemas",
-                        catalogProgramVariantsCount: 0,
-                        studentsCount: 0
+                        catalogProgramVariantsCount: 0
                     }
                 ]
             }
@@ -52,7 +51,6 @@ test("lists specializations through its service", async () => {
         programName: "Engenharia de Computação",
         code: "AA",
         name: "Sistemas",
-        catalogProgramVariantsCount: 0,
-        studentsCount: 0
+        catalogProgramVariantsCount: 0
     });
 });

@@ -11,7 +11,8 @@ import {
     type EndpointActions
 } from "@pomi/api-core";
 
-import { createDataEndpointRegistries, type Context } from "#/BuildHandler.js";
+import { createAppEndpointRegistries, type Context } from "#/BuildHandler.js";
+import type { AuthorizationPolicy } from "#/auth.js";
 import IO from "#/modules/academic/evaluation-summary/EvaluationSummary.contract.js";
 
 const {
@@ -20,7 +21,7 @@ const {
     pairSummary: _pairSummary,
     ...contracts
 } = IO;
-type Actions = EndpointActions<typeof contracts, unknown, Context>;
+type Actions = EndpointActions<typeof contracts, AuthorizationPolicy, Context>;
 const respond = createResultResponder({
     [ResourceNotFoundProblem.type]: problemResponse(ResourceNotFoundProblem)
 });
@@ -75,7 +76,7 @@ const pair: Actions["pair"] = async (ctx, input) => {
     );
 };
 
-const { router, registry, authRegistry } = createDataEndpointRegistries(
+const { router, registry, authRegistry } = createAppEndpointRegistries(
     contracts,
     { professorSummaries, courseSummaries, pair }
 );

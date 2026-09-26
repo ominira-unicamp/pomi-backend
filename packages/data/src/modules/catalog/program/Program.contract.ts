@@ -36,8 +36,7 @@ const schema = z
             id: z.number().int(),
             code: z.string()
         }),
-        catalogProgramsCount: z.number().int(),
-        studentsCount: z.number().int()
+        catalogProgramsCount: z.number().int()
     })
     .openapi("Program", {
         "x-pomi-schema": {

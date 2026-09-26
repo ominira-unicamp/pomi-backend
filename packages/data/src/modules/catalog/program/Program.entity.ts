@@ -7,8 +7,7 @@ export const prismaProgramFieldSelection = {
         unit: selectIdCode,
         _count: {
             select: {
-                catalogPrograms: true,
-                students: true
+                catalogPrograms: true
             }
         }
     }
@@ -25,8 +24,7 @@ function buildProgramEntity(
     return {
         ...rest,
         unit,
-        catalogProgramsCount: _count.catalogPrograms,
-        studentsCount: _count.students
+        catalogProgramsCount: _count.catalogPrograms
     };
 }
 

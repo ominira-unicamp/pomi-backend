@@ -5,6 +5,10 @@ import type { AppConfig } from "#/Config.js";
 import { buildZodIds } from "#/PrismaValidator.js";
 import type { Principal } from "#/auth.js";
 import {
+    createEvaluationSummaryService,
+    type EvaluationSummaryService
+} from "#/modules/academic/evaluation-summary/EvaluationSummary.service.js";
+import {
     createExchangeNoticeSubscriptionService,
     type ExchangeNoticeSubscriptionService
 } from "#/modules/exchange/exchange-notice-subscription/ExchangeNoticeSubscription.service.js";
@@ -88,6 +92,7 @@ export type AppCradle = {
     botGrantService: BotGrantService;
     authUserService: AuthUserService;
     curriculumService: CurriculumService;
+    evaluationSummaryService: EvaluationSummaryService;
     periodPlanService: PeriodPlanService;
     sharedPeriodPlanService: SharedPeriodPlanService;
     professorEvaluationService: ProfessorEvaluationService;
@@ -120,6 +125,9 @@ export function createAppContainer(config: AppConfig, prisma: DatabaseClient) {
         botGrantService: asFunction(createBotGrantService).scoped(),
         authUserService: asFunction(createAuthUserService).scoped(),
         curriculumService: asFunction(createCurriculumService).scoped(),
+        evaluationSummaryService: asFunction(
+            createEvaluationSummaryService
+        ).scoped(),
         periodPlanService: asFunction(createPeriodPlanService).scoped(),
         sharedPeriodPlanService: asFunction(
             createSharedPeriodPlanService

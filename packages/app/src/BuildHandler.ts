@@ -1,5 +1,6 @@
 import type { Principal } from "#/auth.js";
 import { AuthRegistry, type AuthorizationPolicy } from "#/auth.js";
+import type { EvaluationSummaryService } from "#/modules/academic/evaluation-summary/EvaluationSummary.service.js";
 import type { ExchangeNoticeSubscriptionService } from "#/modules/exchange/exchange-notice-subscription/ExchangeNoticeSubscription.service.js";
 import type { ExchangeNoticeUnsubscribeService } from "#/modules/exchange/exchange-notice-unsubscribe/ExchangeNoticeUnsubscribe.service.js";
 import type { FeedbackReportService } from "#/modules/feedback/feedback-report/FeedbackReport.service.js";
@@ -33,6 +34,7 @@ export type Context = {
     botGrantService: BotGrantService;
     authUserService: AuthUserService;
     curriculumService: CurriculumService;
+    evaluationSummaryService: EvaluationSummaryService;
     periodPlanService: PeriodPlanService;
     sharedPeriodPlanService: SharedPeriodPlanService;
     professorEvaluationService: ProfessorEvaluationService;
@@ -67,6 +69,8 @@ export function createAppEndpointRegistries<
             botGrantService: request.scope.cradle.botGrantService,
             authUserService: request.scope.cradle.authUserService,
             curriculumService: request.scope.cradle.curriculumService,
+            evaluationSummaryService:
+                request.scope.cradle.evaluationSummaryService,
             periodPlanService: request.scope.cradle.periodPlanService,
             sharedPeriodPlanService:
                 request.scope.cradle.sharedPeriodPlanService,

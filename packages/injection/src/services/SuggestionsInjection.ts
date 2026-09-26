@@ -71,7 +71,7 @@ async function importSuggestion(
         return { semesters: 0, courses: 0, missingCourses: 0 };
     }
 
-    const { code, name } = normalizeSuggestion(suggestion);
+    const { code } = normalizeSuggestion(suggestion);
 
     return withAuditTransaction(
         prisma,
@@ -230,12 +230,14 @@ export async function injectSuggestions(
                 specializedVariants: new Map(
                     catalogProgram.variants.flatMap((variant) =>
                         variant.specialization
-                            ? [[
-                                  normalizeCourseCode(
-                                      variant.specialization.code
-                                  ),
-                                  variant.id
-                              ] as const]
+                            ? [
+                                  [
+                                      normalizeCourseCode(
+                                          variant.specialization.code
+                                      ),
+                                      variant.id
+                                  ] as const
+                              ]
                             : []
                     )
                 )

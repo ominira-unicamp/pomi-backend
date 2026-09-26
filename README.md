@@ -140,8 +140,7 @@ sugestões permanecem internos ao consumidor composto. Os demais tipos
 configuráveis incluem `academic-data`, `calendar`, `catalog-disciplines`,
 `daily-menus` e `exchange-notices`.
 As alterações persistidas são emitidas como eventos JSON pelo Pino no stdout;
-o nível pode ser ajustado com `LOG_LEVEL` (ou, por compatibilidade,
-`POMI_INJECTION_LOG_LEVEL`). O envio opcional para OpenObserve usa
+o nível pode ser ajustado com `LOG_LEVEL`. O envio opcional para OpenObserve usa
 `OPENOBSERVE_URL` e `OPENOBSERVE_AUTH`, ou `OPENOBSERVE_USER` e
 `OPENOBSERVE_PASSWORD`; o stream padrão é `pomi-injection-logs` e pode ser
 alterado com `OPENOBSERVE_STREAM`. Sem `OPENOBSERVE_URL`, nenhum envio remoto

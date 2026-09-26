@@ -104,7 +104,7 @@ test("rejeita componente obrigatório ausente e snapshot parcial", async () => {
     }
 });
 
-test("aceita versões explicitamente compatíveis do protocolo", async () => {
+test("aceita a versão atual do protocolo", async () => {
     const directory = await mkdtemp(join(tmpdir(), "pomi-snapshot-v2-"));
     try {
         await writeFile(
@@ -128,7 +128,7 @@ test("aceita versões explicitamente compatíveis do protocolo", async () => {
         );
         const manifest = await readSnapshotManifest(directory, {
             protocol: "pomi.catalog-disciplines.snapshot",
-            version: [1, 2],
+            version: 2,
             requiredComponents: ["catalog"]
         });
         assert.equal(manifest.version, 2);

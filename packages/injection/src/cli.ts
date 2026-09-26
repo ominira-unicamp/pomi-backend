@@ -41,10 +41,9 @@ import {
     workflowStatus
 } from "./workflows.js";
 
-const program = new Command().name("pomi-injection").version("0.1.0");
+const program = new Command().name("pomi-injection").version("1.0.0");
 const cliLogger = pino({
-    level:
-        process.env.LOG_LEVEL ?? process.env.POMI_INJECTION_LOG_LEVEL ?? "info"
+    level: process.env.LOG_LEVEL ?? "info"
 });
 program.addHelpText(
     "after",

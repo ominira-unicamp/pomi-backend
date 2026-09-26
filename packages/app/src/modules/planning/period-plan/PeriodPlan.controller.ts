@@ -11,7 +11,7 @@ import {
     type EndpointActions
 } from "@pomi/api-core";
 
-const { schema: _schema, aliases: _aliases, ...contracts } = IO;
+const { schema: _schema, ...contracts } = IO;
 type Actions = EndpointActions<typeof contracts, AuthorizationPolicy, Context>;
 const respond = createResultResponder(periodPlanProblemResponses);
 

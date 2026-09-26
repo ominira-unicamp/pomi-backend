@@ -87,6 +87,13 @@ test("period planning classes expose reservation programs instead of legacy code
     assert.equal(schema.required?.includes("reservationPrograms"), true);
 });
 
+test("does not expose removed period-plan aliases", () => {
+    const document = generateAppOpenApiDocument();
+
+    assert.equal(document.paths["/student/{sid}/period-plan"], undefined);
+    assert.equal(document.paths["/student/{sid}/period-plan/{id}"], undefined);
+});
+
 test("collection operations expose the standard pagination contract", () => {
     const document = generateAppOpenApiDocument();
     const operation = document.paths["/tags"]?.get;

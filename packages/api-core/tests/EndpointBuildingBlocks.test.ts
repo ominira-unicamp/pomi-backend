@@ -5,7 +5,6 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import z from "zod";
 
 import {
-    adaptLegacyContract,
     collectionQuery,
     defineEndpoint,
     defineResource,
@@ -145,21 +144,4 @@ test("manual endpoints support custom media types without resource factories", (
     assert.ok(openApi.responses[200]);
     assert.deepEqual(openApi.responses[204], { description: "No content" });
     assert.deepEqual(openApi.security, []);
-});
-
-test("legacy adaptation preserves the canonical endpoint contract", () => {
-    const endpoint = defineEndpoint({
-        meta: {
-            method: "get",
-            path: [pathSeg.literal("legacy")],
-            tags: ["legacy"],
-            operationId: "getLegacy",
-            authorization: { kind: "public" as const },
-            sdk: false
-        },
-        request: request({}),
-        response: responses().noContent().build()
-    });
-
-    assert.equal(adaptLegacyContract(endpoint), endpoint);
 });

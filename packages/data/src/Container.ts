@@ -7,10 +7,6 @@ import {
     type CourseService
 } from "#/modules/academic/course/Course.service.js";
 import {
-    createEvaluationSummaryService,
-    type EvaluationSummaryService
-} from "#/modules/academic/evaluation-summary/EvaluationSummary.service.js";
-import {
     createProfessorDataPortalService,
     type ProfessorDataPortalService
 } from "#/modules/academic/professor-data-portal/ProfessorDataPortal.service.js";
@@ -107,7 +103,6 @@ export type DataCradle = {
     curriculumSuggestionService: CurriculumSuggestionService;
     classScheduleService: ClassScheduleService;
     courseService: CourseService;
-    evaluationSummaryService: EvaluationSummaryService;
     professorService: ProfessorService;
     professorDataPortalService: ProfessorDataPortalService;
     roomService: RoomService;
@@ -144,9 +139,6 @@ export function createDataContainer(
         ).scoped(),
         classScheduleService: asFunction(createClassScheduleService).scoped(),
         courseService: asFunction(createCourseService).scoped(),
-        evaluationSummaryService: asFunction(
-            createEvaluationSummaryService
-        ).scoped(),
         professorService: asFunction(createProfessorService).scoped(),
         professorDataPortalService: asFunction(
             createProfessorDataPortalService

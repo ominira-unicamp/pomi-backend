@@ -245,34 +245,6 @@ export function findAcademicPositionDefinition(value: string | undefined) {
         : undefined;
 }
 
-export function resolveLegacyAcademicPosition(
-    input: Readonly<{
-        careerCode: string | null;
-        rank: string | null;
-        category: string | null;
-    }>
-) {
-    const code = input.careerCode?.replaceAll("_", ".");
-    if (!code && input.rank === "PROFESSOR_SENIOR") return "professor:senior";
-    if (!code && input.rank === "PROFESSOR_ASSISTENTE") return "ms:ms2";
-    if (!code && input.rank === "PROFESSOR_PLENO" && input.category === "MTS_C")
-        return "mts:c1";
-    if (code === "MS6" && input.rank === "PROF_TITULAR_PS")
-        return "professor:senior:ms:ms6:ps";
-    if (code === "L" && !input.rank && !input.category) return "deer:l";
-    if (code?.startsWith("MS")) return `ms:${code.toLowerCase()}`;
-    if (!code) return undefined;
-    if (input.rank?.startsWith("DOCENTE_ENSINO_LINGUAS"))
-        return `del:${code.toLowerCase()}`;
-    if (input.rank === "DOCENTE_EDUCACAO_ESPECIAL_REABILITACAO_V")
-        return `deer:${code.toLowerCase()}`;
-    if (input.rank?.startsWith("PROFESSOR_MAGISTERIO_SECUNDARIO_TECNICO"))
-        return `mst:${code.toLowerCase()}`;
-    if (input.category?.startsWith("MA_")) return `ma:${code.toLowerCase()}`;
-    if (input.category?.startsWith("MTS_")) return `mts:${code.toLowerCase()}`;
-    return undefined;
-}
-
 export async function synchronizeAcademicPositionCatalog(prisma: PrismaClient) {
     const referencesByKey = new Map<string, number>();
     for (const definition of academicCareerReferences) {

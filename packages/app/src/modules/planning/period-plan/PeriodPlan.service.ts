@@ -59,19 +59,6 @@ export type PeriodPlanService = {
     ): Promise<Result<void, ReturnType<typeof periodPlanNotFoundProblem>>>;
 };
 
-function legacyGuide(curriculumId: number | null | undefined): GuideInput {
-    return curriculumId == null
-        ? { mode: "NONE", manualCourseIds: [] }
-        : {
-              mode: "CURRICULUM",
-              curriculum: {
-                  source: "SAVED",
-                  saved: { curriculumId }
-              },
-              manualCourseIds: []
-          };
-}
-
 async function guideFields(
     prisma: PrismaClient,
     guide: GuideInput,
@@ -347,7 +334,10 @@ export function createPeriodPlanService({
                 : err(periodPlanNotFoundProblem());
         },
         async create(studentId, input) {
-            const guide = input.guide ?? legacyGuide(input.curriculumId);
+            const guide = input.guide ?? {
+                mode: "NONE" as const,
+                manualCourseIds: []
+            };
             const studyPeriod = await prisma.studyPeriod.findUnique({
                 where: { id: input.studyPeriodId },
                 select: { id: true, year: true, yearPeriod: true }
@@ -397,13 +387,7 @@ export function createPeriodPlanService({
         async patch(studentId, id, input) {
             const existing = await load(prisma, studentId, id);
             if (!existing) return err(periodPlanNotFoundProblem());
-            const requestedGuide =
-                input.guide !== undefined
-                    ? input.guide
-                    : input.curriculumId !== undefined
-                      ? legacyGuide(input.curriculumId)
-                      : undefined;
-            const guide = requestedGuide;
+            const guide = input.guide;
             const fields = guide
                 ? await guideFields(prisma, guide, studentId)
                 : [];

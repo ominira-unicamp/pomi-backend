@@ -1,5 +1,5 @@
-import { OutputBuilder, type IO } from "#/BuildHandler.js";
-import { policies } from "#/auth.js";
+import { policies } from "#/Authorization.js";
+import { OutputBuilder, type IO } from "#/Contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     defineSort,

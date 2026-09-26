@@ -3,7 +3,6 @@ export * from "./cron.js";
 export * from "./errors/AppError.js";
 export * from "./errors/ProblemDetails.js";
 export * from "./http/ApiResponse.js";
-export * from "./http/CompatibilityAction.js";
 export * from "./http/EndpointBuildingBlocks.js";
 export * from "./http/EndpointContract.js";
 export * from "./http/EndpointRegistry.js";

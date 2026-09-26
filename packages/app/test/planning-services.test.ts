@@ -6,7 +6,7 @@ import {
     curriculumProblemResponses
 } from "#/modules/planning/curriculum/Curriculum.problems.js";
 import { createCurriculumService } from "#/modules/planning/curriculum/Curriculum.service.js";
-import periodPlanContracts, {
+import {
     guideInputSchema,
     guideSchema,
     patchBody
@@ -94,18 +94,6 @@ test("planning problems keep service paths relative and add body at the HTTP bou
     ]);
 });
 
-test("period planning aliases preserve the same operation contracts", () => {
-    assert.equal(periodPlanContracts.aliases.get.meta.method, "get");
-    assert.equal(periodPlanContracts.aliases.create.meta.method, "post");
-    assert.equal(
-        periodPlanContracts.aliases.get.meta.path
-            .filter((segment) => segment.type === "literal")
-            .map((segment) => segment.value)
-            .includes("period-plan"),
-        true
-    );
-});
-
 test("period planning visibility updates do not require class changes", () => {
     const result = patchBody.safeParse({
         visibility: "PUBLIC"
@@ -131,6 +119,10 @@ test("planning guides use nested discriminated variants", () => {
         }).success,
         false
     );
+});
+
+test("period planning inputs do not accept the removed top-level curriculum id", () => {
+    assert.equal(patchBody.safeParse({ curriculumId: 7 }).success, false);
 });
 
 function curriculumEntityFixture(selection: {

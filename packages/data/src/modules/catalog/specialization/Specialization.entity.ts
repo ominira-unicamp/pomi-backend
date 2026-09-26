@@ -13,8 +13,7 @@ export const prismaSpecializationFieldSelection = {
         },
         _count: {
             select: {
-                catalogProgramVariants: true,
-                students: true
+                catalogProgramVariants: true
             }
         }
     }
@@ -32,8 +31,7 @@ function buildSpecializationEntity(
         ...rest,
         programCode: program.code,
         programName: program.name,
-        catalogProgramVariantsCount: _count.catalogProgramVariants,
-        studentsCount: _count.students
+        catalogProgramVariantsCount: _count.catalogProgramVariants
     };
 }
 

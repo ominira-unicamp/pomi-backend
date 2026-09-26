@@ -17,7 +17,7 @@ export async function injectCatalogDisciplinesSnapshot(
 ) {
     const manifest = await readSnapshotManifest(context.inputPath, {
         protocol: "pomi.catalog-disciplines.snapshot",
-        version: [1, 2],
+        version: 2,
         requiredComponents: ["catalog", "relationships"]
     });
     const year = manifest.partition.year;

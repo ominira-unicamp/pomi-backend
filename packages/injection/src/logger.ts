@@ -16,9 +16,7 @@ export type InjectionLogger = Logger & {
 };
 
 export function createInjectionLogger(injection: string, runId: string) {
-    const level = (process.env.LOG_LEVEL ??
-        process.env.POMI_INJECTION_LOG_LEVEL ??
-        "info") as Level;
+    const level = (process.env.LOG_LEVEL ?? "info") as Level;
     const options = { level, mixin: traceContext };
     const local = pino(options, pino.destination(1));
     const streams: pino.StreamEntry[] = [

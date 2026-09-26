@@ -78,5 +78,4 @@ oferecimento são `ODD_PERIODS`, `EVEN_PERIODS`, `ALL_PERIODS` e
 `UNIT_DISCRETION`, e os valores de avaliação são `GRADE_AND_ATTENDANCE`,
 `ATTENDANCE` e `CONCEPT`.
 
-A injection aceita a versão 1 durante a transição e normaliza seus valores
-textuais antes da persistência. Producers devem emitir somente a versão 2.
+A injection aceita somente a versão 2. Producers devem emitir a versão 2.

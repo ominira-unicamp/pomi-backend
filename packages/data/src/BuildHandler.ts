@@ -1,7 +1,6 @@
 import { buildZodIds } from "#/PrismaValidator.js";
 import { AuthRegistry, type AuthorizationPolicy } from "#/auth.js";
 import type { CourseService } from "#/modules/academic/course/Course.service.js";
-import type { EvaluationSummaryService } from "#/modules/academic/evaluation-summary/EvaluationSummary.service.js";
 import type { ProfessorDataPortalService } from "#/modules/academic/professor-data-portal/ProfessorDataPortal.service.js";
 import type { ProfessorService } from "#/modules/academic/professor/Professor.service.js";
 import type { RoomService } from "#/modules/academic/room/Room.service.js";
@@ -24,13 +23,10 @@ import type { ClassService } from "#/modules/schedule/class/Class.service.js";
 import type { DailyMenuService } from "#/modules/schedule/daily-menu/DailyMenu.service.js";
 import type { StudyPeriodService } from "#/modules/schedule/study-period/StudyPeriod.service.js";
 import {
-    buildCompatibilityHandler,
     createEndpointRegistries,
-    openApiFromEndpoint,
     ResponseSchemaBuilder,
-    type CompatibilityAction,
-    type CompatibilityContract,
     type EndpointActions,
+    type EndpointContract,
     type EndpointRegistry
 } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
@@ -44,7 +40,6 @@ export type Context = {
     curriculumSuggestionService: CurriculumSuggestionService;
     classScheduleService: ClassScheduleService;
     courseService: CourseService;
-    evaluationSummaryService: EvaluationSummaryService;
     professorService: ProfessorService;
     professorDataPortalService: ProfessorDataPortalService;
     roomService: RoomService;
@@ -63,60 +58,8 @@ export type Context = {
     exchangePlaceService: ExchangePlaceService;
 };
 
-export type HandlerFn<
-    T extends Pick<CompatibilityContract, "request" | "response">
-> = CompatibilityAction<T, Context>;
-
 export const OutputBuilder = ResponseSchemaBuilder;
-export type IO = CompatibilityContract;
-
-export function buildHandler<
-    RequestSchema extends CompatibilityContract["request"],
-    ResponseSchema extends CompatibilityContract["response"]
->(
-    request: RequestSchema,
-    response: ResponseSchema,
-    action: CompatibilityAction<
-        {
-            request: RequestSchema;
-            response: ResponseSchema;
-        },
-        Context
-    >
-) {
-    return buildCompatibilityHandler(request, response, action, (req) => ({
-        prisma: req.scope.cradle.prisma,
-        zodIds: req.scope.cradle.zodIds,
-        catalogProgramService: req.scope.cradle.catalogProgramService,
-        catalogCourseService: req.scope.cradle.catalogCourseService,
-        coordinatorService: req.scope.cradle.coordinatorService,
-        curriculumSuggestionService:
-            req.scope.cradle.curriculumSuggestionService,
-        classScheduleService: req.scope.cradle.classScheduleService,
-        courseService: req.scope.cradle.courseService,
-        evaluationSummaryService: req.scope.cradle.evaluationSummaryService,
-        professorService: req.scope.cradle.professorService,
-        professorDataPortalService: req.scope.cradle.professorDataPortalService,
-        roomService: req.scope.cradle.roomService,
-        unitService: req.scope.cradle.unitService,
-        catalogService: req.scope.cradle.catalogService,
-        languageService: req.scope.cradle.languageService,
-        programService: req.scope.cradle.programService,
-        specializationService: req.scope.cradle.specializationService,
-        classService: req.scope.cradle.classService,
-        studyPeriodService: req.scope.cradle.studyPeriodService,
-        calendarTagService: req.scope.cradle.calendarTagService,
-        calendarEventService: req.scope.cradle.calendarEventService,
-        calendarService: req.scope.cradle.calendarService,
-        dailyMenuService: req.scope.cradle.dailyMenuService,
-        exchangeNoticeService: req.scope.cradle.exchangeNoticeService,
-        exchangePlaceService: req.scope.cradle.exchangePlaceService
-    }));
-}
-
-export function openApiArgsFromIO(contract: IO) {
-    return openApiFromEndpoint(contract);
-}
+export type IO = EndpointContract;
 
 export function createDataEndpointRegistries<
     Contracts extends EndpointRegistry<AuthorizationPolicy>
@@ -138,8 +81,6 @@ export function createDataEndpointRegistries<
                 request.scope.cradle.curriculumSuggestionService,
             classScheduleService: request.scope.cradle.classScheduleService,
             courseService: request.scope.cradle.courseService,
-            evaluationSummaryService:
-                request.scope.cradle.evaluationSummaryService,
             professorService: request.scope.cradle.professorService,
             professorDataPortalService:
                 request.scope.cradle.professorDataPortalService,

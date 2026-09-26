@@ -1,5 +1,5 @@
 import { policies, StudentCapabilities } from "#/Authorization.js";
-import { type IO, OutputBuilder } from "#/Contract.js";
+import { OutputBuilder } from "#/Contract.js";
 import { InvalidPeriodPlanProblem } from "#/modules/planning/period-plan/PeriodPlan.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
@@ -428,7 +428,6 @@ export const createBodyWireSchema = z
     .object({
         name: z.string().trim().min(1).optional(),
         studyPeriodId: z.number().int(),
-        curriculumId: z.number().int().nullable().optional(),
         guide: guideInputSchema.optional(),
         classes: z.array(z.number().int())
     })
@@ -474,7 +473,6 @@ export const patchBodyWireSchema = z
     .object({
         name: z.string().trim().min(1).optional(),
         visibility: planningVisibilitySchema.optional(),
-        curriculumId: z.number().int().nullable().optional(),
         guide: guideInputSchema.optional(),
         classes: z
             .object({
@@ -568,39 +566,11 @@ const remove = periodPlannings.delete({
         .build()
 });
 
-function alias<Contract extends IO>(
-    contract: Contract,
-    operationId: string
-): Contract {
-    return {
-        ...contract,
-        meta: {
-            ...contract.meta,
-            operationId,
-            deprecated: true,
-            sdk: false,
-            path: contract.meta.path.map((segment) =>
-                segment.type === "literal" &&
-                segment.value === "period-plannings"
-                    ? pathSeg.literal("period-plan")
-                    : segment
-            )
-        }
-    };
-}
-
 export default {
     schema: periodPlanningEntity,
     get,
     list,
     create,
     patch,
-    remove,
-    aliases: {
-        get: alias(get, "getStudentPeriodPlan"),
-        list: alias(list, "listStudentPeriodPlan"),
-        create: alias(create, "createStudentPeriodPlan"),
-        patch: alias(patch, "updateStudentPeriodPlan"),
-        remove: alias(remove, "deleteStudentPeriodPlan")
-    }
+    remove
 };

@@ -35,8 +35,7 @@ const schema = z
         programName: z.string().trim().min(1),
         code: z.string(),
         name: z.string(),
-        catalogProgramVariantsCount: z.number().int(),
-        studentsCount: z.number().int()
+        catalogProgramVariantsCount: z.number().int()
     })
     .openapi("Specialization", {
         "x-pomi-schema": {

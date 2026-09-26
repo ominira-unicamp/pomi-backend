@@ -50,24 +50,18 @@ type Discipline = {
     sourceUrl?: string;
 };
 
-type Prefix = {
-    prefix: string;
-    url: string;
-    courses: Discipline[];
+type CatalogCourse = Omit<Discipline, "prerequisites"> & {
+    prerequisites?: Discipline["prerequisites"];
 };
-
 type Catalog = {
     year: number;
     sourceUrl: string;
-    sourceFormat?: string;
-    prefixes?: Prefix[];
-    courses?: Array<Omit<Discipline, "prerequisites">>;
+    courses: CatalogCourse[];
 };
 type ScrapeInput = { catalogs: Catalog[] };
 type ScrapeEnvelope = { data: ScrapeInput; issues?: unknown[] };
 type CatalogCourseSource = {
     catalog: Catalog;
-    prefix: Prefix;
     discipline: Discipline;
     code: string;
 };
@@ -195,7 +189,7 @@ export async function injectCatalogDisciplines(
         | ScrapeEnvelope
         | ScrapeInput;
     const input = unwrapScrapeData(raw) as ScrapeInput;
-    const catalogs = catalogsForPhase(input, phase);
+    const catalogs = catalogsForPhase(input);
     if (catalogs.length === 0)
         throw new Error("Nenhum catálogo encontrado no arquivo de entrada");
 
@@ -266,21 +260,18 @@ type PhaseContext = {
 
 function sourcesOf(catalogs: Catalog[]): CatalogCourseSource[] {
     return catalogs.flatMap((catalog) =>
-        (catalog.prefixes ?? []).flatMap((prefix) =>
-            (prefix.courses ?? []).map((discipline) => ({
-                catalog,
-                prefix,
-                discipline,
-                code: normalizeCourseCode(discipline.code)
-            }))
-        )
+        catalog.courses.map((course) => ({
+            catalog,
+            discipline: {
+                ...course,
+                prerequisites: course.prerequisites ?? { any: [] }
+            },
+            code: normalizeCourseCode(course.code)
+        }))
     );
 }
 
-function catalogsForPhase(
-    input: unknown,
-    phase: CatalogDisciplinesInjectionOptions["phase"]
-): Catalog[] {
+function catalogsForPhase(input: unknown): Catalog[] {
     const catalogs = (input as { catalogs?: unknown })?.catalogs;
     if (!Array.isArray(catalogs)) return [];
     return catalogs.flatMap((candidate): Catalog[] => {
@@ -291,37 +282,8 @@ function catalogsForPhase(
             typeof catalog.sourceUrl !== "string"
         )
             return [];
-        if (Array.isArray(catalog.prefixes)) return [catalog];
         if (!Array.isArray(catalog.courses)) return [];
-        const courses = catalog.courses.map((course) => ({
-            ...course,
-            prerequisites: (course as Discipline).prerequisites ?? { any: [] }
-        })) as Discipline[];
-        if (phase === "relationships")
-            return [
-                {
-                    ...catalog,
-                    prefixes: [
-                        {
-                            prefix: "",
-                            url: catalog.sourceUrl,
-                            courses
-                        }
-                    ]
-                }
-            ];
-        return [
-            {
-                ...catalog,
-                prefixes: [
-                    {
-                        prefix: "",
-                        url: catalog.sourceUrl,
-                        courses
-                    }
-                ]
-            }
-        ];
+        return [catalog];
     });
 }
 
@@ -588,7 +550,8 @@ async function injectCatalogPhase(context: PhaseContext) {
                         syllabus: source.discipline.syllabus,
                         bibliography: source.discipline.bibliography,
                         sourceUrl:
-                            source.discipline.sourceUrl ?? source.prefix.url
+                            source.discipline.sourceUrl ??
+                            source.catalog.sourceUrl
                     };
                     if (
                         source.discipline.offeringPeriod &&

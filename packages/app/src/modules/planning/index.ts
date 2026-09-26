@@ -2,7 +2,6 @@ import { AuthRegistry } from "#/auth.js";
 import type { ModuleDefinition } from "#/modules/Module.js";
 import curriculum from "#/modules/planning/curriculum/index.js";
 import periodPlan from "#/modules/planning/period-plan/index.js";
-import periodPlanAlias from "#/modules/planning/period-plan/PeriodPlanAlias.controller.js";
 import professorEvaluation from "#/modules/planning/professor-evaluation/index.js";
 import sharedPeriodPlan from "#/modules/planning/shared-period-plan/index.js";
 import studentAbsence from "#/modules/planning/student-absence/index.js";
@@ -16,7 +15,6 @@ const controllers: ModuleDefinition["controllers"] = [
     student,
     curriculum,
     periodPlan,
-    periodPlanAlias,
     sharedPeriodPlan,
     professorEvaluation,
     studentCourseAttempt,
