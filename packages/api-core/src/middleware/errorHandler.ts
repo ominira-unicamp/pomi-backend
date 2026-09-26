@@ -23,6 +23,13 @@ function errorHandler(
                     err,
                     event: "resource.inconsistent_state",
                     method: req.method,
+                    path: req.path,
+                    route:
+                        typeof req.route?.path === "string"
+                            ? req.route.path
+                            : "unmatched",
+                    statusCode: err.status,
+                    problemType: err.type,
                     ...(err instanceof InconsistentResourceStateError
                         ? {
                               resource: err.resource,
@@ -38,7 +45,16 @@ function errorHandler(
         return;
     }
     requestLogger(res)?.error(
-        { err, event: "http.request.failed", method: req.method },
+        {
+            err,
+            event: "http.request.failed",
+            method: req.method,
+            path: req.path,
+            route:
+                typeof req.route?.path === "string"
+                    ? req.route.path
+                    : "unmatched"
+        },
         "Erro não tratado durante requisição HTTP"
     );
     sendProblem(res, internalServerErrorProblem(req.path));

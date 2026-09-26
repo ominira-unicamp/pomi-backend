@@ -48,8 +48,11 @@ export function createLogger(service: string): Logger {
 export function createHttpTelemetryMiddleware(logger: Logger): RequestHandler {
     return (request, response, next) => {
         const requestId = requestIdFrom(request.header(REQUEST_ID_HEADER));
-        const requestLogger = logger.child({ requestId });
         const traceId = activeTraceId();
+        const requestLogger = logger.child({
+            requestId,
+            ...(traceId ? { trace_id: traceId } : {})
+        });
         const startedAt = process.hrtime.bigint();
         response.setHeader(REQUEST_ID_HEADER, requestId);
         response.locals.pomiLogger = requestLogger;
@@ -63,8 +66,7 @@ export function createHttpTelemetryMiddleware(logger: Logger): RequestHandler {
                 route: requestRoute(request),
                 statusCode: response.statusCode,
                 durationMs: Number(durationMs.toFixed(3)),
-                responseContentLength: contentLength(response),
-                ...(traceId ? { trace_id: traceId } : {})
+                responseContentLength: contentLength(response)
             };
             const route = attributes.route;
             if (
