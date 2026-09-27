@@ -283,7 +283,11 @@ function guideCreateData(guide: GuideInput) {
             ? { catalogProgramVariant: update.catalogProgramVariant }
             : {}),
         ...(update.language.connect ? { language: update.language } : {}),
-        manualCourses: update.manualCourses
+        manualCourses: {
+            create: guide.manualCourseIds.map((courseId) => ({
+                course: { connect: { id: courseId } }
+            }))
+        }
     };
 }
 

@@ -125,6 +125,58 @@ test("period planning inputs do not accept the removed top-level curriculum id",
     assert.equal(patchBody.safeParse({ curriculumId: 7 }).success, false);
 });
 
+test("period plan creation does not use update-only manual course operations", async () => {
+    let createData: { manualCourses?: unknown } | undefined;
+    const service = createPeriodPlanService({
+        prisma: {
+            studyPeriod: {
+                findUnique: async () => ({ id: 39, year: 2026, yearPeriod: 1 })
+            },
+            course: { findMany: async () => [{ id: 7 }] },
+            periodPlanning: {
+                create: async ({
+                    data
+                }: {
+                    data: { manualCourses?: unknown };
+                }) => {
+                    createData = data;
+                    return {
+                        id: 1,
+                        name: "Planejamento",
+                        studyPeriodId: 39,
+                        studentId: 1,
+                        guideMode: "NONE",
+                        curriculumSource: null,
+                        visibility: "PRIVATE",
+                        shareId: "share-id",
+                        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+                        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+                        studyPeriod: { id: 39, year: 2026, yearPeriod: 1 },
+                        curriculum: null,
+                        curriculumSuggestion: null,
+                        catalogProgram: null,
+                        catalogProgramVariant: null,
+                        language: null,
+                        manualCourses: [{ courseId: 7 }],
+                        classes: []
+                    };
+                }
+            }
+        } as never
+    });
+
+    const result = await service.create(1, {
+        studyPeriodId: 39,
+        guide: { mode: "NONE", manualCourseIds: [7] },
+        classes: new Set()
+    });
+
+    assert.equal(result.isOk(), true);
+    assert.deepEqual(createData?.manualCourses, {
+        create: [{ course: { connect: { id: 7 } } }]
+    });
+});
+
 function curriculumEntityFixture(selection: {
     catalogProgramId: number | null;
     catalogProgramVariantId: number | null;
