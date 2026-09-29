@@ -1,0 +1,94 @@
+import IO, {
+    professorSort,
+    type ListQueryParams,
+    type ProfessorFilter,
+    type ProfessorFilterName
+} from "#/modules/academic/professor/Professor.contract.js";
+import {
+    compileFilterWhere,
+    compileSort,
+    err,
+    ok,
+    prismaWhereFor,
+    resolveSort,
+    ResourceNotFoundProblem,
+    type FilterWhereBuilder,
+    type Result
+} from "@pomi/api-core";
+import type { MyPrisma, PrismaClient } from "@pomi/db";
+import z from "zod";
+
+type ProfessorEntity = z.infer<typeof IO.schema>;
+
+const professorWhere = prismaWhereFor<MyPrisma.ProfessorWhereInput>();
+const professorWhereDefinitions = {
+    classId: professorWhere.numberAt("classes.some.id")
+} satisfies Record<
+    ProfessorFilterName,
+    FilterWhereBuilder<MyPrisma.ProfessorWhereInput>
+>;
+
+export function professorFilterWhere(
+    filter: ProfessorFilter | undefined
+): MyPrisma.ProfessorWhereInput[] {
+    return compileFilterWhere(filter, professorWhereDefinitions, "professor");
+}
+
+export type ProfessorService = {
+    list(
+        input: ListQueryParams
+    ): Promise<{ items: ProfessorEntity[]; total: number }>;
+    getById(
+        id: number
+    ): Promise<
+        Result<
+            ProfessorEntity,
+            ReturnType<typeof ResourceNotFoundProblem.create>
+        >
+    >;
+};
+
+export function createProfessorService({
+    prisma
+}: {
+    prisma: PrismaClient;
+}): ProfessorService {
+    return {
+        async list(query) {
+            const filterWhere = professorFilterWhere(query.filter);
+            const where: MyPrisma.ProfessorWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.professor.count({ where });
+            const professors = await prisma.professor.findMany({
+                where,
+                orderBy: compileSort(resolveSort(query.sort, professorSort), {
+                    name: (direction) => ({ name: direction }),
+                    id: (direction) => ({ id: direction })
+                }),
+                ...(query.page !== undefined || query.pageSize !== undefined
+                    ? {
+                          skip:
+                              ((query.page ?? 1) - 1) * (query.pageSize ?? 20),
+                          take: query.pageSize ?? 20
+                      }
+                    : {})
+            });
+            return {
+                total,
+                items: professors as ProfessorEntity[]
+            };
+        },
+        async getById(id) {
+            const professor = await prisma.professor.findUnique({
+                where: { id }
+            });
+            return professor
+                ? ok(professor as ProfessorEntity)
+                : err(
+                      ResourceNotFoundProblem.create({
+                          detail: "Professor not found"
+                      })
+                  );
+        }
+    };
+}

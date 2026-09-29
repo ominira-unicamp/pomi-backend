@@ -1,0 +1,223 @@
+{
+    "version": 1,
+    "rootDirectory": "../..",
+    "workflows": [
+        {
+            "name": "catalog-programs",
+            "schedule": { "cron": "0 2 1 * *" },
+            "profile": "complete"
+        }
+    ],
+    "injections": [
+        {
+            "name": "academic-data-snapshot",
+            "description": "Snapshot versionado de uma partição acadêmica",
+            "schedule": { "cron": "0 3 * * 1" },
+            "obtain": {
+                "command": "node",
+                "args": [
+                    "unicamp-scrapper-cli/dist/index.js",
+                    "academic-data-snapshot",
+                    "--year",
+                    "${POMI_PARTITION_YEAR}",
+                    "--semester",
+                    "${POMI_PARTITION_SEMESTER}",
+                    "--institute-code",
+                    "${POMI_PARTITION_INSTITUTECODE}",
+                    "--output",
+                    "${POMI_PROVIDER_OUTPUT}"
+                ],
+                "cwd": "../scrapper-aulas",
+                "env": {},
+                "timeoutMs": 3600000
+            },
+            "input": {
+                "directory": "data/snapshots/academic-data",
+                "fileName": "snapshot"
+            },
+            "snapshot": { "provider": "academic-data", "partition": "partition-key" },
+            "partitioning": { "kind": "institute" },
+            "allowIssues": true,
+            "options": { "databaseConcurrency": 8 }
+        },
+        {
+            "name": "calendar-snapshot",
+            "description": "Snapshot versionado do calendário acadêmico",
+            "schedule": { "cron": "0 4 * * *" },
+            "obtain": {
+                "command": "node",
+                "args": [
+                    "unicamp-scrapper-cli/dist/index.js",
+                    "calendar-snapshot",
+                    "--year",
+                    "${POMI_CURRENT_YEAR}",
+                    "--output",
+                    "${POMI_PROVIDER_OUTPUT}"
+                ],
+                "cwd": "../scrapper-aulas",
+                "env": {},
+                "timeoutMs": 1800000
+            },
+            "input": {
+                "directory": "data/snapshots/calendar",
+                "fileName": "snapshot"
+            },
+            "snapshot": { "provider": "calendar", "partition": "current-year" },
+            "allowIssues": true,
+            "options": {
+                "transactionTimeout": 600000,
+                "transactionMaxWait": 60000
+            }
+        },
+        {
+            "name": "catalog-programs-snapshot",
+            "description": "Snapshot completo dos programas de catálogo",
+            "obtain": {
+                "command": "node",
+                "args": [
+                    "unicamp-scrapper-cli/dist/index.js",
+                    "catalog-programs-snapshot",
+                    "--year",
+                    "${POMI_PARTITION_WORKFLOWYEAR}",
+                    "--profile",
+                    "${POMI_PARTITION_WORKFLOWPROFILE}",
+                    "--output",
+                    "${POMI_INJECTION_OUTPUT}"
+                ],
+                "cwd": "../scrapper-aulas",
+                "env": {},
+                "timeoutMs": 7200000
+            },
+            "input": {
+                "directory": "data/snapshots/catalog-programs",
+                "fileName": "snapshot"
+            },
+            "allowIssues": true,
+            "options": {}
+        },
+        {
+            "name": "catalog-disciplines-snapshot",
+            "description": "Snapshot versionado das disciplinas e relações do catálogo",
+            "schedule": { "cron": "0 3 1 * *" },
+            "obtain": {
+                "command": "node",
+                "args": [
+                    "unicamp-scrapper-cli/dist/index.js",
+                    "catalog-disciplines-snapshot",
+                    "--year",
+                    "${POMI_CURRENT_YEAR}",
+                    "--output",
+                    "${POMI_PROVIDER_OUTPUT}"
+                ],
+                "cwd": "../scrapper-aulas",
+                "env": {},
+                "timeoutMs": 3600000
+            },
+            "input": {
+                "directory": "data/snapshots/catalog-disciplines",
+                "fileName": "snapshot"
+            },
+            "snapshot": { "provider": "catalog-disciplines", "partition": "current-year" },
+            "allowIssues": true,
+            "options": {
+                "phase": "all",
+                "transactionTimeout": 1800000,
+                "transactionMaxWait": 60000
+            }
+        },
+        {
+            "name": "daily-menus-snapshot",
+            "description": "Snapshot versionado dos cardápios dos restaurantes universitários",
+            "schedule": { "cron": "0 */6 * * *" },
+            "obtain": {
+                "command": "node",
+                "args": [
+                    "unicamp-scrapper-cli/dist/index.js",
+                    "daily-menus-snapshot",
+                    "--past-days",
+                    "1",
+                    "--future-days",
+                    "7",
+                    "--output",
+                    "${POMI_PROVIDER_OUTPUT}"
+                ],
+                "cwd": "../scrapper-aulas",
+                "env": {},
+                "timeoutMs": 300000
+            },
+            "input": {
+                "directory": "data/snapshots/daily-menus",
+                "fileName": "snapshot"
+            },
+            "snapshot": {
+                "provider": "daily-menus",
+                "partition": "date-range",
+                "pastDays": 1,
+                "futureDays": 7
+            },
+            "allowIssues": true,
+            "options": {
+                "transactionTimeout": 60000,
+                "transactionMaxWait": 10000
+            }
+        },
+        {
+            "name": "exchange-notices-snapshot",
+            "description": "Snapshot versionado dos editais de intercâmbio da DERI",
+            "schedule": { "cron": "30 */6 * * *" },
+            "obtain": {
+                "command": "node",
+                "args": [
+                    "unicamp-scrapper-cli/dist/index.js",
+                    "exchange-notices-snapshot",
+                    "--output",
+                    "${POMI_PROVIDER_OUTPUT}"
+                ],
+                "cwd": "../scrapper-aulas",
+                "env": {},
+                "timeoutMs": 300000
+            },
+            "input": {
+                "directory": "data/snapshots/exchange-notices",
+                "fileName": "snapshot"
+            },
+            "snapshot": { "provider": "exchange-notices", "partition": "collection-time" },
+            "allowIssues": true,
+            "options": {
+                "transactionTimeout": 60000,
+                "transactionMaxWait": 10000
+            }
+        },
+        {
+            "name": "professors-data-portal-snapshot",
+            "description": "Snapshot versionado dos perfis de professores do Portal de Dados",
+            "schedule": { "cron": "0 4 * * 1" },
+            "obtain": {
+                "command": "pomi-scraper",
+                "args": [
+                    "professors-data-portal",
+                    "--snapshot",
+                    "--resume",
+                    "--max-response-bytes",
+                    "33554432",
+                    "--output",
+                    "${POMI_PROVIDER_OUTPUT}"
+                ],
+                "cwd": ".",
+                "env": {},
+                "timeoutMs": 7200000
+            },
+            "input": {
+                "directory": "data/snapshots/professors-data-portal",
+                "fileName": "snapshot"
+            },
+            "snapshot": { "provider": "professors-data-portal", "partition": "collection-time" },
+            "allowIssues": true,
+            "options": {
+                "databaseConcurrency": 4,
+                "transactionTimeout": 600000,
+                "transactionMaxWait": 60000
+            }
+        }
+    ]
+}

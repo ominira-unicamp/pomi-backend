@@ -1,0 +1,595 @@
+import IO, {
+    studentFriendshipSort,
+    studentPeoplePagination,
+    studentPeopleSort
+} from "#/modules/social/student-social/StudentSocial.contract.js";
+import {
+    socialConflictProblem,
+    socialNotFoundProblem
+} from "#/modules/social/student-social/StudentSocial.problems.js";
+import {
+    compileFilterWhere,
+    compileSort,
+    err,
+    ok,
+    prismaPaginationParams,
+    prismaWhereFor,
+    resolvePagination,
+    resolveSort,
+    type FilterExpression,
+    type FilterWhereBuilder,
+    type ResolvedPagination,
+    type Result
+} from "@pomi/api-core";
+import type { MyPrisma, PrismaClient } from "@pomi/db";
+import z from "zod";
+
+type Person = z.infer<typeof IO.schemas.person>;
+type Profile = z.infer<typeof IO.schemas.ownProfile>;
+type Friendship = z.infer<typeof IO.schemas.friendship>;
+type ProfileBody = z.infer<typeof IO.updateProfile.request>["body"];
+type PeopleQuery = z.infer<typeof IO.listPeople.request>["query"];
+type FriendshipQuery = z.infer<typeof IO.listFriendships.request>["query"];
+
+const friendshipWhere = prismaWhereFor<MyPrisma.StudentFriendshipWhereInput>();
+const friendshipFilterWhere = {
+    status: friendshipWhere.enumAt("status")
+} satisfies Record<
+    string,
+    FilterWhereBuilder<MyPrisma.StudentFriendshipWhereInput>
+>;
+
+function directionWhere(
+    expression: FilterExpression,
+    studentId: number
+): MyPrisma.StudentFriendshipWhereInput {
+    const direction = String(expression.values[0]);
+    return {
+        AND: [
+            { status: "PENDING" },
+            direction === "INCOMING"
+                ? { requestedById: { not: studentId } }
+                : { requestedById: studentId }
+        ]
+    };
+}
+
+const personSelection = {
+    id: true,
+    publicId: true,
+    name: true,
+    publicProfileEnabled: true,
+    publicDisplayName: true,
+    publicBio: true,
+    currentCoursesVisibility: true,
+    entryYear: true,
+    tagInterests: {
+        include: { tag: { select: { id: true, name: true } } }
+    },
+    courseAttempts: {
+        where: { status: "ENROLLED" },
+        select: {
+            course: { select: { code: true, name: true } },
+            class: {
+                select: {
+                    code: true,
+                    classSchedules: {
+                        select: {
+                            id: true,
+                            dayOfWeek: true,
+                            start: true,
+                            end: true,
+                            room: { select: { code: true } }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    program: { select: { code: true, name: true } },
+    specialization: { select: { code: true, name: true } }
+} as const;
+
+type SelectedPerson = {
+    id: number;
+    publicId: string;
+    name: string;
+    publicProfileEnabled: boolean;
+    publicDisplayName: string | null;
+    publicBio: string | null;
+    currentCoursesVisibility: "PRIVATE" | "FRIENDS" | "PUBLIC";
+    entryYear: number | null;
+    tagInterests: Array<{ tag: { id: number; name: string } }>;
+    courseAttempts: Array<{
+        course: { code: string; name: string };
+        class: {
+            code: string;
+            classSchedules: Array<{
+                id: number;
+                dayOfWeek:
+                    | "MONDAY"
+                    | "TUESDAY"
+                    | "WEDNESDAY"
+                    | "THURSDAY"
+                    | "FRIDAY"
+                    | "SATURDAY"
+                    | "SUNDAY";
+                start: string;
+                end: string;
+                room: { code: string };
+            }>;
+        } | null;
+    }>;
+    program: { code: number; name: string } | null;
+    specialization: { code: string; name: string } | null;
+};
+
+function buildPerson(
+    student: SelectedPerson,
+    viewerStudentId: number,
+    forceMinimal = false,
+    acceptedFriendIds?: ReadonlySet<number>
+): Person {
+    const disclose = student.publicProfileEnabled && !forceMinimal;
+    const canViewCurrentCourses =
+        !forceMinimal &&
+        (student.id === viewerStudentId ||
+            student.currentCoursesVisibility === "PUBLIC" ||
+            (student.currentCoursesVisibility === "FRIENDS" &&
+                acceptedFriendIds?.has(student.id) === true));
+    return {
+        publicId: student.publicId,
+        displayName: student.publicDisplayName ?? student.name,
+        bio: disclose ? student.publicBio : null,
+        interests: disclose
+            ? student.tagInterests
+                  .map(({ tag }) => ({ id: tag.id, name: tag.name }))
+                  .sort((left, right) =>
+                      left.name.localeCompare(right.name, "pt-BR")
+                  )
+            : [],
+        currentCourses: canViewCurrentCourses
+            ? student.courseAttempts.map(({ course, class: classData }) => ({
+                  courseCode: course.code,
+                  courseName: course.name,
+                  classCode: classData?.code ?? null,
+                  schedules:
+                      classData?.classSchedules.map((schedule) => ({
+                          id: schedule.id,
+                          dayOfWeek: schedule.dayOfWeek,
+                          start: schedule.start,
+                          end: schedule.end,
+                          roomCode: schedule.room.code
+                      })) ?? []
+              }))
+            : [],
+        program: disclose ? student.program : null,
+        specialization: disclose ? student.specialization : null,
+        entryYear: disclose ? student.entryYear : null
+    };
+}
+
+function buildProfile(student: SelectedPerson): Profile {
+    return {
+        publicId: student.publicId,
+        displayName: student.publicDisplayName ?? student.name,
+        bio: student.publicBio,
+        interests: student.tagInterests
+            .map(({ tag }) => ({ id: tag.id, name: tag.name }))
+            .sort((left, right) =>
+                left.name.localeCompare(right.name, "pt-BR")
+            ),
+        currentCourses: student.courseAttempts.map(
+            ({ course, class: classData }) => ({
+                courseCode: course.code,
+                courseName: course.name,
+                classCode: classData?.code ?? null,
+                schedules:
+                    classData?.classSchedules.map((schedule) => ({
+                        id: schedule.id,
+                        dayOfWeek: schedule.dayOfWeek,
+                        start: schedule.start,
+                        end: schedule.end,
+                        roomCode: schedule.room.code
+                    })) ?? []
+            })
+        ),
+        program: student.program,
+        specialization: student.specialization,
+        entryYear: student.entryYear,
+        enabled: student.publicProfileEnabled,
+        currentCoursesVisibility: student.currentCoursesVisibility
+    };
+}
+
+type SelectedFriendship = {
+    id: number;
+    studentAId: number;
+    studentBId: number;
+    requestedById: number;
+    status: "PENDING" | "ACCEPTED";
+    acceptedAt: Date | null;
+    createdAt: Date;
+    studentA: SelectedPerson;
+    studentB: SelectedPerson;
+};
+
+function buildFriendship(
+    row: SelectedFriendship,
+    studentId: number
+): Friendship {
+    const friend = row.studentAId === studentId ? row.studentB : row.studentA;
+    return {
+        id: row.id,
+        status: row.status,
+        direction:
+            row.status === "ACCEPTED"
+                ? "NONE"
+                : row.requestedById === studentId
+                  ? "OUTGOING"
+                  : "INCOMING",
+        friend: buildPerson(
+            friend,
+            studentId,
+            !friend.publicProfileEnabled,
+            row.status === "ACCEPTED" ? new Set([friend.id]) : undefined
+        ),
+        createdAt: row.createdAt.toISOString(),
+        acceptedAt: row.acceptedAt?.toISOString() ?? null
+    };
+}
+
+const friendshipSelection = {
+    include: {
+        studentA: { select: personSelection },
+        studentB: { select: personSelection }
+    }
+} as const;
+
+function isUniqueViolation(error: unknown) {
+    return (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "P2002"
+    );
+}
+
+type NotFoundProblem = ReturnType<typeof socialNotFoundProblem>;
+type ConflictProblem = ReturnType<typeof socialConflictProblem>;
+export type StudentSocialService = {
+    getProfile(studentId: number): Promise<Result<Profile, NotFoundProblem>>;
+    updateProfile(
+        studentId: number,
+        input: ProfileBody
+    ): Promise<Result<Profile, NotFoundProblem>>;
+    listPeople(
+        studentId: number,
+        input: PeopleQuery
+    ): Promise<{
+        items: Person[];
+        total: number;
+        pagination: ResolvedPagination;
+    }>;
+    getPerson(
+        studentId: number,
+        publicId: string
+    ): Promise<Result<Person, NotFoundProblem>>;
+    listFriendships(
+        studentId: number,
+        input: FriendshipQuery
+    ): Promise<Friendship[]>;
+    createFriendship(
+        studentId: number,
+        targetPublicId: string
+    ): Promise<Result<Friendship, NotFoundProblem | ConflictProblem>>;
+    acceptFriendship(
+        studentId: number,
+        id: number
+    ): Promise<Result<Friendship, NotFoundProblem | ConflictProblem>>;
+    removeFriendship(
+        studentId: number,
+        id: number
+    ): Promise<Result<void, NotFoundProblem>>;
+};
+
+export function createStudentSocialService({
+    prisma
+}: {
+    prisma: PrismaClient;
+}): StudentSocialService {
+    const findFriendship = (id: number) =>
+        prisma.studentFriendship.findUnique({
+            where: { id },
+            ...friendshipSelection
+        });
+    return {
+        async getProfile(studentId) {
+            const student = await prisma.student.findUnique({
+                where: { id: studentId },
+                select: personSelection
+            });
+            return student
+                ? ok(buildProfile(student))
+                : err(
+                      socialNotFoundProblem(
+                          "O aluno solicitado não foi encontrado."
+                      )
+                  );
+        },
+        async updateProfile(studentId, input) {
+            const existing = await prisma.student.findUnique({
+                where: { id: studentId },
+                select: { id: true }
+            });
+            if (!existing)
+                return err(
+                    socialNotFoundProblem(
+                        "O aluno solicitado não foi encontrado."
+                    )
+                );
+            const student = await prisma.student.update({
+                where: { id: studentId },
+                data: {
+                    publicProfileEnabled: input.enabled,
+                    publicDisplayName: input.displayName,
+                    publicBio: input.bio,
+                    currentCoursesVisibility: input.currentCoursesVisibility
+                },
+                select: personSelection
+            });
+            return ok(buildProfile(student));
+        },
+        async listPeople(studentId, input) {
+            const pagination = resolvePagination(
+                input,
+                studentPeoplePagination
+            );
+            const visibleName = {
+                OR: [
+                    {
+                        publicDisplayName: {
+                            contains: input.query,
+                            mode: "insensitive" as const
+                        }
+                    },
+                    {
+                        publicDisplayName: null,
+                        name: {
+                            contains: input.query,
+                            mode: "insensitive" as const
+                        }
+                    }
+                ]
+            };
+            const where = {
+                id: { not: studentId },
+                publicProfileEnabled: true,
+                authUsers: { some: { status: "ACTIVE" as const } },
+                ...(input.query === undefined
+                    ? {}
+                    : z.string().uuid().safeParse(input.query).success
+                      ? { OR: [{ publicId: input.query }, visibleName] }
+                      : visibleName)
+            };
+            const [students, total] = await Promise.all([
+                prisma.student.findMany({
+                    where,
+                    select: personSelection,
+                    orderBy: compileSort(
+                        resolveSort(input.sort, studentPeopleSort),
+                        {
+                            displayName: (direction) => [
+                                { publicDisplayName: direction },
+                                { name: direction }
+                            ],
+                            id: (direction) => ({ id: direction })
+                        }
+                    ).flat(),
+                    ...prismaPaginationParams(pagination)
+                }),
+                prisma.student.count({ where })
+            ]);
+            const acceptedFriendIds = new Set<number>();
+            if (
+                students.some(
+                    (student) => student.currentCoursesVisibility === "FRIENDS"
+                )
+            ) {
+                const friendships = await prisma.studentFriendship.findMany({
+                    where: {
+                        status: "ACCEPTED",
+                        OR: [
+                            { studentAId: studentId },
+                            { studentBId: studentId }
+                        ]
+                    },
+                    select: { studentAId: true, studentBId: true }
+                });
+                for (const friendship of friendships)
+                    acceptedFriendIds.add(
+                        friendship.studentAId === studentId
+                            ? friendship.studentBId
+                            : friendship.studentAId
+                    );
+            }
+            return {
+                items: students.map((student) =>
+                    buildPerson(student, studentId, false, acceptedFriendIds)
+                ),
+                total,
+                pagination
+            };
+        },
+        async getPerson(studentId, publicId) {
+            const student = await prisma.student.findFirst({
+                where: {
+                    publicId,
+                    id: { not: studentId },
+                    publicProfileEnabled: true,
+                    authUsers: { some: { status: "ACTIVE" } }
+                },
+                select: personSelection
+            });
+            if (!student)
+                return err(
+                    socialNotFoundProblem(
+                        "O perfil público solicitado não foi encontrado."
+                    )
+                );
+            const acceptedFriendIds = new Set<number>();
+            if (student.currentCoursesVisibility === "FRIENDS") {
+                const friendship = await prisma.studentFriendship.findFirst({
+                    where: {
+                        status: "ACCEPTED",
+                        OR: [
+                            { studentAId: studentId, studentBId: student.id },
+                            { studentAId: student.id, studentBId: studentId }
+                        ]
+                    },
+                    select: { id: true }
+                });
+                if (friendship) acceptedFriendIds.add(student.id);
+            }
+            return ok(
+                buildPerson(student, studentId, false, acceptedFriendIds)
+            );
+        },
+        async listFriendships(studentId, input) {
+            const filter = input.filter ?? [];
+            const filterWhere = compileFilterWhere(
+                filter.filter(
+                    (expression) => expression.path.join(".") !== "direction"
+                ),
+                friendshipFilterWhere,
+                "student friendships"
+            );
+            const directionFilters = filter
+                .filter(
+                    (expression) => expression.path.join(".") === "direction"
+                )
+                .map((expression) => directionWhere(expression, studentId));
+            const rows = await prisma.studentFriendship.findMany({
+                where: {
+                    AND: [
+                        {
+                            OR: [
+                                { studentAId: studentId },
+                                { studentBId: studentId }
+                            ]
+                        },
+                        ...filterWhere,
+                        ...directionFilters
+                    ]
+                },
+                ...friendshipSelection,
+                orderBy: compileSort(
+                    resolveSort(input.sort, studentFriendshipSort),
+                    {
+                        updatedAt: (direction) => ({ updatedAt: direction }),
+                        status: (direction) => ({ status: direction }),
+                        id: (direction) => ({ id: direction })
+                    }
+                )
+            });
+            return rows.map((row) => buildFriendship(row, studentId));
+        },
+        async createFriendship(studentId, targetPublicId) {
+            const target = await prisma.student.findFirst({
+                where: {
+                    publicId: targetPublicId,
+                    publicProfileEnabled: true,
+                    authUsers: { some: { status: "ACTIVE" } }
+                },
+                select: { id: true }
+            });
+            if (!target)
+                return err(
+                    socialNotFoundProblem(
+                        "O perfil público solicitado não foi encontrado."
+                    )
+                );
+            if (target.id === studentId)
+                return err(
+                    socialConflictProblem(
+                        "Não é possível enviar uma solicitação de amizade para si mesmo."
+                    )
+                );
+            const studentAId = Math.min(studentId, target.id);
+            const studentBId = Math.max(studentId, target.id);
+            try {
+                const row = await prisma.studentFriendship.create({
+                    data: { studentAId, studentBId, requestedById: studentId },
+                    ...friendshipSelection
+                });
+                return ok(buildFriendship(row, studentId));
+            } catch (error) {
+                if (isUniqueViolation(error))
+                    return err(
+                        socialConflictProblem(
+                            "Já existe uma amizade ou solicitação entre estes alunos."
+                        )
+                    );
+                throw error;
+            }
+        },
+        async acceptFriendship(studentId, id) {
+            const existing = await prisma.studentFriendship.findFirst({
+                where: {
+                    id,
+                    OR: [{ studentAId: studentId }, { studentBId: studentId }]
+                },
+                select: { status: true, requestedById: true }
+            });
+            if (!existing)
+                return err(
+                    socialNotFoundProblem("A solicitação não foi encontrada.")
+                );
+            if (
+                existing.status !== "PENDING" ||
+                existing.requestedById === studentId
+            )
+                return err(
+                    socialConflictProblem(
+                        "A solicitação não pode ser aceita por este aluno."
+                    )
+                );
+            const updated = await prisma.studentFriendship.updateMany({
+                where: {
+                    id,
+                    status: "PENDING",
+                    requestedById: { not: studentId },
+                    OR: [{ studentAId: studentId }, { studentBId: studentId }]
+                },
+                data: { status: "ACCEPTED", acceptedAt: new Date() }
+            });
+            if (!updated.count)
+                return err(
+                    socialConflictProblem(
+                        "A solicitação já foi alterada e não pode mais ser aceita."
+                    )
+                );
+            const row = await findFriendship(id);
+            return row
+                ? ok(buildFriendship(row, studentId))
+                : err(
+                      socialNotFoundProblem("A solicitação não foi encontrada.")
+                  );
+        },
+        async removeFriendship(studentId, id) {
+            const removed = await prisma.studentFriendship.deleteMany({
+                where: {
+                    id,
+                    OR: [{ studentAId: studentId }, { studentBId: studentId }]
+                }
+            });
+            return removed.count
+                ? ok(undefined)
+                : err(
+                      socialNotFoundProblem(
+                          "A amizade ou solicitação não foi encontrada."
+                      )
+                  );
+        }
+    };
+}

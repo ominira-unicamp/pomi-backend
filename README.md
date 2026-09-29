@@ -1,10 +1,11 @@
-# POMI Backend - Planejador Ominira
+# POMI Backend Workspace
+
 [![Lint and Format](https://github.com/ominira-unicamp/pomi-backend/actions/workflows/lint-and-format.yml/badge.svg?branch=main)](https://github.com/ominira-unicamp/pomi-backend/actions/workflows/lint-and-format.yml)
 [![Deploy to GCP](https://github.com/ominira-unicamp/pomi-backend/actions/workflows/deploy.yml/badge.svg)](https://github.com/ominira-unicamp/pomi-backend/actions/workflows/deploy.yml)
 ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/ominira-unicamp/pomi-backend/main)
 ![GitHub contributors](https://img.shields.io/github/contributors/ominira-unicamp/pomi-backend)
 
-Bom dia, boa tarde, boa noite, bem vindo ao backend do pranejador da ominira, que tem uma função dupla, ser uma fonte de dados academicos da unicamp para quem quiser, e ser o backend do planejador academico da ominira, feito de aluno para alunos.
+Este workspace reúne a API pública de dados universitários, a API de recursos pessoais do POMI, o schema compartilhado do banco e os processos de injeção.
 
 ## Índice
 
@@ -13,10 +14,9 @@ Bom dia, boa tarde, boa noite, bem vindo ao backend do pranejador da ominira, qu
 - [Instalação](#instalação)
 - [Configuração](#configuração)
 - [Executando o Projeto](#executando-o-projeto)
-- [Estrutura do Projeto](#estrutura-do-projeto) 
+- [Estrutura do Projeto](#estrutura-do-projeto)
 
 ## Sobre o Projeto
-
 
 ## Tecnologias
 
@@ -27,7 +27,7 @@ Bom dia, boa tarde, boa noite, bem vindo ao backend do pranejador da ominira, qu
 - **Banco de Dados:** PostgreSQL
 - **Validação:** Zod
 - **Documentação:** OpenAPI/Swagger (Scalar)
-- **Autenticação:** JWT (jose)
+- **Autenticação:** OpenID Connect com Keycloak e validação JWT via JWKS (`jose`)
 - **Segurança:** Helmet, CORS
 - **Containerização:** Docker & Docker Compose
 
@@ -59,59 +59,140 @@ npm install
 
 Crie um arquivo `.env`, ou `.docker.env` caso utilize o docker, na raiz do projeto conforme o `.env.template`.
 
+Com autenticação habilitada, configure `KEYCLOAK_ISSUER` e
+`KEYCLOAK_AUDIENCE=pomi-api`. `DISABLED_AUTH=true` é aceito somente fora de
+produção.
+
 ## Executando o Projeto
 
 Para iniciar o ambiente de desenvolvimento em um ambiente com docker:
 
 ```bash
-# Inicie o banco de dados PostgreSQL localmente ou via Docker
-docker compose up db -d
+# Inicie o banco e aplique as migrations
+docker compose up db db-migrate -d
 
 # Execute as migrations
-npx prisma migrate dev
+npm run prisma:migrate:dev
 
 # Gere o cliente Prisma
-npx prisma generate
+npm run prisma:generate
 
-# Inicie o servidor em modo desenvolvimento
-npm run dev
+# Inicie as APIs em terminais separados
+npm run dev:data
+npm run dev:app
 ```
 
-### Seed 
+Para executar PostgreSQL, Keycloak e as duas APIs, preencha `.docker.env` a partir
+de `.env.template` e execute `docker compose up --build`. A POMI Data API fica em
+`http://localhost:3000` e a POMI App API em `http://localhost:3001`. Esse Compose usa a
+configuração declarativa em `../pomi-infra/slices/pomi/keycloak` e o tema em
+`../pomi-keycloak-theme/theme/pomi`; portanto, os três projetos devem estar
+lado a lado. O realm `pomi`, o client público
+`pomi-frontend` e a audiência `pomi-api` são reconciliados pelo serviço
+transitório `keycloak-config`. O console local fica em `http://localhost:8080`.
 
-Para fazer seed de informações academicas ao banco de dados é nescessario possuir um arquivo seed em `./prisma/seed.json` 
+### Orquestração de obtenções e injeções
+
+O pacote `@pomi/injection` fornece o CLI `pomi-injection`. Cada injection é
+predefinida no registry do pacote: a obtenção roda em um subprocesso externo e
+a persistência é executada pelo serviço correspondente. O JSON configura a
+agenda, o comando de obtenção, o arquivo de entrada e as opções tipadas da função.
+
+Copie `packages/injection/injections.example.json`, ajuste os comandos e use:
+
+```bash
+npm run injection:validate
+npm run injection:list
+npm run injection:run -- academic-data
+npm run injection:watch
+
+# Enfileirar uma execução manual (retorna o ID do job)
+# `request` usa apenas capabilities registradas no código; o worker usa o JSON operacional.
+npm run injection:request -- academic-data all
+npm run injection:request -- catalog-programs all --first-year 2026 --last-year 2026 --profile complete
+npm run notifier:request
+
+# Consultar o estado de um job
+npm run injection:job-status -- <job-id>
+npm run injection:retry -- <workflow-job-id>
+npm run notifier:job-status -- <job-id>
+```
+
+`catalog-programs` é um workflow anual. O perfil `core` garante o vínculo do
+programa com o catálogo, `available` coleta os componentes suportados pela
+fonte daquele ano e `complete` exige currículos, informações institucionais e
+sugestões. Para catálogos históricos, `complete` só publica quando os quatro
+componentes foram coletados e validados; o backfill de 1998–2020 é manual. O job executa obtenção,
+validação e persistência de um snapshot imutável. Os artefatos ficam em
+`data/snapshots/catalog-programs/<ano>/<snapshot-id>`, com manifesto, hashes e
+componentes versionados; a injection consome somente esse contrato JSON e não
+importa código do provider. O modo `inject` exige `--snapshot-id`. São
+preservados os três snapshots publicados mais recentes por ano e snapshots
+com falha por sete dias.
+
+O `watch` executa uma injection por vez, registra falhas e aguarda a próxima
+ocorrência cron definida em cada entrada. As expressões usam cinco campos e o
+fuso horário local do processo (configurável por `TZ`). O diretório de dados e
+o lock do scheduler ficam sob a raiz configurada, sem remover arquivos
+existentes. As configurações de catálogo usam somente
+`catalog-programs-snapshot`; os persistidores de currículos, informações e
+sugestões permanecem internos ao consumidor composto. Os demais tipos
+configuráveis incluem `academic-data`, `calendar`, `catalog-disciplines`,
+`daily-menus` e `exchange-notices`.
+As alterações persistidas são emitidas como eventos JSON pelo Pino no stdout;
+o nível pode ser ajustado com `LOG_LEVEL`. O envio opcional para OpenObserve usa
+`OPENOBSERVE_URL` e `OPENOBSERVE_AUTH`, ou `OPENOBSERVE_USER` e
+`OPENOBSERVE_PASSWORD`; o stream padrão é `pomi-injection-logs` e pode ser
+alterado com `OPENOBSERVE_STREAM`. Sem `OPENOBSERVE_URL`, nenhum envio remoto
+é realizado.
+
+### Logs e telemetria das APIs
+
+As APIs POMI Data e POMI App emitem logs JSON no stdout para cada requisição,
+com `requestId`, método, rota parametrizada, status e duração. O identificador
+também é devolvido em `X-Request-ID`, permitindo correlacionar uma resposta ao
+log correspondente. Corpos, tokens e cookies não são registrados.
+
+Use `LOG_LEVEL` para ajustar a verbosidade. Para enviar os mesmos eventos ao
+OpenObserve, defina `OPENOBSERVE_URL` e `OPENOBSERVE_AUTH` (ou
+`OPENOBSERVE_USER` e `OPENOBSERVE_PASSWORD`); `OPENOBSERVE_STREAM` é opcional e
+usa `pomi-api-logs` por padrão. Sem `OPENOBSERVE_URL`, a aplicação não realiza
+envio remoto.
 
 ### Acessando a Documentação
 
-Após iniciar o servidor, acesse a documentação interativa da API:
+Após iniciar os servidores, acesse:
 
-- **Swagger UI:** http://localhost:3000/docs
-- **OpenAPI JSON:** http://localhost:3000/openapi.json
+- **POMI Data:** http://localhost:3000/docs
+- **POMI App:** http://localhost:3001/docs
+
+Cada página exibe o documento OpenAPI completo da respectiva API; os arquivos
+JSON também ficam disponíveis em `/openapi.json`.
 
 ## Estrutura do Projeto
 
-```
+```text
 pomi-backend/
-├── prisma/
-│   ├── schema.prisma     # Schema do banco de dados
-│   ├── migrations/       # Migrations do Prisma
-│   ├── seed.ts           # Script de seed 
-│   └── generated/        # Arquivos gerados (client, zod schemas)
-├── src/
-│   ├── index.ts          # Entry point da aplicação
-│   ├── auth.ts           # Configuração de autenticação
-│   ├── Controllers.ts    # Agregador de controllers
-│   ├── OpenApi.ts        # Configuração OpenAPI
-│   ├── PrismaClient.ts   # Instância do Prisma
-│   ├── controllers/      # Controllers da API
-│   ├── Middlewares/      # Middlewares Express
-│   └── openapi/          # Builders para OpenAPI
-├── .env
+├── packages/
+│   ├── db/          # Prisma, migrations e cliente compartilhado
+│   ├── api-core/    # Infraestrutura HTTP comum
+│   ├── data/        # API pública e administrativa de dados
+│   ├── app/         # API autenticada de usuários e planejamentos
+│   └── injection/   # Importadores e normalizadores
 ├── docker-compose.yaml
 ├── package.json
-├── prisma.config.ts
 └── tsconfig.json
 ```
+
+## Pendências de domínio
+
+`StudyPeriod` registra atualmente apenas a data inicial do período acadêmico.
+O modelo deverá passar a representar explicitamente as datas de início e fim
+do semestre para que consumidores da API possam identificar o período vigente
+sem heurísticas. Até essa evolução, o frontend considera janeiro a junho como
+primeiro semestre e julho a dezembro como segundo semestre. Essa aproximação
+representa a grade semanal prevista e não considera feriados, recessos,
+cancelamentos ou outras exceções do calendário acadêmico.
 
 ## LICENÇA
 

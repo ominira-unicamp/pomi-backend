@@ -1,0 +1,168 @@
+import { asFunction, asValue, createContainer, InjectionMode } from "awilix";
+import type { RequestHandler } from "express";
+
+import type { AppConfig } from "#/Config.js";
+import { buildZodIds } from "#/PrismaValidator.js";
+import type { Principal } from "#/auth.js";
+import {
+    createEvaluationSummaryService,
+    type EvaluationSummaryService
+} from "#/modules/academic/evaluation-summary/EvaluationSummary.service.js";
+import {
+    createExchangeNoticeSubscriptionService,
+    type ExchangeNoticeSubscriptionService
+} from "#/modules/exchange/exchange-notice-subscription/ExchangeNoticeSubscription.service.js";
+import {
+    createExchangeNoticeUnsubscribeService,
+    type ExchangeNoticeUnsubscribeService
+} from "#/modules/exchange/exchange-notice-unsubscribe/ExchangeNoticeUnsubscribe.service.js";
+import { FeedbackRateLimiter } from "#/modules/feedback/feedback-report/FeedbackRateLimiter.js";
+import {
+    createFeedbackReportService,
+    type FeedbackReportService
+} from "#/modules/feedback/feedback-report/FeedbackReport.service.js";
+import {
+    createAuthUserService,
+    type AuthUserService
+} from "#/modules/identity/auth-user/AuthUser.service.js";
+import {
+    createBotGrantService,
+    type BotGrantService
+} from "#/modules/identity/bot-grant/BotGrant.service.js";
+import {
+    createCurrentUserService,
+    type CurrentUserService
+} from "#/modules/identity/current-user/CurrentUser.service.js";
+import {
+    createCurriculumService,
+    type CurriculumService
+} from "#/modules/planning/curriculum/Curriculum.service.js";
+import {
+    createPeriodPlanService,
+    type PeriodPlanService
+} from "#/modules/planning/period-plan/PeriodPlan.service.js";
+import {
+    createProfessorEvaluationService,
+    type ProfessorEvaluationService
+} from "#/modules/planning/professor-evaluation/ProfessorEvaluation.service.js";
+import {
+    createSharedPeriodPlanService,
+    type SharedPeriodPlanService
+} from "#/modules/planning/shared-period-plan/SharedPeriodPlan.service.js";
+import {
+    createStudentAbsenceService,
+    type StudentAbsenceService
+} from "#/modules/planning/student-absence/StudentAbsence.service.js";
+import {
+    createStudentCourseAttemptService,
+    type StudentCourseAttemptService
+} from "#/modules/planning/student-course-attempt/StudentCourseAttempt.service.js";
+import {
+    createStudentHistoryImportService,
+    type StudentHistoryImportService
+} from "#/modules/planning/student-history-import/StudentHistoryImport.service.js";
+import {
+    createStudentService,
+    type StudentService
+} from "#/modules/planning/student/Student.service.js";
+import {
+    createStudentSocialService,
+    type StudentSocialService
+} from "#/modules/social/student-social/StudentSocial.service.js";
+import {
+    createStudentTagInterestService,
+    type StudentTagInterestService
+} from "#/modules/student-tag-interest/StudentTagInterest.service.js";
+import {
+    createTaggingService,
+    type TaggingService
+} from "#/modules/tagging/Tagging.service.js";
+import type { DatabaseClient } from "@pomi/db";
+
+export type AppCradle = {
+    config: AppConfig;
+    prisma: DatabaseClient;
+    principal: Principal | undefined;
+    zodIds: ReturnType<typeof buildZodIds>;
+    studentCourseAttemptService: StudentCourseAttemptService;
+    studentHistoryImportService: StudentHistoryImportService;
+    studentAbsenceService: StudentAbsenceService;
+    studentService: StudentService;
+    currentUserService: CurrentUserService;
+    botGrantService: BotGrantService;
+    authUserService: AuthUserService;
+    curriculumService: CurriculumService;
+    evaluationSummaryService: EvaluationSummaryService;
+    periodPlanService: PeriodPlanService;
+    sharedPeriodPlanService: SharedPeriodPlanService;
+    professorEvaluationService: ProfessorEvaluationService;
+    studentSocialService: StudentSocialService;
+    feedbackReportService: FeedbackReportService;
+    feedbackRateLimiter: FeedbackRateLimiter;
+    exchangeNoticeSubscriptionService: ExchangeNoticeSubscriptionService;
+    exchangeNoticeUnsubscribeService: ExchangeNoticeUnsubscribeService;
+    taggingService: TaggingService;
+    studentTagInterestService: StudentTagInterestService;
+};
+
+export function createAppContainer(config: AppConfig, prisma: DatabaseClient) {
+    return createContainer<AppCradle>({
+        injectionMode: InjectionMode.PROXY
+    }).register({
+        config: asValue(config),
+        prisma: asValue(prisma),
+        principal: asValue(undefined),
+        zodIds: asFunction(buildZodIds).scoped(),
+        studentCourseAttemptService: asFunction(
+            createStudentCourseAttemptService
+        ).scoped(),
+        studentHistoryImportService: asFunction(
+            createStudentHistoryImportService
+        ).scoped(),
+        studentAbsenceService: asFunction(createStudentAbsenceService).scoped(),
+        studentService: asFunction(createStudentService).scoped(),
+        currentUserService: asFunction(createCurrentUserService).scoped(),
+        botGrantService: asFunction(createBotGrantService).scoped(),
+        authUserService: asFunction(createAuthUserService).scoped(),
+        curriculumService: asFunction(createCurriculumService).scoped(),
+        evaluationSummaryService: asFunction(
+            createEvaluationSummaryService
+        ).scoped(),
+        periodPlanService: asFunction(createPeriodPlanService).scoped(),
+        sharedPeriodPlanService: asFunction(
+            createSharedPeriodPlanService
+        ).scoped(),
+        professorEvaluationService: asFunction(
+            createProfessorEvaluationService
+        ).scoped(),
+        studentSocialService: asFunction(createStudentSocialService).scoped(),
+        feedbackRateLimiter: asValue(
+            new FeedbackRateLimiter(
+                config.feedbackRateLimitMax,
+                config.feedbackRateLimitWindowSeconds * 1000
+            )
+        ),
+        feedbackReportService: asFunction(createFeedbackReportService).scoped(),
+        exchangeNoticeSubscriptionService: asFunction(
+            createExchangeNoticeSubscriptionService
+        ).scoped(),
+        exchangeNoticeUnsubscribeService: asFunction(
+            createExchangeNoticeUnsubscribeService
+        ).scoped(),
+        taggingService: asFunction(createTaggingService).scoped(),
+        studentTagInterestService: asFunction(
+            createStudentTagInterestService
+        ).scoped()
+    });
+}
+
+export type AppContainer = ReturnType<typeof createAppContainer>;
+
+export function appScopeMiddleware(container: AppContainer): RequestHandler {
+    return (request, _response, next) => {
+        const scope = container.createScope();
+        request.scope = scope;
+        request.prisma = scope.cradle.prisma;
+        next();
+    };
+}

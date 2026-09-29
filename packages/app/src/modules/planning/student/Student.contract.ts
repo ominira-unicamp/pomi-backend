@@ -1,0 +1,213 @@
+import { policies, StudentCapabilities } from "#/Authorization.js";
+import { type IO, OutputBuilder } from "#/Contract.js";
+import { InvalidStudentProfileProblem } from "#/modules/planning/student/Student.problems.js";
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import {
+    createPaginationQuerySchema,
+    defineSort,
+    getPaginatedSchema,
+    pathParam,
+    pathSeg,
+    ReferenceNotFoundProblemSchema,
+    ResourceNotFoundProblemSchema,
+    resourceSortSchema,
+    SpecBuilder,
+    UniqueConstraintConflictProblemSchema,
+    unpaginatedByDefault
+} from "@pomi/api-core";
+import z from "zod";
+
+extendZodWithOpenApi(z);
+
+const basePath = [pathSeg.literal("students")];
+const tags = ["students"];
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "students",
+    operationName: "Students",
+    pathParameters: { id: "studentId" }
+});
+
+const studentEntity = z
+    .object({
+        id: z.number().int(),
+        ra: z.string(),
+        name: z.string(),
+        programId: z.number().int().nullable(),
+        specializationId: z.number().int().nullable(),
+        catalogId: z.number().int().nullable(),
+        entryYear: z.number().int().min(1900).max(9999).nullable(),
+        languageId: z.number().int().nullable()
+    })
+    .strict()
+    .openapi("StudentEntity", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Student",
+            identityFields: ["id"]
+        }
+    });
+
+const studentBase = z
+    .object({
+        id: z.number().int(),
+        ra: z.string(),
+        name: z.string(),
+        programId: z.number().int().nullable().optional(),
+        specializationId: z.number().int().nullable().optional(),
+        catalogId: z.number().int().nullable().optional(),
+        entryYear: z.number().int().min(1900).max(9999).nullable().optional(),
+        languageId: z.number().int().nullable().optional()
+    })
+    .strict();
+export const studentSort = defineSort({
+    resourceName: "students",
+    sortableFields: ["id", "ra", "name", "entryYear"] as const,
+    defaultSort: [{ field: "id", direction: "asc" }] as const,
+    tieBreakers: [] as const
+});
+
+const createStudentBody = studentBase
+    .omit({ id: true, ra: true })
+    .openapi("CreateStudentBody", {
+        "x-pomi-schema": { kind: "input", publicName: "CreateStudentBody" }
+    });
+
+const patchStudentBody = studentBase
+    .omit({ id: true })
+    .partial()
+    .strict()
+    .openapi("PatchStudentBody", {
+        "x-pomi-schema": { kind: "input", publicName: "PatchStudentBody" }
+    });
+
+const get = {
+    meta: {
+        ...specsBuilder.get(),
+        authorization: policies.studentAccess(
+            "id",
+            StudentCapabilities.PROFILE_READ
+        )
+    },
+    request: z.object({
+        path: z.object({
+            id: pathParam.integer()
+        })
+    }),
+    response: new OutputBuilder()
+        .ok(studentEntity, "Student retrieved successfully")
+        .problem(404, ResourceNotFoundProblemSchema, "Aluno não encontrado")
+        .build()
+} satisfies IO;
+
+const list = {
+    meta: {
+        ...specsBuilder.list(),
+        authorization: policies.admin,
+        queryFeatures: { sort: true },
+        pagination: unpaginatedByDefault
+    },
+    request: z.object({
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            sort: resourceSortSchema(studentSort).optional()
+        })
+    }),
+    response: new OutputBuilder()
+        .ok(
+            getPaginatedSchema(studentEntity),
+            "List of students retrieved successfully"
+        )
+        .build()
+} satisfies IO;
+
+const create = {
+    meta: {
+        ...specsBuilder.create(),
+        authorization: policies.studentRegistration
+    },
+    request: z.object({
+        body: createStudentBody
+    }),
+    response: new OutputBuilder()
+        .ok(studentEntity, "Existing student linked successfully")
+        .created(studentEntity, "Student created successfully")
+        .problem(
+            409,
+            UniqueConstraintConflictProblemSchema,
+            "Conflito de identidade do aluno"
+        )
+        .problem(
+            422,
+            z.discriminatedUnion("type", [
+                ReferenceNotFoundProblemSchema,
+                InvalidStudentProfileProblem.schema
+            ]),
+            "Perfil de aluno inválido"
+        )
+        .build()
+} satisfies IO;
+
+const patch = {
+    meta: {
+        ...specsBuilder.patch(),
+        authorization: policies.studentAccess(
+            "id",
+            StudentCapabilities.PROFILE_WRITE
+        )
+    },
+    request: z.object({
+        path: z.object({
+            id: pathParam.integer()
+        }),
+        body: patchStudentBody
+    }),
+    response: new OutputBuilder()
+        .ok(studentEntity, "Student updated successfully")
+        .problem(404, ResourceNotFoundProblemSchema, "Aluno não encontrado")
+        .problem(
+            422,
+            z.discriminatedUnion("type", [
+                ReferenceNotFoundProblemSchema,
+                InvalidStudentProfileProblem.schema
+            ]),
+            "Perfil de aluno inválido"
+        )
+        .build()
+} satisfies IO;
+
+const remove = {
+    meta: {
+        ...specsBuilder.remove(),
+        authorization: policies.studentAccess(
+            "id",
+            StudentCapabilities.PROFILE_WRITE
+        )
+    },
+    request: z.object({
+        path: z.object({
+            id: pathParam.integer()
+        }),
+        body: z
+            .object({
+                confirmationRa: z.string().regex(/^\d{6}$/)
+            })
+            .strict()
+    }),
+    response: new OutputBuilder()
+        .noContent("Student deleted successfully")
+        .problem(404, ResourceNotFoundProblemSchema, "Aluno não encontrado")
+        .problem(
+            422,
+            InvalidStudentProfileProblem.schema,
+            "Confirmação inválida"
+        )
+        .build()
+} satisfies IO;
+
+export default {
+    schema: studentEntity,
+    get,
+    list,
+    create,
+    patch,
+    remove
+};

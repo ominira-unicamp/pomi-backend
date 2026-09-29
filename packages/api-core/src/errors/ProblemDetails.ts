@@ -1,0 +1,427 @@
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import z from "zod";
+import { sdkSchemaMetadata } from "../openapi/SdkSchemaMetadata.js";
+import { AppError } from "./AppError.js";
+
+extendZodWithOpenApi(z);
+
+export const problemType = <Name extends string>(name: Name) =>
+    `urn:pomi:problem:${name}` as const;
+
+export const ProblemFieldSchema = z
+    .object({
+        code: z.string(),
+        path: z.array(z.string()),
+        message: z.string(),
+        details: z.record(z.string(), z.unknown()).optional()
+    })
+    .strict()
+    .openapi("ProblemField", {
+        "x-pomi-schema": { kind: "problem", publicName: "ProblemField" }
+    });
+
+export const ProblemDetailsSchema = z
+    .object({
+        type: z.string(),
+        title: z.string(),
+        status: z.number().int(),
+        detail: z.string(),
+        instance: z.string().optional()
+    })
+    .strict()
+    .openapi("ProblemDetails", {
+        "x-pomi-schema": { kind: "problem", publicName: "ProblemDetails" }
+    });
+
+export type ProblemDetails = z.infer<typeof ProblemDetailsSchema>;
+export type ProblemField = z.infer<typeof ProblemFieldSchema>;
+
+export type DomainProblem = {
+    type: `urn:pomi:problem:${string}`;
+    title: string;
+    detail: string;
+};
+
+export type ProblemDefinition<
+    Problem extends DomainProblem,
+    Status extends number,
+    Schema extends z.ZodType
+> = {
+    type: Problem["type"];
+    title: Problem["title"];
+    status: Status;
+    schema: Schema;
+    create(input: Omit<Problem, "type" | "title">): Problem;
+};
+
+export function defineProblem<
+    const TypeName extends string,
+    const Title extends string,
+    const Status extends number,
+    Extensions extends z.ZodRawShape
+>(definition: {
+    schemaName: string;
+    typeName: TypeName;
+    title: Title;
+    status: Status;
+    extensions: Extensions;
+}) {
+    const type = problemType(definition.typeName);
+    type ExtensionsOutput = keyof Extensions extends never
+        ? object
+        : z.output<z.ZodObject<Extensions>>;
+    type Problem = {
+        type: typeof type;
+        title: Title;
+        detail: string;
+    } & ExtensionsOutput;
+    const schema = ProblemDetailsSchema.extend({
+        type: z.literal(type),
+        title: z.literal(definition.title),
+        status: z.literal(definition.status),
+        ...definition.extensions
+    })
+        .strict()
+        .openapi(
+            definition.schemaName,
+            sdkSchemaMetadata({
+                kind: "problem",
+                publicName: definition.schemaName
+            })
+        );
+
+    return {
+        type,
+        title: definition.title,
+        status: definition.status,
+        schema,
+        create(input: Omit<Problem, "type" | "title">): Problem {
+            return {
+                type,
+                title: definition.title,
+                ...input
+            } as Problem;
+        }
+    } as ProblemDefinition<Problem, Status, typeof schema>;
+}
+
+export function prefixPaths<Item extends { path: string[] }>(
+    items: Item[],
+    prefix?: string
+): Item[] {
+    if (!prefix) return items;
+    return items.map((item) => ({
+        ...item,
+        path: [prefix, ...item.path]
+    }));
+}
+
+export function prefixProblemFields<Problem extends { fields: ProblemField[] }>(
+    problem: Problem,
+    prefix?: string
+): Problem {
+    return prefix
+        ? { ...problem, fields: prefixPaths(problem.fields, prefix) }
+        : problem;
+}
+
+export function problemDetails<
+    Problem extends DomainProblem,
+    Status extends number
+>(
+    problem: Problem,
+    status: Status,
+    instance?: string
+): Problem & { status: Status; instance?: string } {
+    return {
+        ...problem,
+        status,
+        ...(instance ? { instance } : {})
+    };
+}
+
+export function appErrorProblem(
+    error: AppError,
+    instance?: string
+): ProblemDetails {
+    return {
+        type: error.type,
+        title: error.title,
+        status: error.status,
+        detail: error.message,
+        ...(instance ? { instance } : {})
+    };
+}
+
+export const InvalidRequestProblemSchema = ProblemDetailsSchema.extend({
+    type: z.literal(problemType("invalid-request")),
+    title: z.literal("Dados da requisição inválidos"),
+    status: z.literal(400),
+    fields: z.array(ProblemFieldSchema)
+})
+    .strict()
+    .openapi("InvalidRequestProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "InvalidRequestProblem"
+        }
+    });
+
+export const MalformedJsonProblemSchema = ProblemDetailsSchema.extend({
+    type: z.literal(problemType("malformed-json")),
+    title: z.literal("JSON inválido"),
+    status: z.literal(400)
+})
+    .strict()
+    .openapi("MalformedJsonProblem", {
+        "x-pomi-schema": { kind: "problem", publicName: "MalformedJsonProblem" }
+    });
+
+export const UnauthenticatedProblemSchema = ProblemDetailsSchema.extend({
+    type: z.literal(problemType("unauthenticated")),
+    title: z.literal("Autenticação necessária"),
+    status: z.literal(401)
+})
+    .strict()
+    .openapi("UnauthenticatedProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "UnauthenticatedProblem"
+        }
+    });
+
+export const ForbiddenProblemSchema = ProblemDetailsSchema.extend({
+    type: z.literal(problemType("forbidden")),
+    title: z.literal("Acesso não permitido"),
+    status: z.literal(403)
+})
+    .strict()
+    .openapi("ForbiddenProblem", {
+        "x-pomi-schema": { kind: "problem", publicName: "ForbiddenProblem" }
+    });
+
+export const ResourceNotFoundProblem = defineProblem({
+    schemaName: "ResourceNotFoundProblem",
+    typeName: "resource-not-found",
+    title: "Recurso não encontrado",
+    status: 404,
+    extensions: {}
+});
+
+export const ResourceNotFoundProblemSchema = ResourceNotFoundProblem.schema;
+
+export const ReferenceNotFoundProblem = defineProblem({
+    schemaName: "ReferenceNotFoundProblem",
+    typeName: "reference-not-found",
+    title: "Referência não encontrada",
+    status: 422,
+    extensions: { fields: z.array(ProblemFieldSchema) }
+});
+
+export const ReferenceNotFoundProblemSchema = ReferenceNotFoundProblem.schema;
+
+export const UniqueConstraintConflictProblem = defineProblem({
+    schemaName: "UniqueConstraintConflictProblem",
+    typeName: "unique-constraint-conflict",
+    title: "Informação já utilizada",
+    status: 409,
+    extensions: { fields: z.array(ProblemFieldSchema) }
+});
+
+export const UniqueConstraintConflictProblemSchema =
+    UniqueConstraintConflictProblem.schema;
+
+export const ConflictProblemSchema = ProblemDetailsSchema.extend({
+    type: z.literal(problemType("conflict")),
+    title: z.literal("Conflito ao concluir a ação"),
+    status: z.literal(409)
+})
+    .strict()
+    .openapi("ConflictProblem", {
+        "x-pomi-schema": { kind: "problem", publicName: "ConflictProblem" }
+    });
+
+export const UnprocessableEntityProblemSchema = ProblemDetailsSchema.extend({
+    type: z.literal(problemType("unprocessable-entity")),
+    title: z.literal("Não foi possível concluir a ação"),
+    status: z.literal(422),
+    fields: z.array(ProblemFieldSchema).optional()
+})
+    .strict()
+    .openapi("UnprocessableEntityProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "UnprocessableEntityProblem"
+        }
+    });
+
+export const PayloadTooLargeProblemSchema = ProblemDetailsSchema.extend({
+    type: z.literal(problemType("payload-too-large")),
+    title: z.literal("Resposta muito grande"),
+    status: z.literal(413)
+})
+    .strict()
+    .openapi("PayloadTooLargeProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "PayloadTooLargeProblem"
+        }
+    });
+
+export const ServiceUnavailableProblemSchema = ProblemDetailsSchema.extend({
+    type: z.literal(problemType("service-unavailable")),
+    title: z.literal("Serviço indisponível"),
+    status: z.literal(503)
+})
+    .strict()
+    .openapi("ServiceUnavailableProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "ServiceUnavailableProblem"
+        }
+    });
+
+export const InternalServerErrorProblemSchema = ProblemDetailsSchema.extend({
+    type: z.literal(problemType("internal-server-error")),
+    title: z.literal("Não foi possível concluir a ação"),
+    status: z.literal(500)
+})
+    .strict()
+    .openapi("InternalServerErrorProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "InternalServerErrorProblem"
+        }
+    });
+
+export const InconsistentResourceStateProblemSchema =
+    ProblemDetailsSchema.extend({
+        type: z.literal(problemType("inconsistent-resource-state")),
+        title: z.literal("Estado interno do recurso inconsistente"),
+        status: z.literal(500)
+    })
+        .strict()
+        .openapi("InconsistentResourceStateProblem", {
+            "x-pomi-schema": {
+                kind: "problem",
+                publicName: "InconsistentResourceStateProblem"
+            }
+        });
+
+export const ServerErrorProblemSchema = z
+    .discriminatedUnion("type", [
+        InternalServerErrorProblemSchema,
+        InconsistentResourceStateProblemSchema
+    ])
+    .openapi("ServerErrorProblem", {
+        "x-pomi-schema": {
+            kind: "problem",
+            publicName: "ServerErrorProblem"
+        }
+    });
+
+type ProblemInput = Omit<ProblemDetails, "instance"> & { instance?: string };
+
+export function withProblemInstance<T extends ProblemInput>(
+    problem: T,
+    instance?: string
+): T {
+    return instance && !problem.instance ? { ...problem, instance } : problem;
+}
+
+export function invalidRequestProblem(
+    fields: ProblemField[],
+    instance?: string
+): z.infer<typeof InvalidRequestProblemSchema> {
+    return {
+        type: problemType("invalid-request"),
+        title: "Dados da requisição inválidos",
+        status: 400,
+        detail: "Revise os campos informados e tente novamente.",
+        ...(instance ? { instance } : {}),
+        fields
+    };
+}
+
+export function malformedJsonProblem(instance?: string) {
+    return {
+        type: problemType("malformed-json"),
+        title: "JSON inválido",
+        status: 400,
+        detail: "O corpo da requisição não contém um JSON válido.",
+        ...(instance ? { instance } : {})
+    } as z.infer<typeof MalformedJsonProblemSchema>;
+}
+
+export function unauthenticatedProblem(instance?: string) {
+    return {
+        type: problemType("unauthenticated"),
+        title: "Autenticação necessária",
+        status: 401,
+        detail: "Faça login para acessar este recurso.",
+        ...(instance ? { instance } : {})
+    } as z.infer<typeof UnauthenticatedProblemSchema>;
+}
+
+export function forbiddenProblem(instance?: string) {
+    return {
+        type: problemType("forbidden"),
+        title: "Acesso não permitido",
+        status: 403,
+        detail: "Você não possui permissão para realizar esta ação.",
+        ...(instance ? { instance } : {})
+    } as z.infer<typeof ForbiddenProblemSchema>;
+}
+
+export function resourceNotFoundProblem(detail: string, instance?: string) {
+    return problemDetails(
+        ResourceNotFoundProblem.create({ detail }),
+        ResourceNotFoundProblem.status,
+        instance
+    );
+}
+
+export function conflictProblem(detail: string, instance?: string) {
+    return {
+        type: problemType("conflict"),
+        title: "Conflito ao concluir a ação",
+        status: 409,
+        detail,
+        ...(instance ? { instance } : {})
+    } as z.infer<typeof ConflictProblemSchema>;
+}
+
+export function unprocessableEntityProblem(
+    detail: string,
+    fields?: ProblemField[],
+    instance?: string
+) {
+    return {
+        type: problemType("unprocessable-entity"),
+        title: "Não foi possível concluir a ação",
+        status: 422,
+        detail,
+        ...(instance ? { instance } : {}),
+        ...(fields?.length ? { fields } : {})
+    } as z.infer<typeof UnprocessableEntityProblemSchema>;
+}
+
+export function serviceUnavailableProblem(detail: string, instance?: string) {
+    return {
+        type: problemType("service-unavailable"),
+        title: "Serviço indisponível",
+        status: 503,
+        detail,
+        ...(instance ? { instance } : {})
+    } as z.infer<typeof ServiceUnavailableProblemSchema>;
+}
+
+export function internalServerErrorProblem(instance?: string) {
+    return {
+        type: problemType("internal-server-error"),
+        title: "Não foi possível concluir a ação",
+        status: 500,
+        detail: "Tente novamente em alguns instantes.",
+        ...(instance ? { instance } : {})
+    } as z.infer<typeof InternalServerErrorProblemSchema>;
+}

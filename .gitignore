@@ -6,7 +6,7 @@ dist/
 logs
 _.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
-
+.local
 # dotenv environment variable files
 .env
 .env.development.local
@@ -21,9 +21,13 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .cache
 *.tsbuildinfo
 
-prisma/generated
-prisma/seed.json
+packages/db/prisma/generated
+packages/db/prisma/seed.json
+
+# generated OpenAPI documents
+/openapi.json
+/packages/app/app-openapi.json
 
 data/
-
+!packages/data/
 bun.lock
