@@ -14,7 +14,7 @@
         "build": "tsc -b",
         "start": "node --import @pomi/api-core/telemetry/bootstrap dist/src/index.js",
         "test": "NODE_OPTIONS=--conditions=development tsx --test test/**/*.test.ts",
-        "openapi:export": "NODE_OPTIONS=--conditions=development tsx scripts/exportOpenApi.ts"
+        "openapi:export": "NODE_OPTIONS=--conditions=development node --import tsx scripts/exportOpenApi.ts"
     },
     "dependencies": {
         "@asteasolutions/zod-to-openapi": "^8.2.0",

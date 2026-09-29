@@ -243,13 +243,35 @@ const prerequisites = z
 
 const catalogCourseEntity = z
     .object({
-        id: z.number().int(),
-        catalogId: z.number().int(),
-        catalogYear: z.number().int(),
-        courseId: z.number().int(),
-        code: z.string().min(1),
-        name: z.string().min(1),
-        credits: z.number().int().min(0),
+        id: z.number().int().openapi({
+            description:
+                "Identificador da representação da disciplina no catálogo.",
+            example: 7322025
+        }),
+        catalogId: z.number().int().openapi({
+            description: "Identificador do catálogo acadêmico.",
+            example: 2025
+        }),
+        catalogYear: z.number().int().openapi({
+            description: "Ano de vigência do catálogo.",
+            example: 2025
+        }),
+        courseId: z.number().int().openapi({
+            description: "Identificador da disciplina normalizada relacionada.",
+            example: 732
+        }),
+        code: z.string().min(1).openapi({
+            description: "Código institucional da disciplina nesse catálogo.",
+            example: "MC732"
+        }),
+        name: z.string().min(1).openapi({
+            description: "Nome publicado para a disciplina nesse catálogo.",
+            example: "Programação Concorrente"
+        }),
+        credits: z.number().int().min(0).openapi({
+            description: "Quantidade de créditos no contexto do catálogo.",
+            example: 4
+        }),
         coordinator: coordinator.nullable(),
         workload,
         offeringPeriod: offeringPeriod.nullable(),
@@ -287,6 +309,9 @@ export type ListQueryParams = z.infer<typeof listQuery>;
 const list = {
     meta: {
         ...specsBuilder.list(),
+        summary: "Listar disciplinas de catálogo",
+        description:
+            "Lista representações institucionais de disciplinas em catálogos acadêmicos.",
         authorization: policies.public,
         queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
@@ -301,7 +326,13 @@ const list = {
 } satisfies IO;
 
 const get = {
-    meta: { ...specsBuilder.get(), authorization: policies.public },
+    meta: {
+        ...specsBuilder.get(),
+        summary: "Consultar disciplina de catálogo",
+        description:
+            "Retorna uma disciplina no contexto de um catálogo acadêmico específico.",
+        authorization: policies.public
+    },
     request: z.object({
         path: z.object({ id: pathParam.integer() }).strict()
     }),

@@ -4,6 +4,7 @@ import type { Request, Response } from "express";
 import { Router } from "express";
 
 import { dataControllers } from "#/Controllers.js";
+import { dataTagGroups, dataTagMetadata } from "#/OpenApiMetadata.js";
 import {
     assertOpenApiSdkCoverage,
     enrichSdkSchemaMetadata,
@@ -36,12 +37,6 @@ export function generateDataOpenApiDocument() {
     });
     enrichSdkSchemaMetadata(document);
     document.components ??= {};
-    document.components.securitySchemes ??= {};
-    document.components.securitySchemes.DataAdminToken = {
-        type: "http",
-        scheme: "bearer",
-        description: "POMI Data administration service token"
-    };
     const tags = new Set<string>();
     const operationIds = new Map<string, string>();
     for (const [path, item] of Object.entries(document.paths)) {
@@ -72,7 +67,26 @@ export function generateDataOpenApiDocument() {
             }
             operationIds.set(operationId, `${method} ${path}`);
             operation.operationId = operationId;
-            operation.summary ??= operationId;
+            if (operationTags.length !== 1) {
+                throw new Error(
+                    `OpenAPI operation ${operationId} must have exactly one tag`
+                );
+            }
+            const tagMetadata = dataTagMetadata[operationTags[0]];
+            if (!tagMetadata) {
+                throw new Error(
+                    `Missing OpenAPI metadata for tag "${operationTags[0]}"`
+                );
+            }
+            const action = (
+                operation["x-pomi-sdk"] as { action?: string } | undefined
+            )?.action;
+            operation.summary =
+                action === "list"
+                    ? `Listar ${tagMetadata.plural}`
+                    : action === "get"
+                      ? `Consultar ${tagMetadata.singular}`
+                      : (operation.summary ?? operationId);
             if (operation.security !== undefined) {
                 const security = operation.security;
                 delete operation.security;
@@ -80,7 +94,26 @@ export function generateDataOpenApiDocument() {
             }
         }
     }
-    document.tags = [...tags].map((name) => ({ name }));
+    const unusedTags = Object.keys(dataTagMetadata).filter(
+        (name) => !tags.has(name)
+    );
+    if (unusedTags.length > 0) {
+        throw new Error(
+            `OpenAPI metadata references unused tags: ${unusedTags.join(", ")}`
+        );
+    }
+    document.tags = [...tags].map((name) => {
+        const metadata = dataTagMetadata[name];
+        return {
+            name,
+            "description": metadata.description,
+            "x-displayName": metadata.displayName
+        };
+    });
+    document["x-tagGroups"] = dataTagGroups.map((name) => ({
+        name,
+        tags: [...tags].filter((tag) => dataTagMetadata[tag].group === name)
+    }));
     document["x-pomi-filter-operators"] = {
         version: 1,
         operators: queryFilterOperatorMetadata

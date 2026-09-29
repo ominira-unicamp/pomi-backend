@@ -75,3 +75,44 @@ test("exposes links only in pagination envelopes", () => {
         "previous"
     ]);
 });
+
+test("documents and groups every operation tag", () => {
+    const document = generateDataOpenApiDocument();
+    const tags = document.tags ?? [];
+    const tagNames = new Set(tags.map(({ name }) => name));
+    const tagGroups = document["x-tagGroups"] as Array<{
+        name: string;
+        tags: string[];
+    }>;
+
+    assert.ok(tags.length > 0);
+    assert.ok(
+        tags.every(
+            (tag) =>
+                tag.description &&
+                typeof tag["x-displayName"] === "string" &&
+                tag["x-displayName"].length > 0
+        )
+    );
+    assert.deepEqual(
+        new Set(tagGroups.flatMap(({ tags: groupedTags }) => groupedTags)),
+        tagNames
+    );
+});
+
+test("uses Portuguese summaries and no unused administration scheme", () => {
+    const document = generateDataOpenApiDocument();
+    const listCourses = document.paths["/courses"]?.get;
+    const getCourse = document.paths["/courses/{id}"]?.get;
+    const listCatalogCourses = document.paths["/catalog-courses"]?.get;
+    const getCatalogCourse = document.paths["/catalog-courses/{id}"]?.get;
+
+    assert.equal(listCourses?.summary, "Listar disciplinas");
+    assert.equal(getCourse?.summary, "Consultar disciplina");
+    assert.equal(listCatalogCourses?.summary, "Listar disciplinas de catálogo");
+    assert.equal(getCatalogCourse?.summary, "Consultar disciplina de catálogo");
+    assert.equal(
+        document.components?.securitySchemes?.DataAdminToken,
+        undefined
+    );
+});

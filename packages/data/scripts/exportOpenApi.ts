@@ -1,15 +1,13 @@
-import { writeFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { resolveOpenApiOutput, writeOpenApiDocument } from "./openApiExport.js";
 
 process.env.DISABLED_AUTH ??= "true";
 process.env.NODE_ENV ??= "development";
 
 const { generateDataOpenApiDocument } = await import("../src/OpenApi.js");
-const output = fileURLToPath(
-    new URL("../../../../openapi.json", import.meta.url)
+const output = resolveOpenApiOutput(
+    process.argv.slice(2),
+    import.meta.url,
+    process.cwd()
 );
 
-await writeFile(
-    output,
-    `${JSON.stringify(generateDataOpenApiDocument(), null, 2)}\n`
-);
+await writeOpenApiDocument(output, generateDataOpenApiDocument());

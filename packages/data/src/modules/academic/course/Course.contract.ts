@@ -44,13 +44,35 @@ const courses = defineResource({
 
 const courseEntity = z
     .object({
-        id: z.number().int(),
-        code: z.string().min(1),
-        name: z.string().min(1),
-        credits: z.number().int().min(0),
-        prefix: z.string().min(1),
-        unitId: z.number().int().nullable(),
-        unitCode: z.string().min(1).nullable()
+        id: z.number().int().openapi({
+            description: "Identificador estável da disciplina no POMI.",
+            example: 732
+        }),
+        code: z.string().min(1).openapi({
+            description: "Código institucional da disciplina.",
+            example: "MC732"
+        }),
+        name: z.string().min(1).openapi({
+            description: "Nome normalizado da disciplina.",
+            example: "Programação Concorrente"
+        }),
+        credits: z.number().int().min(0).openapi({
+            description: "Quantidade de créditos acadêmicos.",
+            example: 4
+        }),
+        prefix: z.string().min(1).openapi({
+            description: "Prefixo alfabético extraído do código.",
+            example: "MC"
+        }),
+        unitId: z.number().int().nullable().openapi({
+            description:
+                "Identificador da unidade responsável, quando conhecida.",
+            example: 1
+        }),
+        unitCode: z.string().min(1).nullable().openapi({
+            description: "Sigla da unidade responsável, quando conhecida.",
+            example: "IC"
+        })
     })
     .strict()
     .openapi("CourseEntity", {
@@ -123,6 +145,9 @@ const listCourseQuery = createPaginationQuerySchema(coursePagination, {
 const get = courses.get({
     authorization: policies.public,
     operationId: "getCourses",
+    summary: "Consultar disciplina",
+    description:
+        "Retorna a identidade normalizada de uma disciplina pelo identificador POMI.",
     request: z.object({
         path: z.object({ id: pathParam.integer() }).strict()
     }),
@@ -135,6 +160,9 @@ const get = courses.get({
 const list = courses.list({
     authorization: policies.public,
     operationId: "listCourses",
+    summary: "Listar disciplinas",
+    description:
+        "Lista identidades normalizadas de disciplinas com filtros, ordenação e paginação.",
     item: courseEntity,
     pagination: coursePagination,
     request: z.object({ query: listCourseQuery }),
