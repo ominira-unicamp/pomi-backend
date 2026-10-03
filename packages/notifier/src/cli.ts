@@ -19,6 +19,7 @@ import { resolve } from "node:path";
 import pino from "pino";
 
 import { loadNotifierConfig } from "#/Config.js";
+import { MailService } from "#/email/MailService.js";
 import { ExchangeNoticeNotifier } from "#/modules/exchange/ExchangeNoticeNotifier.js";
 
 const controller = new AbortController();
@@ -70,7 +71,13 @@ async function main() {
     const config = loadNotifierConfig(process.env);
     const logger = pino({ level: config.logLevel, mixin: traceContext });
     const database = createDatabaseClient(config.databaseUrl, { max: 2 });
-    const notifier = new ExchangeNoticeNotifier(database, config, logger);
+    const mailService = new MailService(config);
+    const notifier = new ExchangeNoticeNotifier(
+        database,
+        config,
+        logger,
+        mailService
+    );
     let nextScheduledAt = nextCronOccurrence(config.cron);
     while (!controller.signal.aborted) {
         try {

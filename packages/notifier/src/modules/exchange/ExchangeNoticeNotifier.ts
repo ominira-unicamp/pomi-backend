@@ -4,36 +4,24 @@ import type { PrismaClient } from "@pomi/db";
 import { ExchangeNoticeDeliveryStatus } from "@pomi/db";
 import { SignJWT } from "jose";
 import { randomUUID } from "node:crypto";
-import nodemailer from "nodemailer";
 import type { Logger } from "pino";
+
+import { MailService } from "#/email/MailService.js";
+import {
+    exchangeNoticeDigestEmailTemplate,
+    type ExchangeNoticeDigest
+} from "#/modules/exchange/ExchangeNoticeDigestEmailTemplate.js";
 
 const LOCK_ID = 724_401_816;
 const PROCESSING_TIMEOUT_MS = 30 * 60 * 1000;
 
-type Notice = {
-    id: number;
-    number: string | null;
-    issuer: string | null;
-    title: string | null;
-    registrationEnd: Date | null;
-    place: { name: string } | null;
-};
-
 export class ExchangeNoticeNotifier {
-    private readonly transporter;
-
     constructor(
         private readonly prisma: PrismaClient,
         private readonly config: NotifierConfig,
-        private readonly logger: Logger
-    ) {
-        this.transporter = nodemailer.createTransport({
-            host: config.smtpHost,
-            port: config.smtpPort,
-            secure: config.smtpPort === 465,
-            auth: { user: config.smtpUser, pass: config.smtpPass }
-        });
-    }
+        private readonly logger: Logger,
+        private readonly mailService: MailService
+    ) {}
 
     async run(): Promise<void> {
         return withTrace("notifier.cycle", () => this.runCycle(), {
@@ -374,26 +362,24 @@ export class ExchangeNoticeNotifier {
         );
 
         try {
-            const message = await this.transporter.sendMail({
-                from: this.config.smtpFrom,
-                to: email,
-                subject: `${deliveries.length} ${deliveries.length === 1 ? "novo edital" : "novos editais"} de intercâmbio`,
-                text: await digestText(
-                    deliveries.map(({ notice }) => notice),
-                    await this.unsubscribeUrl(studentId),
-                    new URL(
-                        "/editais-de-intercambio",
-                        this.config.frontendUrl
-                    ).toString()
-                ),
-                headers: { Precedence: "bulk" }
-            });
+            const unsubscribeUrl = await this.unsubscribeUrl(studentId);
+            const preferencesUrl = new URL(
+                "/editais-de-intercambio",
+                this.config.frontendUrl
+            ).toString();
+            const message = await this.mailService.send(
+                email,
+                exchangeNoticeDigestEmailTemplate,
+                {
+                    notices: deliveries.map(
+                        ({ notice }): ExchangeNoticeDigest => notice
+                    ),
+                    unsubscribeUrl,
+                    preferencesUrl
+                }
+            );
             const accepted = message.accepted.some(
-                (address) =>
-                    (typeof address === "string"
-                        ? address
-                        : address.address
-                    ).toLowerCase() === email.toLowerCase()
+                (address) => address.toLowerCase() === email.toLowerCase()
             );
             if (!accepted) throw new Error(`SMTP did not accept ${email}`);
             await this.prisma.exchangeNoticeDelivery.updateMany({
@@ -478,37 +464,4 @@ export class ExchangeNoticeNotifier {
         url.searchParams.set("token", token);
         return url.toString();
     }
-}
-
-async function digestText(
-    notices: Notice[],
-    unsubscribeUrl: string,
-    preferencesUrl: string
-) {
-    return [
-        "Olá!",
-        "",
-        "Novos editais de acordo com suas preferências:",
-        "",
-        ...notices.map((notice) =>
-            [
-                notice.number ?? "Sem número",
-                notice.title ?? "Sem título",
-                notice.place?.name,
-                notice.registrationEnd &&
-                    `até ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(notice.registrationEnd)}`
-            ]
-                .filter(Boolean)
-                .join(" • ")
-        ),
-        "",
-        "---",
-        "Para gerenciar suas preferências:",
-        preferencesUrl,
-        "",
-        "Para cancelar estas notificações:",
-        unsubscribeUrl,
-        "",
-        "Mensagem gerada automaticamente pelo POMI."
-    ].join("\n");
 }
