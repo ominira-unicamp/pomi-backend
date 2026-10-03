@@ -15,12 +15,14 @@ import {
 } from "@pomi/db";
 import { Command } from "commander";
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import pino from "pino";
 import { loadInjectionConfig, type InjectionDefinition } from "./config.js";
 import { loadInjectionEnv } from "./env.js";
+import { createInjectionLogger } from "./logger.js";
 import { injectionNames } from "./registry.js";
 import {
     injectionRequestPartition,
@@ -28,6 +30,9 @@ import {
 } from "./request.js";
 import type { InjectionRunMode } from "./runner.js";
 import { runInjection } from "./runner.js";
+import { reconcileCatalogProgramVariants } from "./services/CatalogProgramVariantReconciliation.js";
+import { injectCatalogProgramsSnapshot } from "./services/CatalogProgramsSnapshotInjection.js";
+import { readSnapshotManifest, snapshotComponentPaths } from "./snapshots.js";
 import {
     advanceWorkflow,
     enqueueCatalogProgramWorkflows,
@@ -77,6 +82,108 @@ program.command("validate").action(async () => {
         `${config.injections.length} injection(s) e ${workflowNames.length} workflow(s) válido(s)\n`
     );
 });
+
+program
+    .command("reconcile-catalog-program-variants <manifest>")
+    .description(
+        "audita variantes contra um snapshot completo; use --apply para corrigir"
+    )
+    .option("--apply", "aplica as remoções seguras", false)
+    .action(async (manifestPath: string, options: { apply: boolean }) => {
+        loadInjectionEnv();
+        const manifest = await readSnapshotManifest(resolve(manifestPath), {
+            protocol: "pomi.catalog-programs.snapshot",
+            version: 1
+        });
+        const year = manifest.partition.year;
+        if (
+            manifest.status !== "COMPLETE" ||
+            manifest.profile !== "complete" ||
+            typeof year !== "number" ||
+            !Number.isInteger(year)
+        )
+            throw new Error("A reconciliação requer um snapshot completo");
+        const components = await snapshotComponentPaths(
+            resolve(manifestPath),
+            manifest
+        );
+        const curriculaPath = components.get("curricula");
+        const informationPath = components.get("information");
+        if (!curriculaPath || !informationPath)
+            throw new Error("Snapshot sem currículos ou informações");
+        const runId = randomUUID();
+        const database = createDatabaseClient(process.env.DATABASE_URL ?? "", {
+            max: 1
+        });
+        try {
+            await reconcileCatalogProgramVariants(
+                {
+                    prisma: database,
+                    inputPath: resolve(manifestPath),
+                    runId,
+                    auditContext: {
+                        source: "injection",
+                        runId,
+                        injectionName: "catalog-program-variant-reconciliation",
+                        mode: "inject",
+                        trigger: "MANUAL",
+                        requestedBy: process.env.POMI_JOB_REQUESTED_BY ?? "cli"
+                    },
+                    logger: createInjectionLogger(
+                        "catalog-program-variant-reconciliation",
+                        runId
+                    )
+                },
+                {
+                    year,
+                    curriculaPath,
+                    informationPath,
+                    dryRun: !options.apply
+                }
+            );
+        } finally {
+            await database.$disconnect();
+        }
+    });
+
+program
+    .command("apply-catalog-programs-snapshot <snapshot-directory>")
+    .description("persiste e publica um snapshot completo de programas")
+    .requiredOption("--apply", "confirma a alteração do banco")
+    .action(async (snapshotDirectory: string) => {
+        loadInjectionEnv();
+        const runId = randomUUID();
+        const database = createDatabaseClient(process.env.DATABASE_URL ?? "", {
+            max: 1
+        });
+        try {
+            await injectCatalogProgramsSnapshot(
+                {
+                    prisma: database,
+                    inputPath: resolve(snapshotDirectory),
+                    runId,
+                    auditContext: {
+                        source: "injection",
+                        runId,
+                        injectionName: "catalog-programs-snapshot",
+                        mode: "inject",
+                        trigger: "MANUAL",
+                        requestedBy: process.env.POMI_JOB_REQUESTED_BY ?? "cli"
+                    },
+                    logger: createInjectionLogger(
+                        "catalog-programs-snapshot",
+                        runId
+                    )
+                },
+                {
+                    transactionTimeout: 600_000,
+                    transactionMaxWait: 60_000
+                }
+            );
+        } finally {
+            await database.$disconnect();
+        }
+    });
 
 program
     .command("request <name> [mode]")

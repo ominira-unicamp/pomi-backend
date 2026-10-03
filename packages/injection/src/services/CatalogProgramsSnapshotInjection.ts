@@ -14,6 +14,10 @@ import {
     type CatalogInjectionOptions
 } from "./CatalogInjection.js";
 import {
+    expectedCatalogProgramVariants,
+    reconcileCatalogProgramVariants
+} from "./CatalogProgramVariantReconciliation.js";
+import {
     injectHistoricalPrograms,
     type HistoricalProgramsInjectionOptions
 } from "./HistoricalProgramsInjection.js";
@@ -32,7 +36,7 @@ export async function injectCatalogProgramsSnapshot(
         version: 1
     });
     const year = manifest.partition.year;
-    if (!Number.isInteger(year))
+    if (typeof year !== "number" || !Number.isInteger(year))
         throw new Error("Partição de catálogo inválida");
     const required =
         manifest.profile === "complete"
@@ -45,16 +49,29 @@ export async function injectCatalogProgramsSnapshot(
         context.inputPath,
         manifest
     );
+    const curriculaPath = componentPaths.get("curricula");
+    const informationPath = componentPaths.get("information");
+    const expectedVariants =
+        manifest.profile === "complete" && curriculaPath && informationPath
+            ? await expectedCatalogProgramVariants({
+                  year,
+                  curriculaPath,
+                  informationPath
+              })
+            : undefined;
     await beginSnapshotPersistence(context, manifest, {
         workflow: "catalog-programs",
         partitionKey: String(year)
     });
     try {
-        const curriculaPath = componentPaths.get("curricula");
         if (curriculaPath)
             await injectCatalogs(
                 { ...context, inputPath: curriculaPath },
-                options as CatalogInjectionOptions
+                {
+                    ...(options as CatalogInjectionOptions),
+                    updateProgramMetadata: year >= new Date().getFullYear(),
+                    requireAllCourses: manifest.profile === "complete"
+                }
             );
         const programsPath = componentPaths.get("programs");
         if (!programsPath) throw new Error("Componente programs ausente");
@@ -62,7 +79,6 @@ export async function injectCatalogProgramsSnapshot(
             { ...context, inputPath: programsPath },
             options as HistoricalProgramsInjectionOptions
         );
-        const informationPath = componentPaths.get("information");
         if (informationPath)
             await injectCatalogInformation(
                 { ...context, inputPath: informationPath },
@@ -74,6 +90,13 @@ export async function injectCatalogProgramsSnapshot(
                 { ...context, inputPath: suggestionsPath },
                 options as SuggestionsInjectionOptions
             );
+        if (manifest.profile === "complete" && curriculaPath && informationPath)
+            await reconcileCatalogProgramVariants(context, {
+                year,
+                curriculaPath,
+                informationPath,
+                expectedVariants
+            });
     } catch (error) {
         await failSnapshotPersistence(context, manifest.snapshotId);
         throw error;

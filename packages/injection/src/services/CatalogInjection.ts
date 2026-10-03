@@ -16,6 +16,8 @@ import { unwrapScrapeData } from "./scrape-input.js";
 export type CatalogInjectionOptions = {
     transactionTimeout?: number;
     transactionMaxWait?: number;
+    updateProgramMetadata?: boolean;
+    requireAllCourses?: boolean;
 };
 
 type CatalogSource = {
@@ -357,12 +359,7 @@ async function importCatalog(
     prisma: PrismaClient,
     source: CatalogSource,
     courseIds: Map<string, number>,
-    options: Required<
-        Pick<
-            CatalogInjectionOptions,
-            "transactionTimeout" | "transactionMaxWait"
-        >
-    >,
+    options: Required<CatalogInjectionOptions>,
     auditContext: InjectionAuditContext,
     logger: InjectionContext["logger"],
     changes: Parameters<InjectionContext["logger"]["change"]>[0][]
@@ -434,7 +431,9 @@ async function importCatalog(
                         name: program.name,
                         unitId: unit.id
                     },
-                    update: { name: program.name, unitId: unit.id }
+                    update: options.updateProgramMetadata
+                        ? { name: program.name, unitId: unit.id }
+                        : {}
                 });
                 if (!existingProgram)
                     changes.push({
@@ -448,7 +447,7 @@ async function importCatalog(
                             unitId: unit.id
                         }
                     });
-                else {
+                else if (options.updateProgramMetadata) {
                     const changedFields = [
                         ...(existingProgram.name !== program.name
                             ? ["name"]
@@ -587,6 +586,10 @@ async function importCatalog(
                 }
                 programsLinked += 1;
             }
+            if (options.requireAllCourses && missingRequirements.size > 0)
+                throw new Error(
+                    `Catálogo ${source.year}: ${missingRequirements.size} requisitos sem disciplina persistida`
+                );
             return {
                 catalogId: catalog.id,
                 programsLinked,
@@ -615,7 +618,9 @@ export async function injectCatalogs(
     { prisma, inputPath, logger, auditContext }: InjectionContext,
     {
         transactionTimeout = 600_000,
-        transactionMaxWait = 60_000
+        transactionMaxWait = 60_000,
+        updateProgramMetadata = true,
+        requireAllCourses = false
     }: CatalogInjectionOptions = {}
 ) {
     if (!Number.isInteger(transactionTimeout) || transactionTimeout < 1)
@@ -644,7 +649,9 @@ export async function injectCatalogs(
             courseIds,
             {
                 transactionTimeout,
-                transactionMaxWait
+                transactionMaxWait,
+                updateProgramMetadata,
+                requireAllCourses
             },
             auditContext,
             logger,
