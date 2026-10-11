@@ -30,8 +30,9 @@ import {
 } from "./request.js";
 import type { InjectionRunMode } from "./runner.js";
 import { runInjection } from "./runner.js";
-import { reconcileCatalogProgramVariants } from "./services/CatalogProgramVariantReconciliation.js";
+import { injectCatalogDisciplinesSnapshot } from "./services/CatalogDisciplinesSnapshotInjection.js";
 import { injectCatalogProgramsSnapshot } from "./services/CatalogProgramsSnapshotInjection.js";
+import { reconcileCatalogProgramVariants } from "./services/CatalogProgramVariantReconciliation.js";
 import { readSnapshotManifest, snapshotComponentPaths } from "./snapshots.js";
 import {
     advanceWorkflow,
@@ -178,6 +179,48 @@ program
                 {
                     transactionTimeout: 600_000,
                     transactionMaxWait: 60_000
+                }
+            );
+        } finally {
+            await database.$disconnect();
+        }
+    });
+
+program
+    .command("apply-catalog-disciplines-snapshot <snapshot-directory>")
+    .description(
+        "audita um snapshot completo de disciplinas; use --apply para persistir"
+    )
+    .option("--apply", "persiste e publica o snapshot", false)
+    .action(async (snapshotDirectory: string, options: { apply: boolean }) => {
+        loadInjectionEnv();
+        const runId = randomUUID();
+        const database = createDatabaseClient(process.env.DATABASE_URL ?? "", {
+            max: 1
+        });
+        try {
+            await injectCatalogDisciplinesSnapshot(
+                {
+                    prisma: database,
+                    inputPath: resolve(snapshotDirectory),
+                    runId,
+                    auditContext: {
+                        source: "injection",
+                        runId,
+                        injectionName: "catalog-disciplines-snapshot",
+                        mode: "inject",
+                        trigger: "MANUAL",
+                        requestedBy: process.env.POMI_JOB_REQUESTED_BY ?? "cli"
+                    },
+                    logger: createInjectionLogger(
+                        "catalog-disciplines-snapshot",
+                        runId
+                    )
+                },
+                {
+                    transactionTimeout: 1_800_000,
+                    transactionMaxWait: 60_000,
+                    dryRun: !options.apply
                 }
             );
         } finally {

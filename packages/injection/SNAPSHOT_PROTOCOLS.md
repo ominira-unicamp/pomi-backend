@@ -79,3 +79,14 @@ oferecimento são `ODD_PERIODS`, `EVEN_PERIODS`, `ALL_PERIODS` e
 `ATTENDANCE` e `CONCEPT`.
 
 A injection aceita somente a versão 2. Producers devem emitir a versão 2.
+Antes da persistência, o consumer exige um único catálogo, igualdade exata dos
+códigos e das contagens entre os componentes e créditos válidos. A carga é
+autoritativa para o ano: remove `CatalogCourse` ausente do snapshot, preserva o
+`Course` global, não altera créditos já existentes e mantém no `Course.name` o
+nome proveniente do catálogo mais recente.
+
+O backfill de 1998 a 2020 é manual. Cada diretório deve ser auditado antes da
+aplicação com `apply-catalog-disciplines-snapshot <diretório>`; a persistência
+exige repetir o comando com `--apply`. O modo de auditoria executa as mesmas
+validações e alterações dentro de uma transação revertida, sem criar ou
+publicar `DataSnapshot`.
