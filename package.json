@@ -16,6 +16,7 @@
         "test": "npm run test --workspaces --if-present",
         "lint": "eslint packages/api-core/src packages/api-core/test packages/app/src packages/app/test packages/data/src packages/data/test packages/injection/src packages/injection/test packages/notifier/src packages/notifier/test packages/db/src packages/db/test --ext .ts,.tsx && prettier --check \"packages/{api-core,app,data,injection,notifier}/{src,test,tests}/**/*.{ts,tsx}\" \"packages/db/{src,test}/**/*.{ts,tsx}\" \"packages/*/{package.json,tsconfig.json,tsconfig.test.json}\"",
         "injection:list": "npm run pomi-injection --workspace @pomi/injection -- list",
+        "data:integrity": "npm run integrity --workspace @pomi/data --",
         "injection:validate": "npm run pomi-injection --workspace @pomi/injection -- validate",
         "injection:run": "npm run pomi-injection --workspace @pomi/injection -- run",
         "injection:watch": "npm run pomi-injection --workspace @pomi/injection -- watch",

@@ -146,6 +146,19 @@ o nível pode ser ajustado com `LOG_LEVEL`. O envio opcional para OpenObserve us
 alterado com `OPENOBSERVE_STREAM`. Sem `OPENOBSERVE_URL`, nenhum envio remoto
 é realizado.
 
+### Auditoria de integridade dos dados institucionais
+
+Com `DATABASE_URL` configurada, execute `npm run data:integrity` para
+conferir invariantes dos dados institucionais mantidos pela POMI Data API nos
+schemas `data` e `unicamp_data_portal`: catálogo, períodos e turmas, horários,
+perfis de docentes, cardápios, editais, calendário e eventos de auditoria.
+Use `-- --json` para saída estruturada e `-- --sample-limit=10` para limitar
+as chaves exibidas por regra. O comando apenas lê o banco: retorna `0` sem
+ocorrências, `1` quando encontra ocorrências e `2` quando a auditoria falha.
+Ele verifica invariantes locais e relações semânticas; a existência de todos
+os registros esperados depende de comparação com os snapshots de origem.
+Registros pessoais e operacionais da POMI App não fazem parte desta auditoria.
+
 ### Logs e telemetria das APIs
 
 As APIs POMI Data e POMI App emitem logs JSON no stdout para cada requisição,
