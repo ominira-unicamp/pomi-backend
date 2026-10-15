@@ -5,6 +5,7 @@ import { AuthRegistry } from "#/auth.js";
 import academic from "#/modules/academic/index.js";
 import exchange from "#/modules/exchange/index.js";
 import feedback from "#/modules/feedback/index.js";
+import group from "#/modules/group-module.js";
 import identity from "#/modules/identity/index.js";
 import type { ControllerDefinition } from "#/modules/Module.js";
 import planning from "#/modules/planning/index.js";
@@ -18,6 +19,7 @@ const modules = [
     planning,
     social,
     feedback,
+    group,
     exchange,
     tagging,
     studentTagInterest

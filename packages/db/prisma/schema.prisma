@@ -173,6 +173,55 @@ enum StudentCapability {
   @@schema("app")
 }
 
+enum GroupStatus {
+  ACTIVE
+  ARCHIVED
+
+  @@schema("app")
+}
+
+enum GroupInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+
+  @@schema("app")
+}
+
+enum GroupEventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+
+  @@schema("app")
+}
+
+enum GroupPermission {
+  GROUP_EDIT
+  GROUP_TAG_MANAGE
+  MEMBER_MANAGE
+  ROLE_MANAGE
+  EVENT_CREATE
+  EVENT_EDIT
+  EVENT_PUBLISH
+
+  @@schema("app")
+}
+
+enum GroupActiveKey {
+  ACTIVE
+
+  @@schema("app")
+}
+
+enum GroupPendingKey {
+  PENDING
+
+  @@schema("app")
+}
+
 enum StudentFriendshipStatus {
   PENDING
   ACCEPTED
@@ -464,6 +513,8 @@ model Tag {
 
   courseTags       CourseTag[]
   studentInterests StudentTagInterest[]
+  groupTags        GroupTag[]
+  groupEventTags   GroupEventTag[]
 
   @@unique([categoryId, name])
   @@index([parentTagId])
@@ -1230,6 +1281,9 @@ model Student {
   exchangeNoticeSubscription ExchangeNoticeSubscription?
   exchangeNoticeDeliveries   ExchangeNoticeDelivery[]
   tagInterests               StudentTagInterest[]
+  groupMemberships           GroupMembership[]
+  groupInvitationsReceived   GroupInvitation[] @relation("GroupInvitationRecipient")
+  groupInvitationsSent       GroupInvitation[] @relation("GroupInvitationInviter")
 
   @@schema("app")
 }
@@ -1537,4 +1591,189 @@ model CalendarTag {
   events CalendarEvent[]
 
   @@schema("data")
+}
+
+model Group {
+  id          Int         @id @default(autoincrement())
+  name        String      @db.VarChar(160)
+  description String?     @db.Text
+  status      GroupStatus @default(ACTIVE)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  contacts    GroupContact[]
+  links       GroupLink[]
+  tags        GroupTag[]
+  memberships GroupMembership[]
+  invitations GroupInvitation[]
+  roles       GroupRole[]
+  events      GroupEvent[]
+
+  @@index([status, name])
+  @@schema("app")
+}
+
+model GroupContact {
+  id        Int    @id @default(autoincrement())
+  groupId   Int
+  type      String @db.VarChar(40)
+  label     String? @db.VarChar(80)
+  value     String @db.VarChar(320)
+  sortOrder Int    @default(0)
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, sortOrder])
+  @@schema("app")
+}
+
+model GroupLink {
+  id        Int    @id @default(autoincrement())
+  groupId   Int
+  label     String @db.VarChar(80)
+  url       String @db.VarChar(2048)
+  sortOrder Int    @default(0)
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, sortOrder])
+  @@schema("app")
+}
+
+model GroupTag {
+  groupId Int
+  tagId   Int
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([groupId, tagId])
+  @@index([tagId])
+  @@schema("app")
+}
+
+model GroupInvitation {
+  id                 Int                   @id @default(autoincrement())
+  groupId            Int
+  recipientStudentId Int
+  inviterStudentId   Int
+  status             GroupInvitationStatus @default(PENDING)
+  pendingKey         GroupPendingKey?       @default(PENDING)
+  expiresAt          DateTime
+  respondedAt        DateTime?
+  createdAt          DateTime              @default(now())
+
+  group     Group   @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  recipient Student @relation("GroupInvitationRecipient", fields: [recipientStudentId], references: [id], onDelete: Restrict)
+  inviter   Student @relation("GroupInvitationInviter", fields: [inviterStudentId], references: [id], onDelete: Restrict)
+
+  @@index([recipientStudentId, status, expiresAt])
+  @@index([groupId, status])
+  @@unique([groupId, recipientStudentId, pendingKey])
+  @@schema("app")
+}
+
+model GroupMembership {
+  id         Int      @id @default(autoincrement())
+  groupId    Int
+  studentId  Int
+  joinedAt   DateTime @default(now())
+  leftAt     DateTime?
+  activeKey  GroupActiveKey? @default(ACTIVE)
+  isPublic   Boolean  @default(false)
+
+  group     Group                 @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  student   Student               @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  positions GroupPosition[]
+  roles     GroupMembershipRole[]
+
+  @@unique([groupId, studentId, activeKey])
+  @@unique([id, groupId])
+  @@index([studentId, leftAt])
+  @@index([groupId, isPublic, leftAt])
+  @@schema("app")
+}
+
+model GroupPosition {
+  id           Int       @id @default(autoincrement())
+  membershipId Int
+  title        String    @db.VarChar(120)
+  startedAt    DateTime?
+  endedAt      DateTime?
+  sortOrder    Int       @default(0)
+
+  membership GroupMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([membershipId, sortOrder])
+  @@schema("app")
+}
+
+model GroupRole {
+  id      Int    @id @default(autoincrement())
+  groupId Int
+  name    String @db.VarChar(80)
+
+  group       Group                     @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  permissions GroupRolePermission[]
+  members     GroupMembershipRole[]
+
+  @@unique([groupId, name])
+  @@unique([id, groupId])
+  @@schema("app")
+}
+
+model GroupRolePermission {
+  roleId     Int
+  permission GroupPermission
+
+  role GroupRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permission])
+  @@schema("app")
+}
+
+model GroupMembershipRole {
+  groupId      Int
+  membershipId Int
+  roleId       Int
+  assignedAt   DateTime @default(now())
+
+  membership GroupMembership @relation(fields: [membershipId, groupId], references: [id, groupId], onDelete: Cascade)
+  role       GroupRole       @relation(fields: [roleId, groupId], references: [id, groupId], onDelete: Cascade)
+
+  @@id([membershipId, roleId])
+  @@index([roleId, groupId])
+  @@schema("app")
+}
+
+model GroupEvent {
+  id          Int              @id @default(autoincrement())
+  groupId     Int
+  name        String           @db.VarChar(160)
+  description String           @db.Text
+  status      GroupEventStatus @default(DRAFT)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  location    String?          @db.VarChar(320)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  group Group           @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  tags  GroupEventTag[]
+
+  @@index([groupId, status, startsAt])
+  @@index([status, startsAt])
+  @@schema("app")
+}
+
+model GroupEventTag {
+  eventId Int
+  tagId   Int
+
+  event GroupEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tag   Tag        @relation(fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([eventId, tagId])
+  @@index([tagId])
+  @@schema("app")
 }

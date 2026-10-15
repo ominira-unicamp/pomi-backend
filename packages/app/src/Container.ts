@@ -22,6 +22,14 @@ import {
     type FeedbackReportService
 } from "#/modules/feedback/feedback-report/FeedbackReport.service.js";
 import {
+    createGroupService,
+    type GroupService
+} from "#/modules/group/Group.service.js";
+import {
+    createGroupCommunityService,
+    type GroupCommunityService
+} from "#/modules/group/GroupCommunity.service.js";
+import {
     createAuthUserService,
     type AuthUserService
 } from "#/modules/identity/auth-user/AuthUser.service.js";
@@ -98,6 +106,8 @@ export type AppCradle = {
     professorEvaluationService: ProfessorEvaluationService;
     studentSocialService: StudentSocialService;
     feedbackReportService: FeedbackReportService;
+    groupService: GroupService;
+    groupCommunityService: GroupCommunityService;
     feedbackRateLimiter: FeedbackRateLimiter;
     exchangeNoticeSubscriptionService: ExchangeNoticeSubscriptionService;
     exchangeNoticeUnsubscribeService: ExchangeNoticeUnsubscribeService;
@@ -143,6 +153,8 @@ export function createAppContainer(config: AppConfig, prisma: DatabaseClient) {
             )
         ),
         feedbackReportService: asFunction(createFeedbackReportService).scoped(),
+        groupService: asFunction(createGroupService).scoped(),
+        groupCommunityService: asFunction(createGroupCommunityService).scoped(),
         exchangeNoticeSubscriptionService: asFunction(
             createExchangeNoticeSubscriptionService
         ).scoped(),

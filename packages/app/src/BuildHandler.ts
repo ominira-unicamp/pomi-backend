@@ -4,6 +4,8 @@ import type { EvaluationSummaryService } from "#/modules/academic/evaluation-sum
 import type { ExchangeNoticeSubscriptionService } from "#/modules/exchange/exchange-notice-subscription/ExchangeNoticeSubscription.service.js";
 import type { ExchangeNoticeUnsubscribeService } from "#/modules/exchange/exchange-notice-unsubscribe/ExchangeNoticeUnsubscribe.service.js";
 import type { FeedbackReportService } from "#/modules/feedback/feedback-report/FeedbackReport.service.js";
+import type { GroupService } from "#/modules/group/Group.service.js";
+import type { GroupCommunityService } from "#/modules/group/GroupCommunity.service.js";
 import type { AuthUserService } from "#/modules/identity/auth-user/AuthUser.service.js";
 import type { BotGrantService } from "#/modules/identity/bot-grant/BotGrant.service.js";
 import type { CurrentUserService } from "#/modules/identity/current-user/CurrentUser.service.js";
@@ -40,6 +42,8 @@ export type Context = {
     professorEvaluationService: ProfessorEvaluationService;
     studentSocialService: StudentSocialService;
     feedbackReportService: FeedbackReportService;
+    groupService: GroupService;
+    groupCommunityService: GroupCommunityService;
     exchangeNoticeSubscriptionService: ExchangeNoticeSubscriptionService;
     exchangeNoticeUnsubscribeService: ExchangeNoticeUnsubscribeService;
     taggingService: TaggingService;
@@ -78,6 +82,8 @@ export function createAppEndpointRegistries<
                 request.scope.cradle.professorEvaluationService,
             studentSocialService: request.scope.cradle.studentSocialService,
             feedbackReportService: request.scope.cradle.feedbackReportService,
+            groupService: request.scope.cradle.groupService,
+            groupCommunityService: request.scope.cradle.groupCommunityService,
             exchangeNoticeSubscriptionService:
                 request.scope.cradle.exchangeNoticeSubscriptionService,
             exchangeNoticeUnsubscribeService:

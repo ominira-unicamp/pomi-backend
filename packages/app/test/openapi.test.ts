@@ -129,3 +129,74 @@ test("exposes links only in pagination envelopes", () => {
         );
     }
 });
+
+test("groups keep public reads separate from student-scoped management", () => {
+    const document = generateAppOpenApiDocument();
+    const group = document.components?.schemas?.Group as {
+        properties?: Record<string, unknown>;
+    };
+    const publicMember = document.components?.schemas
+        ?.PublicGroupMembership as { properties?: Record<string, unknown> };
+    const ownMember = document.components?.schemas?.OwnGroupMembership as {
+        properties?: Record<string, unknown>;
+    };
+    const managedInvitation = document.components?.schemas
+        ?.ManagedGroupInvitation as { properties?: Record<string, unknown> };
+
+    assert.ok(group.properties?.contacts);
+    assert.ok(group.properties?.externalLinks);
+    assert.ok(group.properties?.tags);
+    assert.equal(publicMember.properties?.studentId, undefined);
+    assert.equal(publicMember.properties?.roles, undefined);
+    assert.equal(publicMember.properties?.permissions, undefined);
+    assert.ok(publicMember.properties?.profilePublicId);
+    assert.ok(ownMember.properties?.permissions);
+    assert.ok(managedInvitation.properties?.recipientName);
+    assert.ok(managedInvitation.properties?.recipientPublicId);
+    assert.ok(document.paths["/groups"]?.get);
+    assert.ok(document.paths["/student/{sid}/groups"]?.post);
+    assert.ok(document.paths["/student/{sid}/groups/{id}"]?.patch);
+    assert.ok(document.paths["/student/{sid}/group-memberships"]?.get);
+    assert.ok(document.paths["/student/{sid}/managed-group-invitations"]?.get);
+    assert.ok(document.paths["/group-events"]?.get);
+    const memberships = document.paths["/group-memberships"]?.get;
+    assert.ok(memberships);
+    const filter = memberships.parameters?.find(
+        (parameter) =>
+            "name" in parameter &&
+            parameter.name === "filter" &&
+            parameter.in === "query"
+    );
+    assert.ok(filter && !("$ref" in filter));
+    const filterMetadata = (filter as unknown as Record<string, unknown>)[
+        "x-pomi-filters"
+    ] as { fields: Array<{ path: string[] }> };
+    assert.ok(
+        filterMetadata.fields.some((field) => field.path.includes("publicId"))
+    );
+    assert.equal(document.paths["/groups/{id}/members"], undefined);
+});
+
+test("group authorization scope comes from path and query", () => {
+    const document = generateAppOpenApiDocument();
+    const operations = [
+        ["/student/{sid}/group-invitations", "post"],
+        ["/student/{sid}/group-roles", "post"],
+        ["/student/{sid}/group-events", "post"]
+    ] as const;
+
+    for (const [path, method] of operations) {
+        const operation = document.paths[path]?.[method];
+        assert.ok(operation, `${method.toUpperCase()} ${path}`);
+        assert.ok(
+            operation.parameters?.some(
+                (parameter) =>
+                    "name" in parameter &&
+                    parameter.name === "groupId" &&
+                    parameter.in === "query" &&
+                    parameter.required
+            ),
+            `${method.toUpperCase()} ${path} requires query groupId`
+        );
+    }
+});
