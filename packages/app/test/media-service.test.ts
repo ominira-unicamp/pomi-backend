@@ -1,338 +1,432 @@
-import type { Principal } from "#/auth.js";
-import { createMediaService, type MediaTarget } from "#/media/MediaService.js";
-import type { UploadedImage } from "#/media/PictRsClient.js";
-import { ConflictError, ForbiddenError, NotFoundError } from "@pomi/api-core";
-import type { PrismaClient } from "@pomi/db";
+import { createAppImageResourceRegistry } from "#/MediaResources.js";
+import { ImageResourceRegistry } from "#/media/ImageResourceRegistry.js";
+import { createMediaService } from "#/media/MediaService.js";
+import {
+    MediaUploadLimiter,
+    MediaUploadRateLimitError
+} from "#/media/MediaUploadLimiter.js";
+import { defineImageResource, imageProfiles } from "#/media/public.js";
+import {
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    ServiceUnavailableError
+} from "@pomi/api-core";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mediaFixture, principal, upload, uploaded } from "./fixtures/media.js";
 
-const principal: Principal = {
-    authUserId: 9,
-    issuer: "test",
-    subject: "student",
-    email: null,
-    roles: new Set(["STUDENT"]),
-    capabilities: new Set(),
-    studentId: 42
-};
-
-const uploaded: UploadedImage = {
-    alias: "new.webp",
-    width: 300,
-    height: 300,
-    contentType: "image/webp"
-};
-
-function fixture() {
-    let state = {
-        userStatus: "ACTIVE",
-        userStudentId: 42,
-        canEditGroup: true,
-        groupStatus: "ACTIVE",
-        student: {
-            avatarMediaId: "old-id" as string | null,
-            avatarRevision: 3
-        },
-        group: {
-            avatarMediaId: "old-group-id" as string | null,
-            avatarRevision: 7
-        },
-        assets: {
-            "old-id": { status: "ACTIVE", nextDeleteAt: null as Date | null },
-            "old-group-id": {
-                status: "ACTIVE",
-                nextDeleteAt: null as Date | null
-            }
-        } as Record<string, { status: string; nextDeleteAt: Date | null }>,
-        created: 0
-    };
-    const database = {
-        authUser: {
-            findUnique: async () => ({
-                status: state.userStatus,
-                studentId: state.userStudentId,
-                roles: [{ role: "STUDENT" }]
-            })
-        },
-        botGrant: { findFirst: async () => null },
-        groupMembershipRole: {
-            findFirst: async () => (state.canEditGroup ? { roleId: 1 } : null)
-        },
-        student: {
-            findUnique: async () => ({ ...state.student }),
-            updateMany: async ({
-                where,
-                data
-            }: {
-                where: { avatarRevision: number; avatarMediaId: string | null };
-                data: { avatarMediaId: string | null };
-            }) => {
-                if (
-                    where.avatarRevision !== state.student.avatarRevision ||
-                    where.avatarMediaId !== state.student.avatarMediaId
-                ) {
-                    return { count: 0 };
-                }
-                state.student.avatarMediaId = data.avatarMediaId;
-                state.student.avatarRevision += 1;
-                return { count: 1 };
-            }
-        },
-        group: {
-            findFirst: async () =>
-                state.groupStatus === "ACTIVE" ? { ...state.group } : null,
-            updateMany: async ({
-                where,
-                data
-            }: {
-                where: {
-                    avatarRevision: number;
-                    avatarMediaId: string | null;
-                };
-                data: { avatarMediaId: string | null };
-            }) => {
-                if (state.groupStatus !== "ACTIVE") return { count: 0 };
-                if (
-                    where.avatarRevision !== state.group.avatarRevision ||
-                    where.avatarMediaId !== state.group.avatarMediaId
-                )
-                    return { count: 0 };
-                state.group.avatarMediaId = data.avatarMediaId;
-                state.group.avatarRevision += 1;
-                return { count: 1 };
-            }
-        },
-        mediaAsset: {
-            create: async () => {
-                state.created += 1;
-                return { id: `created-${state.created}` };
-            },
-            updateMany: async ({
-                where,
-                data
-            }: {
-                where: { id: string; status: string };
-                data: { status: string; nextDeleteAt: Date };
-            }) => {
-                const asset = state.assets[where.id];
-                if (!asset || asset.status !== where.status)
-                    return { count: 0 };
-                asset.status = data.status;
-                asset.nextDeleteAt = data.nextDeleteAt;
-                return { count: 1 };
-            }
-        },
-        $transaction: async (work: (db: unknown) => Promise<unknown>) => {
-            const before = structuredClone(state);
-            try {
-                return await work(database);
-            } catch (error) {
-                state = before;
-                throw error;
-            }
-        }
-    } as unknown as PrismaClient;
-    return {
-        service: createMediaService({ prisma: database }),
-        state: () => state,
-        disableUser: () => (state.userStatus = "DISABLED"),
-        revokeGroupEdit: () => (state.canEditGroup = false),
-        archiveGroup: () => (state.groupStatus = "ARCHIVED")
-    };
-}
+const target = { studentId: 42 };
+const groupTarget = { groupId: 7, studentId: 42 };
 
 test("replacement advances the slot revision and queues only the prior alias", async () => {
-    const { service, state } = fixture();
-    const target: MediaTarget = { kind: "student-avatar", studentId: 42 };
-    const snapshot = await service.prepare(principal, target);
-
-    assert.deepEqual(snapshot, { target, mediaId: "old-id", revision: 3 });
-    assert.deepEqual(await service.activate(principal, snapshot, uploaded), {
-        mediaId: "created-1",
-        revision: 4
-    });
-    assert.deepEqual(state().student, {
-        avatarMediaId: "created-1",
-        avatarRevision: 4
-    });
-    assert.equal(state().assets["old-id"]?.status, "PENDING_DELETE");
-    assert.ok(state().assets["old-id"]?.nextDeleteAt instanceof Date);
+    const fixture = mediaFixture();
+    assert.deepEqual(
+        await fixture.studentAvatars.replace({
+            actor: principal,
+            target,
+            upload: upload()
+        }),
+        { mediaId: "created-1", revision: 4 }
+    );
+    assert.equal(fixture.state().student.avatarMediaId, "created-1");
+    assert.equal(fixture.state().assets["old-id"].status, "PENDING_DELETE");
+    assert.ok(fixture.state().assets["old-id"].nextDeleteAt instanceof Date);
+    assert.equal(fixture.state().assets["old-group-id"].status, "ACTIVE");
 });
 
-test("records a failed activation for cleanup without marking an active alias for deletion", async () => {
-    const created: unknown[] = [];
-    let existing: { id: string } | null = { id: "already-linked" };
-    const database = {
-        mediaAsset: {
-            findUnique: async () => existing,
-            create: async (input: unknown) => {
-                created.push(input);
-            }
+test("failed activation is compensated without retiring a linked alias", async () => {
+    const fixture: ReturnType<typeof mediaFixture> = mediaFixture({
+        upload: async () => {
+            fixture.state().userStatus = "DISABLED";
+            return { ...uploaded, alias: "old.webp" };
         }
-    } as unknown as PrismaClient;
-    const service = createMediaService({ prisma: database });
-
-    await service.recordUnlinked(uploaded);
-    assert.equal(created.length, 0);
-    existing = null;
-    await service.recordUnlinked(uploaded);
-    const data = (created[0] as { data: Record<string, unknown> }).data;
-    assert.equal(data.alias, "new.webp");
-    assert.equal(data.status, "PENDING_DELETE");
-    assert.ok(data.nextDeleteAt instanceof Date);
+    });
+    await assert.rejects(
+        fixture.studentAvatars.replace({
+            actor: principal,
+            target,
+            upload: upload()
+        }),
+        ForbiddenError
+    );
+    assert.equal(fixture.state().assets["old-id"].status, "ACTIVE");
+    assert.equal(fixture.state().created, 0);
 });
 
-test("a stale upload cannot replace a newer image", async () => {
-    const { service, state } = fixture();
-    const target: MediaTarget = { kind: "student-avatar", studentId: 42 };
-    const first = await service.prepare(principal, target);
-    const second = await service.prepare(principal, target);
-    await service.activate(principal, first, uploaded);
-
+test("a stale upload cannot replace a newer image and is recorded for cleanup", async () => {
+    const fixture: ReturnType<typeof mediaFixture> = mediaFixture({
+        upload: async () => {
+            fixture.state().student.avatarMediaId = "newer-id";
+            fixture.state().student.avatarRevision += 1;
+            return uploaded;
+        }
+    });
     await assert.rejects(
-        service.activate(principal, second, {
-            ...uploaded,
-            alias: "other.webp"
+        fixture.studentAvatars.replace({
+            actor: principal,
+            target,
+            upload: upload()
         }),
         ConflictError
     );
-    assert.equal(state().student.avatarMediaId, "created-1");
-    assert.equal(state().created, 1);
+    assert.equal(fixture.state().student.avatarMediaId, "newer-id");
+    assert.equal(fixture.state().assets["created-1"].status, "PENDING_DELETE");
+    assert.equal(fixture.state().assets["old-id"].status, "ACTIVE");
 });
 
 test("revoked permission during upload leaves the active image intact", async () => {
-    const { service, state, disableUser } = fixture();
-    const snapshot = await service.prepare(principal, {
-        kind: "student-avatar",
-        studentId: 42
+    const fixture: ReturnType<typeof mediaFixture> = mediaFixture({
+        upload: async () => {
+            fixture.state().userStatus = "DISABLED";
+            return uploaded;
+        }
     });
-    disableUser();
-
     await assert.rejects(
-        service.activate(principal, snapshot, uploaded),
+        fixture.studentAvatars.replace({
+            actor: principal,
+            target,
+            upload: upload()
+        }),
         ForbiddenError
     );
-    assert.equal(state().student.avatarMediaId, "old-id");
-    assert.equal(state().assets["old-id"]?.status, "ACTIVE");
-    assert.equal(state().created, 0);
+    assert.equal(fixture.state().student.avatarMediaId, "old-id");
+    assert.equal(fixture.state().assets["old-id"].status, "ACTIVE");
+    assert.equal(fixture.state().assets["created-1"].status, "PENDING_DELETE");
 });
 
 test("group editing is rechecked and archived groups cannot activate images", async () => {
-    const { service, revokeGroupEdit, state } = fixture();
-    const target: MediaTarget = {
-        kind: "group-avatar",
-        groupId: 7,
-        studentId: 42
-    };
-    const snapshot = await service.prepare(principal, target);
-    revokeGroupEdit();
-    await assert.rejects(
-        service.activate(principal, snapshot, uploaded),
-        ForbiddenError
-    );
-    assert.equal(state().group.avatarMediaId, "old-group-id");
-
-    const second = fixture();
-    const fresh = await second.service.prepare(principal, target);
-    second.archiveGroup();
-    await assert.rejects(
-        second.service.activate(principal, fresh, uploaded),
-        NotFoundError
-    );
+    for (const archived of [false, true]) {
+        const fixture: ReturnType<typeof mediaFixture> = mediaFixture({
+            upload: async () => {
+                if (archived) fixture.state().groupStatus = "ARCHIVED";
+                else fixture.state().canEditGroup = false;
+                return uploaded;
+            }
+        });
+        await assert.rejects(
+            fixture.groupAvatars.replace({
+                actor: principal,
+                target: groupTarget,
+                upload: upload()
+            }),
+            archived ? NotFoundError : ForbiddenError
+        );
+        assert.equal(fixture.state().group.avatarMediaId, "old-group-id");
+    }
 });
 
-test("removal detaches before scheduling physical deletion", async () => {
-    const { service, state } = fixture();
-    const snapshot = await service.prepare(principal, {
-        kind: "student-avatar",
-        studentId: 42
+test("removal detaches before scheduling physical deletion and does not require storage", async () => {
+    const fixture = mediaFixture();
+    const service = createMediaService({
+        prisma: fixture.database,
+        imageResourceRegistry: fixture.registry,
+        imageStorage: undefined,
+        mediaUploadLimiter: new MediaUploadLimiter(2)
     });
-    assert.deepEqual(await service.remove(principal, snapshot), {
-        revision: 4
-    });
-    assert.equal(state().student.avatarMediaId, null);
-    assert.equal(state().assets["old-id"]?.status, "PENDING_DELETE");
+    const { studentAvatarResource } = await import("#/MediaResources.js");
+    assert.deepEqual(
+        await service
+            .forResource(studentAvatarResource)
+            .remove({ actor: principal, target }),
+        { revision: 4 }
+    );
+    assert.equal(fixture.state().student.avatarMediaId, null);
+    assert.equal(fixture.state().assets["old-id"].status, "PENDING_DELETE");
+    await assert.rejects(
+        service
+            .forResource(studentAvatarResource)
+            .replace({ actor: principal, target, upload: upload() }),
+        ServiceUnavailableError
+    );
 });
 
 test("read access follows the current profile flag and current identity", async () => {
-    let publicProfileEnabled = false;
-    let activeUser = true;
-    const database = {
-        mediaAsset: {
-            findUnique: async () => ({
-                alias: "private.webp",
-                status: "ACTIVE",
-                studentAvatar: { id: 42, publicProfileEnabled },
-                groupAvatar: null
-            })
-        },
-        authUser: {
-            findUnique: async () => ({
-                status: activeUser ? "ACTIVE" : "DISABLED",
-                studentId: 42,
-                roles: [{ role: "STUDENT" }]
-            })
-        },
-        botGrant: { findFirst: async () => null }
-    } as unknown as PrismaClient;
-    const service = createMediaService({ prisma: database });
-
+    const fixture = mediaFixture();
+    const read = (actor = principal) =>
+        fixture.service.read(
+            actor,
+            "old-id",
+            "avatarSmall",
+            new AbortController().signal
+        );
     await assert.rejects(
-        service.resolveRead(undefined, "media-id"),
+        fixture.service.read(
+            undefined,
+            "old-id",
+            "avatarSmall",
+            new AbortController().signal
+        ),
         NotFoundError
     );
-    assert.deepEqual(await service.resolveRead(principal, "media-id"), {
-        alias: "private.webp"
-    });
-    activeUser = false;
-    await assert.rejects(
-        service.resolveRead(principal, "media-id"),
-        NotFoundError
+    assert.ok(await read());
+    fixture.state().userStatus = "DISABLED";
+    await assert.rejects(read(), NotFoundError);
+    fixture.state().publicProfileEnabled = true;
+    assert.ok(
+        await fixture.service.read(
+            undefined,
+            "old-id",
+            "avatarSmall",
+            new AbortController().signal
+        )
     );
-    publicProfileEnabled = true;
-    assert.deepEqual(await service.resolveRead(undefined, "media-id"), {
-        alias: "private.webp"
-    });
 });
 
-test("only an active, singly linked asset exposes a group avatar", async () => {
-    const asset = {
-        alias: "group.webp",
-        status: "ACTIVE",
-        studentAvatar: null as {
-            id: number;
-            publicProfileEnabled: boolean;
-        } | null,
-        groupAvatar: { status: "ACTIVE" } as { status: string } | null
-    };
-    const database = {
-        mediaAsset: { findUnique: async () => asset }
-    } as unknown as PrismaClient;
-    const service = createMediaService({ prisma: database });
-    assert.deepEqual(await service.resolveRead(undefined, "media-id"), {
-        alias: "group.webp"
+test("only an active singly linked asset exposes a group avatar", async () => {
+    const fixture = mediaFixture();
+    const read = () =>
+        fixture.service.read(
+            undefined,
+            "old-group-id",
+            "avatarLarge",
+            new AbortController().signal
+        );
+    assert.ok(await read());
+    fixture.state().student.avatarMediaId = "old-group-id";
+    await assert.rejects(read(), NotFoundError);
+    fixture.state().student.avatarMediaId = null;
+    fixture.state().groupStatus = "ARCHIVED";
+    await assert.rejects(read(), NotFoundError);
+    fixture.state().groupStatus = "ACTIVE";
+    fixture.state().assets["old-group-id"].status = "PENDING_DELETE";
+    await assert.rejects(read(), NotFoundError);
+    fixture.state().assets["old-group-id"].status = "ACTIVE";
+    fixture.state().group.avatarMediaId = null;
+    await assert.rejects(read(), NotFoundError);
+});
+
+test("bot grants and current administrator roles govern private student access", async () => {
+    const fixture = mediaFixture();
+    fixture.state().userStudentId = 99;
+    fixture.state().userRoles = ["BOT"];
+    await assert.rejects(
+        fixture.studentAvatars.remove({ actor: principal, target }),
+        ForbiddenError
+    );
+    fixture.state().grant = true;
+    assert.ok(
+        await fixture.service.read(
+            principal,
+            "old-id",
+            "avatarSmall",
+            new AbortController().signal
+        )
+    );
+    fixture.state().grant = false;
+    await assert.rejects(
+        fixture.service.read(
+            principal,
+            "old-id",
+            "avatarSmall",
+            new AbortController().signal
+        ),
+        NotFoundError
+    );
+    fixture.state().userRoles = ["ADMIN"];
+    assert.ok(
+        await fixture.studentAvatars.remove({ actor: principal, target })
+    );
+});
+
+test("generic resource operations use the transaction for revalidation and roll back attachment failure", async () => {
+    const fixture = mediaFixture();
+    let inside = false;
+    const calls: boolean[] = [];
+    const original = fixture.database.$transaction.bind(fixture.database);
+    fixture.database.$transaction = (async (
+        work: (db: unknown) => Promise<unknown>
+    ) =>
+        original(async (tx) => {
+            inside = true;
+            assert.notEqual(tx, undefined);
+            const transaction = new Proxy(tx, {});
+            try {
+                return await work(transaction);
+            } finally {
+                inside = false;
+            }
+        })) as typeof fixture.database.$transaction;
+    const resource = defineImageResource<{ id: number }, never>({
+        key: "fictional-resource",
+        profile: imageProfiles.avatar,
+        authorizeWrite: async ({ db }) => {
+            calls.push(inside);
+            if (inside) assert.notEqual(db, fixture.database);
+            else assert.equal(db, fixture.database);
+        },
+        loadSlot: async () => ({ mediaId: "old-id", revision: 3 }),
+        compareAndSetSlot: async () => false,
+        findReferences: async () => [],
+        authorizeRead: async () => false
     });
-    asset.studentAvatar = { id: 42, publicProfileEnabled: true };
+    const service = createMediaService({
+        prisma: fixture.database,
+        imageResourceRegistry: new ImageResourceRegistry([resource]),
+        imageStorage: fixture.storage,
+        mediaUploadLimiter: new MediaUploadLimiter(2)
+    });
     await assert.rejects(
-        service.resolveRead(undefined, "media-id"),
-        NotFoundError
+        service
+            .forResource(resource)
+            .replace({ actor: principal, target: { id: 1 }, upload: upload() }),
+        ConflictError
     );
-    asset.studentAvatar = null;
-    asset.groupAvatar!.status = "ARCHIVED";
+    assert.deepEqual(calls, [false, true]);
+    assert.equal(fixture.state().created, 1);
+    assert.equal(fixture.state().assets["created-1"].status, "PENDING_DELETE");
+    assert.equal(fixture.state().assets["old-id"].status, "ACTIVE");
+});
+
+test("registry rejects duplicate and unregistered resources", async () => {
+    const { studentAvatarResource } = await import("#/MediaResources.js");
+    assert.throws(
+        () =>
+            new ImageResourceRegistry([
+                studentAvatarResource,
+                studentAvatarResource
+            ]),
+        /duplicado/
+    );
+    assert.throws(() => new ImageResourceRegistry([]), /Nenhum/);
+    assert.throws(
+        () =>
+            createAppImageResourceRegistry().assertRegistered({
+                ...studentAvatarResource
+            }),
+        /não registrado/
+    );
+});
+
+test("upload admissions are released on storage failure, activation failure and cancellation", async () => {
+    const limiter = new MediaUploadLimiter(1, 100);
+    let mode = "fail";
+    const fixture = mediaFixture(
+        {
+            upload: async (input) => {
+                if (input.signal.aborted) throw new Error("cancelled");
+                if (mode === "fail") throw new Error("upstream");
+                return uploaded;
+            }
+        },
+        limiter
+    );
     await assert.rejects(
-        service.resolveRead(undefined, "media-id"),
-        NotFoundError
+        fixture.studentAvatars.replace({
+            actor: principal,
+            target,
+            upload: upload()
+        }),
+        /upstream/
     );
-    asset.groupAvatar!.status = "ACTIVE";
-    asset.status = "PENDING_DELETE";
+    mode = "success";
+    const cancelled = upload();
+    cancelled.signal = AbortSignal.abort();
     await assert.rejects(
-        service.resolveRead(undefined, "media-id"),
-        NotFoundError
+        fixture.studentAvatars.replace({
+            actor: principal,
+            target,
+            upload: cancelled
+        }),
+        /cancelled/
     );
-    asset.status = "ACTIVE";
-    asset.groupAvatar = null;
+    assert.ok(
+        await fixture.studentAvatars.replace({
+            actor: principal,
+            target,
+            upload: upload()
+        })
+    );
+    fixture.state().userStatus = "ACTIVE";
+    const release = limiter.acquire(9);
+    assert.throws(() => limiter.acquire(9), MediaUploadRateLimitError);
+    release();
+});
+
+test("group replacement and removal use their configured slot", async () => {
+    const fixture = mediaFixture();
+    assert.deepEqual(
+        await fixture.groupAvatars.replace({
+            actor: principal,
+            target: groupTarget,
+            upload: upload()
+        }),
+        { mediaId: "created-1", revision: 8 }
+    );
+    assert.equal(fixture.state().group.avatarMediaId, "created-1");
+    assert.equal(
+        fixture.state().assets["old-group-id"].status,
+        "PENDING_DELETE"
+    );
+    assert.deepEqual(
+        await fixture.groupAvatars.remove({
+            actor: principal,
+            target: groupTarget
+        }),
+        { revision: 9 }
+    );
+    assert.equal(fixture.state().assets["created-1"].status, "PENDING_DELETE");
+    assert.equal(fixture.state().student.avatarMediaId, "old-id");
+});
+
+test("retirement failure rolls back the slot and records the uploaded image for cleanup", async () => {
+    const fixture = mediaFixture();
+    fixture.state().assets["old-id"].status = "DELETED";
     await assert.rejects(
-        service.resolveRead(undefined, "media-id"),
-        NotFoundError
+        fixture.studentAvatars.replace({
+            actor: principal,
+            target,
+            upload: upload()
+        }),
+        ConflictError
     );
+    assert.deepEqual(fixture.state().student, {
+        avatarMediaId: "old-id",
+        avatarRevision: 3
+    });
+    assert.equal(fixture.state().assets["created-1"].status, "PENDING_DELETE");
+});
+
+test("compensation failure preserves the activation error and releases admission", async () => {
+    const limiter = new MediaUploadLimiter(1, 100);
+    const fixture: ReturnType<typeof mediaFixture> = mediaFixture(
+        {
+            upload: async () => {
+                fixture.state().userStatus = "DISABLED";
+                return uploaded;
+            }
+        },
+        limiter
+    );
+    fixture.database.mediaAsset.create = (() => {
+        throw new Error("compensation failed");
+    }) as typeof fixture.database.mediaAsset.create;
+    await assert.rejects(
+        fixture.studentAvatars.replace({
+            actor: principal,
+            target,
+            upload: upload()
+        }),
+        ForbiddenError
+    );
+    const release = limiter.acquire(9);
+    release();
+    assert.equal(fixture.state().student.avatarMediaId, "old-id");
+});
+
+test("serializable conflicts preserve the HTTP conflict classification", async () => {
+    const fixture = mediaFixture();
+    fixture.database.$transaction = (() =>
+        Promise.reject({
+            code: "P2034"
+        })) as typeof fixture.database.$transaction;
+    await assert.rejects(
+        fixture.studentAvatars.replace({
+            actor: principal,
+            target,
+            upload: upload()
+        }),
+        ConflictError
+    );
+    assert.equal(fixture.state().assets["created-1"].status, "PENDING_DELETE");
 });

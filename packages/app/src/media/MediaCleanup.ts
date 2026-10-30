@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@pomi/db";
 
-import { PictRsClient } from "./PictRsClient.js";
+import type { ImageResourceRegistry } from "./ImageResourceRegistry.js";
+import type { ImageStorage } from "./ImageStorage.js";
 
 const MAX_DELETE_ATTEMPTS = 8;
 const DELETE_BATCH_SIZE = 50;
@@ -9,24 +10,60 @@ const MAX_HASH_PAGES = 1_000;
 
 export function createMediaCleanup({
     prisma,
-    pictRsClient
+    imageStorage,
+    imageResourceRegistry
 }: {
     prisma: PrismaClient;
-    pictRsClient: PictRsClient;
+    imageStorage: ImageStorage;
+    imageResourceRegistry: ImageResourceRegistry;
 }) {
     return {
         async retireUnlinked(now = new Date()): Promise<{ count: number }> {
-            return prisma.mediaAsset.updateMany({
-                where: {
-                    status: "ACTIVE",
-                    createdAt: {
-                        lt: new Date(now.getTime() - ORPHAN_GRACE_MS)
+            const cutoff = new Date(now.getTime() - ORPHAN_GRACE_MS);
+            let cursor: string | undefined;
+            let count = 0;
+            for (;;) {
+                const candidates = await prisma.mediaAsset.findMany({
+                    where: {
+                        status: "ACTIVE",
+                        createdAt: { lt: cutoff },
+                        ...(cursor ? { id: { gt: cursor } } : {})
                     },
-                    studentAvatar: null,
-                    groupAvatar: null
-                },
-                data: { status: "PENDING_DELETE", nextDeleteAt: now }
-            });
+                    select: { id: true },
+                    orderBy: { id: "asc" },
+                    take: DELETE_BATCH_SIZE
+                });
+                if (!candidates.length) break;
+                count += await prisma.$transaction(
+                    async (tx) => {
+                        const references =
+                            await imageResourceRegistry.findReferences(
+                                tx,
+                                candidates.map((asset) => asset.id)
+                            );
+                        const ids = candidates
+                            .filter((asset) => !references.has(asset.id))
+                            .map((asset) => asset.id);
+                        if (!ids.length) return 0;
+                        const result = await tx.mediaAsset.updateMany({
+                            where: {
+                                id: { in: ids },
+                                status: "ACTIVE",
+                                createdAt: { lt: cutoff }
+                            },
+                            data: {
+                                status: "PENDING_DELETE",
+                                nextDeleteAt: now
+                            }
+                        });
+                        return result.count;
+                    },
+                    { isolationLevel: "Serializable", timeout: 5_000 }
+                );
+                cursor = candidates[candidates.length - 1].id;
+                if (candidates.length < DELETE_BATCH_SIZE) break;
+            }
+            return { count };
         },
         async deleteDue(now = new Date()) {
             const candidates = await prisma.mediaAsset.findMany({
@@ -39,9 +76,7 @@ export function createMediaCleanup({
                     id: true,
                     alias: true,
                     deleteAttempts: true,
-                    nextDeleteAt: true,
-                    studentAvatar: { select: { id: true } },
-                    groupAvatar: { select: { id: true } }
+                    nextDeleteAt: true
                 },
                 orderBy: { createdAt: "asc" },
                 take: DELETE_BATCH_SIZE
@@ -49,8 +84,12 @@ export function createMediaCleanup({
             let deleted = 0;
             let failed = 0;
             let skipped = 0;
+            const references = await imageResourceRegistry.findReferences(
+                prisma,
+                candidates.map((asset) => asset.id)
+            );
             for (const asset of candidates) {
-                if (asset.studentAvatar || asset.groupAvatar) {
+                if (references.has(asset.id)) {
                     skipped += 1;
                     continue;
                 }
@@ -72,7 +111,7 @@ export function createMediaCleanup({
                     continue;
                 }
                 try {
-                    await pictRsClient.deleteAlias(
+                    await imageStorage.deleteAlias(
                         asset.alias,
                         AbortSignal.timeout(30_000)
                     );
@@ -116,7 +155,7 @@ export function createMediaCleanup({
             const candidates: string[] = [];
             let slug: string | undefined;
             for (let page = 0; page < MAX_HASH_PAGES; page += 1) {
-                const result = await pictRsClient.listAliases(
+                const result = await imageStorage.listAliases(
                     slug,
                     AbortSignal.timeout(30_000)
                 );
@@ -152,7 +191,7 @@ export function createMediaCleanup({
                 });
                 if (existing) continue;
                 try {
-                    await pictRsClient.deleteAlias(
+                    await imageStorage.deleteAlias(
                         alias,
                         AbortSignal.timeout(30_000)
                     );

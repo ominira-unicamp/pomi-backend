@@ -1,8 +1,5 @@
 import type { Principal } from "#/auth.js";
 import { AuthRegistry, type AuthorizationPolicy } from "#/auth.js";
-import type { MediaService } from "#/media/MediaService.js";
-import type { MediaUploadLimiter } from "#/media/MediaUploadLimiter.js";
-import type { PictRsClient } from "#/media/PictRsClient.js";
 import type { EvaluationSummaryService } from "#/modules/academic/evaluation-summary/EvaluationSummary.service.js";
 import type { ExchangeNoticeSubscriptionService } from "#/modules/exchange/exchange-notice-subscription/ExchangeNoticeSubscription.service.js";
 import type { ExchangeNoticeUnsubscribeService } from "#/modules/exchange/exchange-notice-unsubscribe/ExchangeNoticeUnsubscribe.service.js";
@@ -28,12 +25,10 @@ import {
     type EndpointActions,
     type EndpointRegistry
 } from "@pomi/api-core";
+import type { Request } from "express";
 
 export type Context = {
     principal?: Principal;
-    mediaService: MediaService;
-    pictRsClient?: PictRsClient;
-    mediaUploadLimiter: MediaUploadLimiter;
     studentCourseAttemptService: StudentCourseAttemptService;
     studentHistoryImportService: StudentHistoryImportService;
     studentAbsenceService: StudentAbsenceService;
@@ -62,46 +57,63 @@ export function createAppEndpointRegistries<
 >(
     contracts: Contracts,
     actions: EndpointActions<Contracts, AuthorizationPolicy, Context>
+): ReturnType<typeof registerAppEndpoints>;
+export function createAppEndpointRegistries<
+    Contracts extends EndpointRegistry<AuthorizationPolicy>,
+    LocalContext
+>(options: {
+    contracts: Contracts;
+    actions: EndpointActions<Contracts, AuthorizationPolicy, LocalContext>;
+    createContext(request: Request): LocalContext;
+}): ReturnType<typeof registerAppEndpoints>;
+export function createAppEndpointRegistries<
+    Contracts extends EndpointRegistry<AuthorizationPolicy>,
+    LocalContext
+>(
+    options:
+        | Contracts
+        | {
+              contracts: Contracts;
+              actions: EndpointActions<
+                  Contracts,
+                  AuthorizationPolicy,
+                  LocalContext
+              >;
+              createContext(request: Request): LocalContext;
+          },
+    legacyActions?: EndpointActions<Contracts, AuthorizationPolicy, Context>
+) {
+    if (legacyActions)
+        return registerAppEndpoints(
+            options as Contracts,
+            legacyActions,
+            createLegacyContext
+        );
+    const local = options as {
+        contracts: Contracts;
+        actions: EndpointActions<Contracts, AuthorizationPolicy, LocalContext>;
+        createContext(request: Request): LocalContext;
+    };
+    return registerAppEndpoints(
+        local.contracts,
+        local.actions,
+        local.createContext
+    );
+}
+
+function registerAppEndpoints<
+    Contracts extends EndpointRegistry<AuthorizationPolicy>,
+    LocalContext
+>(
+    contracts: Contracts,
+    actions: EndpointActions<Contracts, AuthorizationPolicy, LocalContext>,
+    createContext: (request: Request) => LocalContext
 ) {
     const authRegistry = new AuthRegistry();
     const { router, openApiRegistry } = createEndpointRegistries({
         contracts,
         actions,
-        createContext: (request) => ({
-            principal: request.scope.cradle.principal,
-            mediaService: request.scope.cradle.mediaService,
-            pictRsClient: request.scope.cradle.pictRsClient,
-            mediaUploadLimiter: request.scope.cradle.mediaUploadLimiter,
-            studentCourseAttemptService:
-                request.scope.cradle.studentCourseAttemptService,
-            studentHistoryImportService:
-                request.scope.cradle.studentHistoryImportService,
-            studentAbsenceService: request.scope.cradle.studentAbsenceService,
-            studentService: request.scope.cradle.studentService,
-            currentUserService: request.scope.cradle.currentUserService,
-            botGrantService: request.scope.cradle.botGrantService,
-            authUserService: request.scope.cradle.authUserService,
-            curriculumService: request.scope.cradle.curriculumService,
-            evaluationSummaryService:
-                request.scope.cradle.evaluationSummaryService,
-            periodPlanService: request.scope.cradle.periodPlanService,
-            sharedPeriodPlanService:
-                request.scope.cradle.sharedPeriodPlanService,
-            professorEvaluationService:
-                request.scope.cradle.professorEvaluationService,
-            studentSocialService: request.scope.cradle.studentSocialService,
-            feedbackReportService: request.scope.cradle.feedbackReportService,
-            groupService: request.scope.cradle.groupService,
-            groupCommunityService: request.scope.cradle.groupCommunityService,
-            exchangeNoticeSubscriptionService:
-                request.scope.cradle.exchangeNoticeSubscriptionService,
-            exchangeNoticeUnsubscribeService:
-                request.scope.cradle.exchangeNoticeUnsubscribeService,
-            taggingService: request.scope.cradle.taggingService,
-            studentTagInterestService:
-                request.scope.cradle.studentTagInterestService,
-            requestIp: request.ip ?? "unknown"
-        }),
+        createContext,
         registerAuthorization: (method, path, authorization) =>
             authRegistry.addPolicy(method, path, authorization),
         authorizationSecurity: (authorization) =>
@@ -112,4 +124,37 @@ export function createAppEndpointRegistries<
                   : [{ BearerAuth: [] }]
     });
     return { router, registry: openApiRegistry, authRegistry };
+}
+
+function createLegacyContext(request: Request): Context {
+    return {
+        principal: request.scope.cradle.principal,
+        studentCourseAttemptService:
+            request.scope.cradle.studentCourseAttemptService,
+        studentHistoryImportService:
+            request.scope.cradle.studentHistoryImportService,
+        studentAbsenceService: request.scope.cradle.studentAbsenceService,
+        studentService: request.scope.cradle.studentService,
+        currentUserService: request.scope.cradle.currentUserService,
+        botGrantService: request.scope.cradle.botGrantService,
+        authUserService: request.scope.cradle.authUserService,
+        curriculumService: request.scope.cradle.curriculumService,
+        evaluationSummaryService: request.scope.cradle.evaluationSummaryService,
+        periodPlanService: request.scope.cradle.periodPlanService,
+        sharedPeriodPlanService: request.scope.cradle.sharedPeriodPlanService,
+        professorEvaluationService:
+            request.scope.cradle.professorEvaluationService,
+        studentSocialService: request.scope.cradle.studentSocialService,
+        feedbackReportService: request.scope.cradle.feedbackReportService,
+        groupService: request.scope.cradle.groupService,
+        groupCommunityService: request.scope.cradle.groupCommunityService,
+        exchangeNoticeSubscriptionService:
+            request.scope.cradle.exchangeNoticeSubscriptionService,
+        exchangeNoticeUnsubscribeService:
+            request.scope.cradle.exchangeNoticeUnsubscribeService,
+        taggingService: request.scope.cradle.taggingService,
+        studentTagInterestService:
+            request.scope.cradle.studentTagInterestService,
+        requestIp: request.ip ?? "unknown"
+    };
 }

@@ -1,5 +1,7 @@
+import { createAppImageResourceRegistry } from "#/MediaResources.js";
 import { createDatabaseClient } from "@pomi/db";
 import "dotenv/config";
+import { createPictRsStorage } from "./PictRsStorage.js";
 
 import { createMediaCleanup } from "./MediaCleanup.js";
 import { PictRsClient } from "./PictRsClient.js";
@@ -15,7 +17,10 @@ if (!databaseUrl || !pictRsUrl || !pictRsApiKey) {
 const database = createDatabaseClient(databaseUrl);
 const cleanup = createMediaCleanup({
     prisma: database,
-    pictRsClient: new PictRsClient(pictRsUrl, pictRsApiKey)
+    imageStorage: createPictRsStorage(
+        new PictRsClient(pictRsUrl, pictRsApiKey)
+    ),
+    imageResourceRegistry: createAppImageResourceRegistry()
 });
 
 try {

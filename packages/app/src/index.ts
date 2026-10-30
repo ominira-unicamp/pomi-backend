@@ -41,7 +41,7 @@ application.get(
     "/ready",
     createReadinessHandler(async () => {
         await database.$queryRaw`SELECT 1`;
-        await container.cradle.pictRsClient?.health();
+        await container.cradle.imageStorage?.health();
     })
 );
 application.get(

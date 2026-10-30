@@ -1,30 +1,34 @@
-import { createAppEndpointRegistries, type Context } from "#/BuildHandler.js";
 import type { AuthorizationPolicy } from "#/auth.js";
-import type { MediaTarget } from "#/media/MediaService.js";
+import { createAppEndpointRegistries } from "#/BuildHandler.js";
 import { MediaUploadRateLimitError } from "#/media/MediaUploadLimiter.js";
-import { PictRsError } from "#/media/PictRsClient.js";
+import type { Principal } from "#/Principal.js";
 import {
     ApiResponse,
     BadRequestError,
     PayloadTooLargeError,
     ServiceUnavailableError,
-    UnauthenticatedError,
     UnprocessableEntityError,
     problemDetails,
     type EndpointActions
 } from "@pomi/api-core";
+import { ImageStorageError } from "./ImageStorage.js";
+import type { MediaService } from "./MediaService.js";
+import type { ImageMutationResult, ImageResourceOperations } from "./public.js";
 
 import IO, { MediaUploadRateLimitProblem } from "./Media.contract.js";
 
-function requireClient(context: Context) {
-    if (!context.pictRsClient) {
-        throw new ServiceUnavailableError("Serviço de imagens indisponível.");
-    }
-    return context.pictRsClient;
-}
+type Context = {
+    principal: Principal | undefined;
+    studentAvatars: ImageResourceOperations<{ studentId: number }>;
+    groupAvatars: ImageResourceOperations<{
+        studentId: number;
+        groupId: number;
+    }>;
+    mediaService: Pick<MediaService, "read">;
+};
 
 function throwTransportError(error: unknown): never {
-    if (error instanceof PictRsError) {
+    if (error instanceof ImageStorageError) {
         if (error.kind === "invalid-request") {
             throw new BadRequestError("Envie uma imagem multipart válida.");
         }
@@ -42,34 +46,9 @@ function throwTransportError(error: unknown): never {
     throw new ServiceUnavailableError("Serviço de imagens indisponível.");
 }
 
-async function upload(
-    context: Context,
-    target: MediaTarget,
-    transport: Parameters<
-        EndpointActions<
-            typeof IO,
-            AuthorizationPolicy,
-            Context
-        >["putStudentAvatar"]
-    >[2]
-) {
-    const pict = requireClient(context);
-    const contentType = transport.request.headers["content-type"];
-    if (typeof contentType !== "string") {
-        throw new BadRequestError("Envie um arquivo multipart.");
-    }
-    const snapshot = await context.mediaService.prepare(
-        context.principal,
-        target
-    );
-    if (!context.principal) {
-        throw new UnauthenticatedError("Autenticação necessária.");
-    }
-    let release: () => void;
+async function mutate(operation: () => Promise<ImageMutationResult>) {
     try {
-        release = context.mediaUploadLimiter.acquire(
-            context.principal.authUserId
-        );
+        return ApiResponse.ok(await operation());
     } catch (error) {
         if (error instanceof MediaUploadRateLimitError) {
             return ApiResponse.status(
@@ -90,71 +69,63 @@ async function upload(
                 ]
             );
         }
+        if (error instanceof ImageStorageError) throwTransportError(error);
         throw error;
     }
-    try {
-        const uploaded = await pict
-            .upload(transport.request, contentType, transport.signal, "square")
-            .catch(throwTransportError);
-        try {
-            return ApiResponse.ok(
-                await context.mediaService.activate(
-                    context.principal,
-                    snapshot,
-                    uploaded
-                )
-            );
-        } catch (error) {
-            await context.mediaService.recordUnlinked(uploaded).catch(() => {});
-            throw error;
-        }
-    } finally {
-        release();
-    }
-}
-
-async function remove(context: Context, target: MediaTarget) {
-    const snapshot = await context.mediaService.prepare(
-        context.principal,
-        target
-    );
-    await context.mediaService.remove(context.principal, snapshot);
-    return ApiResponse.noContent();
 }
 
 const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     putStudentAvatar: (context, input, transport) =>
-        upload(
-            context,
-            { kind: "student-avatar", studentId: input.path.sid },
-            transport
+        mutate(() =>
+            context.studentAvatars.replace({
+                actor: context.principal,
+                target: { studentId: input.path.sid },
+                upload: {
+                    stream: transport.request,
+                    contentType: transport.request.headers["content-type"],
+                    signal: transport.signal
+                }
+            })
         ),
-    deleteStudentAvatar: (context, input) =>
-        remove(context, { kind: "student-avatar", studentId: input.path.sid }),
+    deleteStudentAvatar: async (context, input) => {
+        await context.studentAvatars.remove({
+            actor: context.principal,
+            target: { studentId: input.path.sid }
+        });
+        return ApiResponse.noContent();
+    },
     putGroupAvatar: (context, input, transport) =>
-        upload(
-            context,
-            {
-                kind: "group-avatar",
-                studentId: input.path.sid,
-                groupId: input.path.id
-            },
-            transport
+        mutate(() =>
+            context.groupAvatars.replace({
+                actor: context.principal,
+                target: { studentId: input.path.sid, groupId: input.path.id },
+                upload: {
+                    stream: transport.request,
+                    contentType: transport.request.headers["content-type"],
+                    signal: transport.signal
+                }
+            })
         ),
-    deleteGroupAvatar: (context, input) =>
-        remove(context, {
-            kind: "group-avatar",
-            studentId: input.path.sid,
-            groupId: input.path.id
-        }),
+    deleteGroupAvatar: async (context, input) => {
+        await context.groupAvatars.remove({
+            actor: context.principal,
+            target: { studentId: input.path.sid, groupId: input.path.id }
+        });
+        return ApiResponse.noContent();
+    },
     getImageVariant: async (context, input, transport) => {
-        const { alias } = await context.mediaService.resolveRead(
-            context.principal,
-            input.path.mediaId
-        );
-        const bytes = await requireClient(context)
-            .readVariant(alias, input.path.variant, transport.signal)
-            .catch(throwTransportError);
+        const bytes = await context.mediaService
+            .read(
+                context.principal,
+                input.path.mediaId,
+                input.path.variant,
+                transport.signal
+            )
+            .catch((error) => {
+                if (error instanceof ImageStorageError)
+                    throwTransportError(error);
+                throw error;
+            });
         return ApiResponse.ok(bytes, [
             {
                 type: "set-header",
@@ -175,8 +146,14 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     }
 };
 
-const { router, registry, authRegistry } = createAppEndpointRegistries(
-    IO,
-    actions
-);
+const { router, registry, authRegistry } = createAppEndpointRegistries({
+    contracts: IO,
+    actions,
+    createContext: (request) => ({
+        principal: request.scope.cradle.principal,
+        studentAvatars: request.scope.cradle.studentAvatars,
+        groupAvatars: request.scope.cradle.groupAvatars,
+        mediaService: request.scope.cradle.mediaService
+    })
+});
 export default { contracts: IO, router, registry, authRegistry };

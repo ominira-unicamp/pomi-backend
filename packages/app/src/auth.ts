@@ -1,3 +1,4 @@
+import type { Principal } from "#/Principal.js";
 import {
     forbiddenProblem,
     sendProblem,
@@ -7,6 +8,7 @@ import { asValue } from "awilix";
 import { NextFunction, Request, Response } from "express";
 import * as jose from "jose";
 import { match } from "path-to-regexp";
+export type { Principal } from "#/Principal.js";
 
 import {
     AuthRoles,
@@ -38,16 +40,6 @@ const keySet = issuer
           new URL(`${issuer}/protocol/openid-connect/certs`)
       )
     : undefined;
-
-export type Principal = {
-    authUserId: number;
-    issuer: string;
-    subject: string;
-    email: string | null;
-    roles: Set<AuthRole>;
-    capabilities: Set<Capability>;
-    studentId: number | null;
-};
 
 type TokenPayload = jose.JWTPayload & {
     email?: string;

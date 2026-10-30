@@ -1,11 +1,13 @@
 import { MediaUploadLimiter } from "#/media/MediaUploadLimiter.js";
-import { PictRsError } from "#/media/PictRsClient.js";
+import { PictRsClient, PictRsError } from "#/media/PictRsClient.js";
+import { createPictRsStorage } from "#/media/PictRsStorage.js";
 import { errorHandler } from "@pomi/api-core";
 import express from "express";
 import helmet from "helmet";
 import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import test from "node:test";
+import { mediaFixture, principal, uploaded } from "./fixtures/media.js";
 
 process.env.DISABLED_AUTH = "true";
 
@@ -18,33 +20,68 @@ test("media upload exposes stable validation and upstream failures", async () =>
     let imageBody: Readable | undefined;
     const application = express();
     application.use(helmet());
+    const storage = createPictRsStorage({
+        upload: async (
+            _input: Readable,
+            _contentType: string,
+            _signal: AbortSignal,
+            crop: string
+        ) => {
+            assert.equal(crop, expectedCrop);
+            throw failure;
+        },
+        readVariant: async () => imageBody ?? Promise.reject(failure)
+    } as unknown as PictRsClient);
+    const fixture = mediaFixture(storage);
+    const mediaId = "123e4567-e89b-42d3-a456-426614174000";
+    fixture.state().student.avatarMediaId = mediaId;
+    fixture.state().assets[mediaId] = {
+        alias: "valid.webp",
+        status: "ACTIVE",
+        nextDeleteAt: null
+    };
+    fixture.state().publicProfileEnabled = true;
     application.use((request, _response, next) => {
         request.scope = {
-            cradle: {
-                principal: { authUserId: 1 },
-                mediaService: {
-                    prepare: async () => ({
-                        target: { kind: "student-avatar", studentId: 7 },
-                        mediaId: null,
-                        revision: 0
-                    }),
-                    resolveRead: async () => ({ alias: "valid.webp" })
-                },
-                pictRsClient: {
-                    upload: async (
-                        _input: Readable,
-                        _contentType: string,
-                        _signal: AbortSignal,
-                        crop: string
-                    ) => {
-                        assert.equal(crop, expectedCrop);
-                        throw failure;
+            cradle: new Proxy(
+                {
+                    principal: undefined,
+                    studentAvatars: {
+                        ...fixture.studentAvatars,
+                        replace: (
+                            input: Parameters<
+                                typeof fixture.studentAvatars.replace
+                            >[0]
+                        ) =>
+                            fixture.studentAvatars.replace({
+                                ...input,
+                                actor: principal
+                            })
                     },
-                    readVariant: async () =>
-                        imageBody ?? Promise.reject(failure)
+                    groupAvatars: {
+                        ...fixture.groupAvatars,
+                        replace: (
+                            input: Parameters<
+                                typeof fixture.groupAvatars.replace
+                            >[0]
+                        ) =>
+                            fixture.groupAvatars.replace({
+                                ...input,
+                                actor: principal
+                            })
+                    },
+                    mediaService: fixture.service
                 },
-                mediaUploadLimiter: { acquire: () => () => {} }
-            }
+                {
+                    get(target, property) {
+                        assert.ok(
+                            property in target,
+                            `Unexpected dependency: ${String(property)}`
+                        );
+                        return Reflect.get(target, property);
+                    }
+                }
+            )
         } as never;
         next();
     });
@@ -63,7 +100,7 @@ test("media upload exposes stable validation and upstream failures", async () =>
             ["upstream", 503]
         ] as const) {
             failure = new PictRsError("Falha", kind);
-            const response = await fetch(`${baseUrl}/student/7/avatar`, {
+            const response = await fetch(`${baseUrl}/student/42/avatar`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "multipart/form-data; boundary=example"
@@ -82,7 +119,7 @@ test("media upload exposes stable validation and upstream failures", async () =>
         for (const slot of ["avatar"]) {
             expectedCrop = "square";
             const response = await fetch(
-                `${baseUrl}/student/7/groups/3/${slot}`,
+                `${baseUrl}/student/42/groups/3/${slot}`,
                 {
                     method: "POST",
                     headers: {
@@ -95,7 +132,7 @@ test("media upload exposes stable validation and upstream failures", async () =>
             await response.arrayBuffer();
         }
         for (const path of [
-            "/student/7/groups/3/banner",
+            "/student/42/groups/3/banner",
             "/media/123e4567-e89b-42d3-a456-426614174000/banner"
         ]) {
             const response = await fetch(`${baseUrl}${path}`, {
@@ -132,36 +169,23 @@ test("media upload rejects a rate-limited identity before forwarding the body", 
     let forwarded = 0;
     const mediaUploadLimiter = new MediaUploadLimiter(2, 1, 60_000);
     const application = express();
+    const fixture = mediaFixture(
+        {
+            upload: async (input) => {
+                forwarded += 1;
+                for await (const chunk of input.stream) assert.ok(chunk);
+                return uploaded;
+            }
+        },
+        mediaUploadLimiter
+    );
     application.use((request, _response, next) => {
         request.scope = {
             cradle: {
-                principal: { authUserId: 1 },
-                mediaService: {
-                    prepare: async () => ({
-                        target: { kind: "student-avatar", studentId: 7 },
-                        mediaId: null,
-                        revision: 0
-                    }),
-                    activate: async () => ({
-                        mediaId: "123e4567-e89b-42d3-a456-426614174000",
-                        revision: 1
-                    })
-                },
-                pictRsClient: {
-                    upload: async (input: Readable) => {
-                        forwarded += 1;
-                        for await (const _chunk of input) {
-                            assert.ok(_chunk);
-                        }
-                        return {
-                            alias: "valid.webp",
-                            contentType: "image/webp",
-                            width: 1,
-                            height: 1
-                        };
-                    }
-                },
-                mediaUploadLimiter
+                principal,
+                studentAvatars: fixture.studentAvatars,
+                groupAvatars: fixture.groupAvatars,
+                mediaService: fixture.service
             }
         } as never;
         next();
@@ -173,7 +197,7 @@ test("media upload rejects a rate-limited identity before forwarding the body", 
         await new Promise<void>((resolve) => server.once("listening", resolve));
         const address = server.address();
         assert.ok(address && typeof address !== "string");
-        const url = `http://127.0.0.1:${address.port}/student/7/avatar`;
+        const url = `http://127.0.0.1:${address.port}/student/42/avatar`;
         const options = {
             method: "POST",
             headers: {

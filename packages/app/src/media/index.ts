@@ -1,4 +1,4 @@
-import type { ModuleDefinition } from "#/modules/Module.js";
+import type { ModuleDefinition } from "#/Module.js";
 import controller from "./Media.controller.js";
 
 export default {

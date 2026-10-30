@@ -225,3 +225,31 @@ Mídias vinculadas e uploads recentes são preservados.
 O deploy deve aplicar a migração junto da versão correspondente da App API e
 atualizar consumidores com o SDK regenerado. A migração foi gerada pelo Prisma
 e validada somente em banco descartável; o banco da cloud não foi alterado.
+
+
+### Integração transversal de imagens
+
+A implementação de imagens fica em `packages/app/src/media`. Os módulos de
+negócio usam exclusivamente sua interface pública, `media/public.ts`, para
+definir recursos com `defineImageResource` e escolher `imageProfiles.avatar`.
+Cada definição fornece autorização, leitura do vínculo, substituição por
+comparação de revisão, descoberta de referências e autorização de leitura.
+Estudante e grupo mantêm seus vínculos `avatarMediaId` e `avatarRevision`.
+
+A composição em `MediaResources.ts` registra as mesmas definições para a API e
+o CLI de limpeza. A aplicação injeta operações vinculadas ao recurso,
+`replace` e `remove`; os módulos não acessam pict-rs, aliases, processamento,
+limites de upload ou estados de descarte. O perfil de avatar mantém o corte
+quadrado e as variantes atuais. Os endpoints e o SDK permanecem compatíveis.
+
+A substituição envia a imagem fora da transação e revalida acesso dentro dela,
+usando o cliente transacional recebido pelo adaptador. O vínculo é alterado
+somente se a imagem e a revisão ainda coincidirem; o descarte da imagem anterior
+é agendado na mesma transação. Uploads cuja ativação falha são encaminhados para
+limpeza, com reconciliação de órfãos como recuperação complementar.
+
+Leitura e limpeza descobrem vínculos pelo registro de recursos. Referências
+privadas e de grupos arquivados também impedem exclusão: autorização de leitura
+não determina se uma imagem está vinculada. Falhas na descoberta interrompem o
+descarte afetado. Novos recursos de imagem precisam ser registrados na composição
+compartilhada antes de serem utilizados.

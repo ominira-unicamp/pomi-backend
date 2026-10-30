@@ -1,5 +1,5 @@
 import { readFile, readdir } from "node:fs/promises";
-import { extname, join, relative } from "node:path";
+import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../packages", import.meta.url));
@@ -78,6 +78,52 @@ for (const file of await sourceFiles(join(root, "app", "src", "modules"))) {
                     `${path} accesses persistence through ${forbidden}`
                 );
             }
+        }
+    }
+}
+
+const appSource = join(root, "app", "src");
+const mediaSource = join(appSource, "media");
+const mediaPublic = join(mediaSource, "public.js");
+const providerConsumers = new Set([
+    join(appSource, "Container.ts"),
+    join(mediaSource, "PictRsStorage.ts"),
+    join(mediaSource, "cleanup-cli.ts"),
+    join(mediaSource, "smoke-cli.ts")
+]);
+for (const file of await sourceFiles(appSource)) {
+    const source = await readFile(file, "utf8");
+    for (const match of source.matchAll(
+        /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?)["']([^"']+)["']/g
+    )) {
+        const specifier = match[1];
+        const imported = specifier.startsWith("#/")
+            ? resolve(appSource, specifier.slice(2))
+            : specifier.startsWith(".")
+              ? resolve(dirname(file), specifier)
+              : undefined;
+        if (!imported) continue;
+        const path = relative(root, file);
+        const insideModules = file.startsWith(join(appSource, "modules") + "/");
+        const insideMedia = file.startsWith(mediaSource + "/");
+        if (
+            insideModules &&
+            imported.startsWith(mediaSource + "/") &&
+            imported !== mediaPublic
+        ) {
+            violations.push(`${path} bypasses the public media interface`);
+        }
+        if (
+            insideMedia &&
+            imported.startsWith(join(appSource, "modules") + "/")
+        ) {
+            violations.push(`${path} imports a domain module into media`);
+        }
+        if (
+            imported === join(mediaSource, "PictRsClient.js") &&
+            !providerConsumers.has(file)
+        ) {
+            violations.push(`${path} accesses the image provider directly`);
         }
     }
 }
