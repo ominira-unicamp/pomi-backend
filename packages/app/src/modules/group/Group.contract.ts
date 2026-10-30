@@ -39,6 +39,7 @@ export const groupEntity = z
         name: z.string(),
         description: z.string().nullable(),
         status: z.enum(["ACTIVE", "ARCHIVED"]),
+        avatarMediaId: z.uuid().nullable(),
         contacts: z.array(contact),
         externalLinks: z.array(link),
         tags: z.array(tag),

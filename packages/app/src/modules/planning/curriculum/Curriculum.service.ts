@@ -70,8 +70,7 @@ export type CurriculumService = {
 function selectionData(selection: CreateCurriculumInput["selection"]) {
     return {
         catalogProgramId: selection?.catalogProgramId ?? null,
-        catalogProgramVariantId:
-            selection?.catalogProgramVariantId ?? null,
+        catalogProgramVariantId: selection?.catalogProgramVariantId ?? null,
         languageId: selection?.languageId ?? null
     };
 }

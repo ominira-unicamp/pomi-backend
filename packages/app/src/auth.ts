@@ -219,7 +219,12 @@ class AuthRegistry {
         params: Partial<Record<string, string | string[]>>,
         req: Request
     ) {
-        if (policy.kind === "public" || disabled) return;
+        if (
+            policy.kind === "public" ||
+            policy.kind === "optional-auth" ||
+            disabled
+        )
+            return;
         if (!principal) throw new ForbiddenError();
         if (policy.kind === "authenticated") return;
         if (policy.kind === "admin") {
@@ -271,6 +276,7 @@ class AuthRegistry {
             if (disabled || policy.kind === "public") return next();
 
             const authHeader = req.headers.authorization;
+            if (!authHeader && policy.kind === "optional-auth") return next();
             if (!authHeader || !authHeader.startsWith("Bearer ")) {
                 return sendProblem(res, unauthenticatedProblem(req.path));
             }

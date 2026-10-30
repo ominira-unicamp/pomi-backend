@@ -2,6 +2,7 @@ import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { Router } from "express";
 
 import { AuthRegistry } from "#/auth.js";
+import media from "#/media/index.js";
 import academic from "#/modules/academic/index.js";
 import exchange from "#/modules/exchange/index.js";
 import feedback from "#/modules/feedback/index.js";
@@ -14,6 +15,7 @@ import studentTagInterest from "#/modules/student-tag-interest-module.js";
 import tagging from "#/modules/tagging-module.js";
 
 const modules = [
+    media,
     academic,
     identity,
     planning,

@@ -42,7 +42,8 @@ test("lists specializations through its service", async () => {
                     { path: ["code"], operator: "eq", values: ["AA"] }
                 ]
             }
-        }
+        },
+        {} as never
     );
     assert.deepEqual(result.body?.data[0], {
         id: 11,

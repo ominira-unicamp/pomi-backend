@@ -25,6 +25,13 @@ export function openApiFromEndpoint(
             shape.body,
             shape.body.meta()?.description ?? "Request body"
         );
+    } else if (contract.meta.transport?.requestBody) {
+        const body = contract.meta.transport.requestBody;
+        request = request.body(
+            body.schema,
+            "Arquivo de imagem",
+            body.mediaType
+        );
     }
 
     const responses: RouteConfig["responses"] = {};

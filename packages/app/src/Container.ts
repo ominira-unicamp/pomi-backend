@@ -4,6 +4,9 @@ import type { RequestHandler } from "express";
 import type { AppConfig } from "#/Config.js";
 import { buildZodIds } from "#/PrismaValidator.js";
 import type { Principal } from "#/auth.js";
+import { createMediaService, type MediaService } from "#/media/MediaService.js";
+import { MediaUploadLimiter } from "#/media/MediaUploadLimiter.js";
+import { PictRsClient } from "#/media/PictRsClient.js";
 import {
     createEvaluationSummaryService,
     type EvaluationSummaryService
@@ -91,6 +94,9 @@ export type AppCradle = {
     config: AppConfig;
     prisma: DatabaseClient;
     principal: Principal | undefined;
+    pictRsClient: PictRsClient | undefined;
+    mediaUploadLimiter: MediaUploadLimiter;
+    mediaService: MediaService;
     zodIds: ReturnType<typeof buildZodIds>;
     studentCourseAttemptService: StudentCourseAttemptService;
     studentHistoryImportService: StudentHistoryImportService;
@@ -122,6 +128,19 @@ export function createAppContainer(config: AppConfig, prisma: DatabaseClient) {
         config: asValue(config),
         prisma: asValue(prisma),
         principal: asValue(undefined),
+        pictRsClient: asValue(
+            config.pictRsUrl && config.pictRsApiKey
+                ? new PictRsClient(config.pictRsUrl, config.pictRsApiKey)
+                : undefined
+        ),
+        mediaUploadLimiter: asValue(
+            new MediaUploadLimiter(
+                2,
+                config.mediaUploadRateLimitMax,
+                config.mediaUploadRateLimitWindowSeconds * 1000
+            )
+        ),
+        mediaService: asFunction(createMediaService).scoped(),
         zodIds: asFunction(buildZodIds).scoped(),
         studentCourseAttemptService: asFunction(
             createStudentCourseAttemptService

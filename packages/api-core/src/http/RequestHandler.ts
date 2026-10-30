@@ -1,4 +1,6 @@
 import type { Request, Response } from "express";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import type z from "zod";
 
 import {
@@ -20,7 +22,8 @@ export type EndpointAction<
     Context
 > = (
     context: Context,
-    request: z.infer<Contract["request"]>
+    request: z.infer<Contract["request"]>,
+    transport: { request: Request; signal: AbortSignal }
 ) => Promise<z.infer<Contract["response"]>>;
 
 export function executeEffects(response: Response, effects?: ResponseEffect[]) {
@@ -86,11 +89,41 @@ export function buildEndpointHandler<
             );
         }
 
-        const result = (await action(
-            createContext(request, response),
-            parsed.data as z.infer<Contract["request"]>
-        )) as z.infer<EndpointResponsesSchema>;
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        const close = () => {
+            if (!response.writableEnded) controller.abort();
+        };
+        request.once("aborted", abort);
+        response.once("close", close);
+        const closeIncompleteUploadConnection = () => {
+            if (
+                contract.meta.transport?.requestBody &&
+                !request.readableEnded &&
+                !response.headersSent &&
+                !response.destroyed
+            ) {
+                response.setHeader("Connection", "close");
+            }
+        };
+        let result: z.infer<EndpointResponsesSchema>;
+        try {
+            result = (await action(
+                createContext(request, response),
+                parsed.data as z.infer<Contract["request"]>,
+                { request, signal: controller.signal }
+            )) as z.infer<EndpointResponsesSchema>;
+        } catch (error) {
+            request.off("aborted", abort);
+            response.off("close", close);
+            closeIncompleteUploadConnection();
+            throw error;
+        }
+        closeIncompleteUploadConnection();
         if (result.status >= 400) {
+            request.off("aborted", abort);
+            response.off("close", close);
+            executeEffects(response, result.effects);
             return sendProblem(
                 response,
                 withProblemInstance(
@@ -101,11 +134,34 @@ export function buildEndpointHandler<
         }
         executeEffects(response, result.effects);
         response.status(result.status);
-        if (result.status === 204) return response.send();
+        if (result.status === 204) {
+            request.off("aborted", abort);
+            response.off("close", close);
+            return response.send();
+        }
         const responseVariant = contract.response.options.find(
             (variant) => variant.shape.status.value === result.status
         );
         const mediaType = responseVariant?.meta()?.mediaType;
+        if (contract.meta.transport?.responseBody === "stream") {
+            if (!(result.body instanceof Readable)) {
+                throw new Error("Endpoint de stream retornou corpo inválido.");
+            }
+            if (typeof mediaType === "string") {
+                response.setHeader("Content-Type", mediaType);
+            }
+            try {
+                await pipeline(result.body, response, {
+                    signal: controller.signal
+                });
+            } finally {
+                request.off("aborted", abort);
+                response.off("close", close);
+            }
+            return;
+        }
+        request.off("aborted", abort);
+        response.off("close", close);
         if (typeof mediaType === "string" && mediaType !== "application/json") {
             if (!response.hasHeader("Content-Type")) {
                 response.setHeader("Content-Type", mediaType);

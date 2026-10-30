@@ -21,6 +21,7 @@ const membershipInclude = {
             publicId: true,
             publicProfileEnabled: true,
             publicDisplayName: true,
+            avatarMediaId: true,
             authUsers: {
                 where: { status: "ACTIVE" as const },
                 select: { id: true },
@@ -69,6 +70,10 @@ function publicMember(value: Membership) {
         profilePublicId:
             value.student.publicProfileEnabled && value.student.authUsers.length
                 ? value.student.publicId
+                : null,
+        avatarMediaId:
+            value.student.publicProfileEnabled && value.student.authUsers.length
+                ? value.student.avatarMediaId
                 : null
     };
 }
@@ -92,7 +97,11 @@ function ownMember(value: Membership) {
     };
 }
 function managedMember(value: Membership) {
-    return { ...ownMember(value), studentName: value.student.name };
+    return {
+        ...ownMember(value),
+        studentName: value.student.name,
+        avatarMediaId: publicMember(value).avatarMediaId
+    };
 }
 function publicEvent(value: Event) {
     return {
@@ -498,14 +507,31 @@ export function createGroupCommunityService({
                 await prisma.groupInvitation.findMany({
                     where: { groupId },
                     include: {
-                        recipient: { select: { name: true, publicId: true } }
+                        recipient: {
+                            select: {
+                                name: true,
+                                publicId: true,
+                                publicProfileEnabled: true,
+                                avatarMediaId: true,
+                                authUsers: {
+                                    where: { status: "ACTIVE" },
+                                    select: { id: true },
+                                    take: 1
+                                }
+                            }
+                        }
                     },
                     orderBy: [{ createdAt: "desc" }, { id: "desc" }]
                 })
             ).map((value) => ({
                 ...invitation(value),
                 recipientName: value.recipient.name,
-                recipientPublicId: value.recipient.publicId
+                recipientPublicId: value.recipient.publicId,
+                recipientAvatarMediaId:
+                    value.recipient.publicProfileEnabled &&
+                    value.recipient.authUsers.length
+                        ? value.recipient.avatarMediaId
+                        : null
             }));
         },
         async createInvitation(

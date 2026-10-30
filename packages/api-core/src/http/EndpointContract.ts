@@ -111,6 +111,13 @@ export type EndpointContract<Authorization = unknown> = {
         };
         sdk: SdkOperationMetadata | false;
         pagination?: PaginationMetadata;
+        transport?: {
+            requestBody?: {
+                mediaType: "multipart/form-data";
+                schema: z.ZodType;
+            };
+            responseBody?: "stream";
+        };
     };
     request: EndpointRequestSchema;
     response: EndpointResponsesSchema;

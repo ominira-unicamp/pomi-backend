@@ -16,6 +16,10 @@ function errorHandler(
     res: Response,
     _next: NextFunction
 ) {
+    if (res.headersSent) {
+        res.destroy();
+        return;
+    }
     if (err instanceof AppError) {
         if (err.status >= 500) {
             requestLogger(res)?.error(

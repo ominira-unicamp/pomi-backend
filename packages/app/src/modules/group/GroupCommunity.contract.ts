@@ -70,13 +70,14 @@ export const publicMembership = z
         groupId: id,
         displayName: z.string(),
         profilePublicId: z.string().uuid().nullable(),
+        avatarMediaId: z.uuid().nullable(),
         joinedAt: z.string().datetime(),
         positions: z.array(position)
     })
     .strict()
     .openapi("PublicGroupMembership", entityMeta("PublicGroupMembership"));
 export const ownMembership = publicMembership
-    .omit({ displayName: true, profilePublicId: true })
+    .omit({ displayName: true, profilePublicId: true, avatarMediaId: true })
     .extend({
         studentId: id,
         isPublic: z.boolean(),
@@ -87,7 +88,7 @@ export const ownMembership = publicMembership
     .strict()
     .openapi("OwnGroupMembership", entityMeta("OwnGroupMembership"));
 export const managedMembership = ownMembership
-    .extend({ studentName: z.string() })
+    .extend({ studentName: z.string(), avatarMediaId: z.uuid().nullable() })
     .strict()
     .openapi("ManagedGroupMembership", entityMeta("ManagedGroupMembership"));
 const eventBase = z
@@ -143,7 +144,8 @@ export const invitation = z
 export const managedInvitation = invitation
     .extend({
         recipientName: z.string(),
-        recipientPublicId: z.string().uuid()
+        recipientPublicId: z.string().uuid(),
+        recipientAvatarMediaId: z.uuid().nullable()
     })
     .strict()
     .openapi("ManagedGroupInvitation", entityMeta("ManagedGroupInvitation"));

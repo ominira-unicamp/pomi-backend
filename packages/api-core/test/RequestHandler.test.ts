@@ -50,6 +50,12 @@ function responseRecorder() {
         },
         clearCookie() {
             return response;
+        },
+        once() {
+            return response;
+        },
+        off() {
+            return response;
         }
     } as unknown as Response;
     return { response, recorded };
@@ -71,7 +77,9 @@ test("validates requests and executes a declarative action", async () => {
             body: { name: "POMI" },
             query: {},
             params: {},
-            headers: {}
+            headers: {},
+            once() {},
+            off() {}
         } as Request,
         response
     );

@@ -46,6 +46,7 @@ test("public memberships expose profile links only for enabled active profiles",
             publicId,
             publicProfileEnabled: true,
             publicDisplayName: "Ana do Coletivo",
+            avatarMediaId: "8bf172b7-6e70-47e4-ad19-353292f77d34",
             authUsers: [{ id: 1 }]
         }
     };
@@ -79,6 +80,10 @@ test("public memberships expose profile links only for enabled active profiles",
     assert.deepEqual(
         values.map((value) => value.profilePublicId),
         [publicId, null, null]
+    );
+    assert.deepEqual(
+        values.map((value) => value.avatarMediaId),
+        [member.student.avatarMediaId, null, null]
     );
     assert.deepEqual(
         values.map((value) => value.displayName),
@@ -146,6 +151,48 @@ test("own membership includes the union of role permissions", async () => {
     assert.deepEqual(membership.permissions, ["EVENT_CREATE", "EVENT_EDIT"]);
 });
 
+test("group managers cannot discover private or inactive member avatars", async () => {
+    const avatarMediaId = "8bf172b7-6e70-47e4-ad19-353292f77d34";
+    const row = {
+        id: 3,
+        groupId: 42,
+        studentId: 9,
+        joinedAt: new Date(),
+        leftAt: null,
+        isPublic: true,
+        positions: [],
+        roles: [],
+        student: {
+            name: "Ana",
+            publicId: "8bf172b7-6e70-47e4-ad19-353292f77d34",
+            publicProfileEnabled: true,
+            avatarMediaId,
+            authUsers: [{ id: 1 }]
+        }
+    };
+    const prisma = {
+        group: { count: async () => 1 },
+        groupMembershipRole: { findFirst: async () => ({ roleId: 1 }) },
+        groupMembership: { findMany: async () => [row] }
+    } as unknown as PrismaClient;
+    const service = createGroupCommunityService({ prisma });
+    assert.equal(
+        (await service.listManagedMemberships(1, 42))[0]!.avatarMediaId,
+        avatarMediaId
+    );
+    row.student.publicProfileEnabled = false;
+    assert.equal(
+        (await service.listManagedMemberships(1, 42))[0]!.avatarMediaId,
+        null
+    );
+    row.student.publicProfileEnabled = true;
+    row.student.authUsers = [];
+    assert.equal(
+        (await service.listManagedMemberships(1, 42))[0]!.avatarMediaId,
+        null
+    );
+});
+
 test("role managers can read memberships to assign roles", async () => {
     let permissionFilter: unknown;
     const prisma = {
@@ -202,6 +249,8 @@ test("invitations resolve the recipient by public id", async () => {
 test("managed invitations require group permission and expose recipients", async () => {
     let requestedGroupId: unknown;
     let requestedPermission: unknown;
+    let publicProfileEnabled = true;
+    let active = true;
     const prisma = {
         group: { count: async () => 1 },
         groupMembershipRole: {
@@ -230,6 +279,10 @@ test("managed invitations require group permission and expose recipients", async
                         respondedAt: null,
                         recipient: {
                             name: "Bia",
+                            publicProfileEnabled,
+                            authUsers: active ? [{ id: 2 }] : [],
+                            avatarMediaId:
+                                "8bf172b7-6e70-47e4-ad19-353292f77d34",
                             publicId: "4c7ba34f-dc7b-48d7-90cd-e76a315ab037"
                         }
                     }
@@ -243,6 +296,21 @@ test("managed invitations require group permission and expose recipients", async
     assert.equal(requestedGroupId, 42);
     assert.deepEqual(requestedPermission, { in: ["MEMBER_MANAGE"] });
     assert.equal(result.recipientName, "Bia");
+    assert.equal(
+        result.recipientAvatarMediaId,
+        "8bf172b7-6e70-47e4-ad19-353292f77d34"
+    );
+    publicProfileEnabled = false;
+    const [hidden] = await createGroupCommunityService({
+        prisma
+    }).listManagedInvitations(1, 42);
+    assert.equal(hidden.recipientAvatarMediaId, null);
+    publicProfileEnabled = true;
+    active = false;
+    const [inactive] = await createGroupCommunityService({
+        prisma
+    }).listManagedInvitations(1, 42);
+    assert.equal(inactive.recipientAvatarMediaId, null);
     assert.equal(managedInvitation.safeParse(result).success, true);
 });
 

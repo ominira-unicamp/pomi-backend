@@ -12,7 +12,7 @@
         "build": "tsc -b",
         "test": "tsx --test test/**/*.test.ts scripts/**/*.test.ts",
         "sync:academic-position-catalog": "tsx scripts/sync-academic-position-catalog.ts",
-        "generate": "prisma generate --config prisma.config.ts",
+        "generate": "prisma generate --config prisma.config.ts --generator client && prisma generate --config prisma.config.ts --generator zod",
         "migrate:dev": "prisma migrate dev --config prisma.config.ts",
         "migrate:deploy": "prisma migrate deploy --config prisma.config.ts",
         "migrate:status": "prisma migrate status --config prisma.config.ts"

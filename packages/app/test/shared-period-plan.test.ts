@@ -66,6 +66,50 @@ test("public shared period plan query only selects public plans", async () => {
     });
 });
 
+test("shared plan author avatar disappears when the profile becomes private", async () => {
+    const row = {
+        id: 1,
+        shareId: "8bf172b7-6e70-47e4-ad19-353292f77d34",
+        name: "Plano",
+        visibility: "PUBLIC",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        guideMode: "NONE",
+        curriculumSource: null,
+        curriculum: null,
+        curriculumSuggestion: null,
+        catalogProgram: null,
+        catalogProgramVariant: null,
+        language: null,
+        manualCourses: [],
+        classes: [],
+        studyPeriod: { id: 1, year: 2026, yearPeriod: "FIRST_SEMESTER" },
+        student: {
+            id: 7,
+            publicId: "8bf172b7-6e70-47e4-ad19-353292f77d34",
+            publicProfileEnabled: true,
+            publicDisplayName: "Ana",
+            avatarMediaId: "8bf172b7-6e70-47e4-ad19-353292f77d34"
+        }
+    };
+    const service = createSharedPeriodPlanService({
+        prisma: {
+            periodPlanning: {
+                findMany: async () => [row],
+                count: async () => 1
+            }
+        }
+    } as never);
+    const visible = await service.listPublic({ page: 1, pageSize: 20 });
+    assert.equal(
+        visible.items[0]!.owner?.avatarMediaId,
+        row.student.avatarMediaId
+    );
+    row.student.publicProfileEnabled = false;
+    const hidden = await service.listPublic({ page: 1, pageSize: 20 });
+    assert.equal(hidden.items[0]!.owner, null);
+});
+
 test("student shared query grants access only to public and accepted-friend plans", async () => {
     let where: { OR: unknown[] } | undefined;
     const service = createSharedPeriodPlanService({

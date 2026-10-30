@@ -1,4 +1,4 @@
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import assert from "node:assert/strict";
 import http from "node:http";
@@ -79,6 +79,52 @@ test("accepts a valid Keycloak access token", async () => {
         sub?: string;
     };
     assert.equal(payload.sub, "keycloak-user");
+});
+
+test("resolves optional media authentication only when a bearer is present", async () => {
+    const { AuthRegistry, policies } = await import("#/auth.js");
+    const registry = new AuthRegistry();
+    registry.addPolicy(
+        "GET",
+        "/media/:mediaId/:variant",
+        policies.optionalAuth
+    );
+    const values: unknown[] = [];
+    const response = {
+        status(value: number) {
+            values.push(value);
+            return this;
+        },
+        type() {
+            return this;
+        },
+        json(value: unknown) {
+            values.push(value);
+            return this;
+        }
+    } as unknown as Response;
+    const makeRequest = (authorization?: string) =>
+        ({
+            method: "GET",
+            path: "/media/id/avatarSmall",
+            headers: authorization ? { authorization } : {},
+            prisma: { authUser: { findUnique: async () => authUser() } },
+            scope: { register: () => undefined }
+        }) as unknown as Request;
+    let nextCount = 0;
+    const next = () => {
+        nextCount += 1;
+    };
+
+    await registry.middleware()(makeRequest(), response, next);
+    assert.equal(nextCount, 1);
+    await registry.middleware()(makeRequest("Bearer invalid"), response, next);
+    assert.equal(nextCount, 1);
+    assert.equal(values[0], 401);
+    const authenticated = makeRequest(`Bearer ${await signToken()}`);
+    await registry.middleware()(authenticated, response, next);
+    assert.equal(nextCount, 2);
+    assert.equal(authenticated.principal?.authUserId, 8);
 });
 
 test("rejects a token for another audience", async () => {

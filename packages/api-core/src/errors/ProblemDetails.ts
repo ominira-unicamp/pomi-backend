@@ -149,6 +149,7 @@ export function appErrorProblem(
         title: error.title,
         status: error.status,
         detail: error.message,
+        ...(error.status === 400 ? { fields: [] } : {}),
         ...(instance ? { instance } : {})
     };
 }
@@ -257,7 +258,7 @@ export const UnprocessableEntityProblemSchema = ProblemDetailsSchema.extend({
 
 export const PayloadTooLargeProblemSchema = ProblemDetailsSchema.extend({
     type: z.literal(problemType("payload-too-large")),
-    title: z.literal("Resposta muito grande"),
+    title: z.literal("Corpo da requisição muito grande"),
     status: z.literal(413)
 })
     .strict()

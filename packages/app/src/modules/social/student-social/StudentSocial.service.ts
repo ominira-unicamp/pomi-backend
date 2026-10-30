@@ -58,6 +58,7 @@ const personSelection = {
     id: true,
     publicId: true,
     name: true,
+    avatarMediaId: true,
     publicProfileEnabled: true,
     publicDisplayName: true,
     publicBio: true,
@@ -94,6 +95,7 @@ type SelectedPerson = {
     id: number;
     publicId: string;
     name: string;
+    avatarMediaId: string | null;
     publicProfileEnabled: boolean;
     publicDisplayName: string | null;
     publicBio: string | null;
@@ -140,6 +142,7 @@ function buildPerson(
     return {
         publicId: student.publicId,
         displayName: student.publicDisplayName ?? student.name,
+        avatarMediaId: disclose ? student.avatarMediaId : null,
         bio: disclose ? student.publicBio : null,
         interests: disclose
             ? student.tagInterests
@@ -173,6 +176,7 @@ function buildProfile(student: SelectedPerson): Profile {
     return {
         publicId: student.publicId,
         displayName: student.publicDisplayName ?? student.name,
+        avatarMediaId: student.avatarMediaId,
         bio: student.publicBio,
         interests: student.tagInterests
             .map(({ tag }) => ({ id: tag.id, name: tag.name }))

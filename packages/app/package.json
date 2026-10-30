@@ -15,7 +15,9 @@
         "start": "node --import @pomi/api-core/telemetry/bootstrap dist/src/index.js",
         "test": "NODE_OPTIONS=--conditions=development tsx --test test/**/*.test.ts",
         "openapi:export": "NODE_OPTIONS=--conditions=development tsx scripts/exportOpenApi.ts",
-        "auth:bootstrap-admin": "NODE_OPTIONS=--conditions=development tsx src/bootstrap-admin.ts"
+        "auth:bootstrap-admin": "NODE_OPTIONS=--conditions=development tsx src/bootstrap-admin.ts",
+        "media:cleanup": "node dist/src/media/cleanup-cli.js",
+        "media:smoke": "node dist/src/media/smoke-cli.js"
     },
     "dependencies": {
         "@asteasolutions/zod-to-openapi": "^8.2.0",

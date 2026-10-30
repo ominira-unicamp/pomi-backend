@@ -41,7 +41,8 @@ const sharedPeriodPlanning = z
         owner: z
             .object({
                 publicId: z.string().uuid(),
-                displayName: z.string()
+                displayName: z.string(),
+                avatarMediaId: z.uuid().nullable()
             })
             .strict()
             .nullable(),

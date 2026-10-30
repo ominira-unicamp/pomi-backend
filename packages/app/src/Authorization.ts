@@ -34,6 +34,7 @@ export function raFromDacEmail(email: string | null): string | undefined {
 
 export type AuthorizationPolicy =
     | { kind: "public" }
+    | { kind: "optional-auth" }
     | { kind: "authenticated" }
     | { kind: "admin" }
     | { kind: "capability"; capability: Capability }
@@ -46,6 +47,7 @@ export type AuthorizationPolicy =
 
 export const policies = {
     public: { kind: "public" } as const,
+    optionalAuth: { kind: "optional-auth" } as const,
     authenticated: { kind: "authenticated" } as const,
     admin: { kind: "admin" } as const,
     capability: (capability: Capability): AuthorizationPolicy => ({

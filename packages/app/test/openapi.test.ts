@@ -200,3 +200,50 @@ test("group authorization scope comes from path and query", () => {
         );
     }
 });
+
+test("media contracts declare multipart upload, binary reads and transport failures", () => {
+    const document = generateAppOpenApiDocument();
+    const upload = document.paths["/student/{sid}/avatar"]?.post;
+    const read = document.paths["/media/{mediaId}/{variant}"]?.get;
+    assert.ok(upload);
+    assert.ok(read);
+    assert.ok(upload.requestBody && "content" in upload.requestBody);
+    assert.ok(upload.requestBody.content?.["multipart/form-data"]);
+    assert.ok(upload.responses?.[413]);
+    assert.ok(upload.responses?.[422]);
+    assert.ok(upload.responses?.[429]);
+    assert.ok(upload.responses?.[503]);
+    assert.ok(read.responses?.[503]);
+    assert.deepEqual(read.security, [{}, { BearerAuth: [] }]);
+    const success = read.responses?.[200];
+    assert.ok(success && "content" in success);
+    assert.ok(success.content?.["image/webp"]);
+    assert.match(
+        success.description,
+        /Cross-Origin-Resource-Policy: cross-origin/
+    );
+});
+
+test("media contract exposes only avatars and removes group headers", () => {
+    const document = generateAppOpenApiDocument();
+    assert.equal(
+        document.paths["/student/{sid}/groups/{id}/banner"],
+        undefined
+    );
+    const group = document.components?.schemas?.Group;
+    assert.ok(group && !("$ref" in group));
+    assert.ok(group.properties?.avatarMediaId);
+    assert.equal(group.properties?.bannerMediaId, undefined);
+    const variant = document.paths[
+        "/media/{mediaId}/{variant}"
+    ]?.get?.parameters?.find(
+        (parameter) => "name" in parameter && parameter.name === "variant"
+    );
+    assert.ok(variant && !("$ref" in variant));
+    assert.deepEqual(
+        variant.schema && !("$ref" in variant.schema)
+            ? variant.schema.enum
+            : undefined,
+        ["avatarSmall", "avatarLarge"]
+    );
+});

@@ -42,6 +42,24 @@ export class ConflictError extends AppError {
     readonly title = "Conflito ao concluir a ação";
 }
 
+export class PayloadTooLargeError extends AppError {
+    readonly status = 413;
+    readonly type = "urn:pomi:problem:payload-too-large";
+    readonly title = "Corpo da requisição muito grande";
+}
+
+export class UnprocessableEntityError extends AppError {
+    readonly status = 422;
+    readonly type = "urn:pomi:problem:unprocessable-entity";
+    readonly title = "Não foi possível concluir a ação";
+}
+
+export class ServiceUnavailableError extends AppError {
+    readonly status = 503;
+    readonly type = "urn:pomi:problem:service-unavailable";
+    readonly title = "Serviço indisponível";
+}
+
 export class InconsistentResourceStateError extends AppError {
     readonly status = 500;
     readonly type = "urn:pomi:problem:inconsistent-resource-state";

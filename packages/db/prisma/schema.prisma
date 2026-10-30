@@ -210,6 +210,14 @@ enum GroupPermission {
   @@schema("app")
 }
 
+enum MediaAssetStatus {
+  ACTIVE
+  PENDING_DELETE
+  DELETED
+
+  @@schema("app")
+}
+
 enum GroupActiveKey {
   ACTIVE
 
@@ -1266,6 +1274,9 @@ model Student {
   publicDisplayName        String?                         @db.VarChar(80)
   publicBio                String?                         @db.VarChar(280)
   currentCoursesVisibility StudentCurrentCoursesVisibility @default(PRIVATE)
+  avatarMedia              MediaAsset?                     @relation("StudentAvatarMedia", fields: [avatarMediaId], references: [id], onDelete: Restrict)
+  avatarMediaId            String?                         @unique @db.Uuid
+  avatarRevision           Int                             @default(0)
 
   courseAttempts             StudentCourseAttempt[]
   professorEvaluations       ProfessorEvaluation[]
@@ -1600,6 +1611,9 @@ model Group {
   status      GroupStatus @default(ACTIVE)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  avatarMedia    MediaAsset? @relation("GroupAvatarMedia", fields: [avatarMediaId], references: [id], onDelete: Restrict)
+  avatarMediaId  String?     @unique @db.Uuid
+  avatarRevision Int         @default(0)
 
   contacts    GroupContact[]
   links       GroupLink[]
@@ -1610,6 +1624,27 @@ model Group {
   events      GroupEvent[]
 
   @@index([status, name])
+  @@schema("app")
+}
+
+model MediaAsset {
+  id              String           @id @default(uuid()) @db.Uuid
+  alias           String           @unique @db.VarChar(160)
+  contentType     String           @db.VarChar(32)
+  width           Int
+  height          Int
+  status          MediaAssetStatus @default(ACTIVE)
+  deleteAttempts  Int              @default(0)
+  nextDeleteAt    DateTime?
+  deletedAt       DateTime?
+  lastDeleteError String?          @db.VarChar(200)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  studentAvatar Student? @relation("StudentAvatarMedia")
+  groupAvatar   Group?   @relation("GroupAvatarMedia")
+
+  @@index([status, nextDeleteAt])
   @@schema("app")
 }
 

@@ -83,6 +83,7 @@ const person = z
     .object({
         publicId: z.string().uuid(),
         displayName: z.string(),
+        avatarMediaId: z.uuid().nullable(),
         bio: z.string().nullable(),
         interests: z
             .array(

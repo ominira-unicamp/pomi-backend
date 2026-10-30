@@ -52,6 +52,7 @@ function serialize(
         name: group.name,
         description: group.description,
         status: group.status,
+        avatarMediaId: group.avatarMediaId,
         contacts: group.contacts.map(
             ({ id, type, label, value, sortOrder }) => ({
                 id,

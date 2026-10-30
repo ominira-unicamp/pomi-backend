@@ -39,7 +39,10 @@ application.use(appScopeMiddleware(container));
 application.get("/health", (_req, res) => res.json({ status: "ok" }));
 application.get(
     "/ready",
-    createReadinessHandler(() => database.$queryRaw`SELECT 1`)
+    createReadinessHandler(async () => {
+        await database.$queryRaw`SELECT 1`;
+        await container.cradle.pictRsClient?.health();
+    })
 );
 application.get(
     "/version",

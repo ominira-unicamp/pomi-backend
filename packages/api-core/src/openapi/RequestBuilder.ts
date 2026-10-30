@@ -19,13 +19,14 @@ class RequestBuilder {
     }
     body(
         schema: ZodType<unknown> | SchemaObject | ReferenceObject,
-        description: string
+        description: string,
+        mediaType = "application/json"
     ): RequestBuilder {
         this.request.body = {
             description: description,
             required: true,
             content: {
-                "application/json": {
+                [mediaType]: {
                     schema: schema
                 }
             }

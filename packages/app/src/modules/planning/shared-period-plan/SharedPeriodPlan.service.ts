@@ -50,7 +50,8 @@ const selection = {
                 id: true,
                 publicId: true,
                 publicProfileEnabled: true,
-                publicDisplayName: true
+                publicDisplayName: true,
+                avatarMediaId: true
             }
         }
     }
@@ -78,7 +79,8 @@ function buildShared(row: NonNullable<Selected>): SharedPeriodPlan {
         owner: row.student.publicProfileEnabled
             ? {
                   publicId: row.student.publicId,
-                  displayName: row.student.publicDisplayName ?? "Aluno do POMI"
+                  displayName: row.student.publicDisplayName ?? "Aluno do POMI",
+                  avatarMediaId: row.student.avatarMediaId
               }
             : null,
         classes: entity.classes,

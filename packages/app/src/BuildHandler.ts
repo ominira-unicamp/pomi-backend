@@ -1,5 +1,8 @@
 import type { Principal } from "#/auth.js";
 import { AuthRegistry, type AuthorizationPolicy } from "#/auth.js";
+import type { MediaService } from "#/media/MediaService.js";
+import type { MediaUploadLimiter } from "#/media/MediaUploadLimiter.js";
+import type { PictRsClient } from "#/media/PictRsClient.js";
 import type { EvaluationSummaryService } from "#/modules/academic/evaluation-summary/EvaluationSummary.service.js";
 import type { ExchangeNoticeSubscriptionService } from "#/modules/exchange/exchange-notice-subscription/ExchangeNoticeSubscription.service.js";
 import type { ExchangeNoticeUnsubscribeService } from "#/modules/exchange/exchange-notice-unsubscribe/ExchangeNoticeUnsubscribe.service.js";
@@ -28,6 +31,9 @@ import {
 
 export type Context = {
     principal?: Principal;
+    mediaService: MediaService;
+    pictRsClient?: PictRsClient;
+    mediaUploadLimiter: MediaUploadLimiter;
     studentCourseAttemptService: StudentCourseAttemptService;
     studentHistoryImportService: StudentHistoryImportService;
     studentAbsenceService: StudentAbsenceService;
@@ -63,6 +69,9 @@ export function createAppEndpointRegistries<
         actions,
         createContext: (request) => ({
             principal: request.scope.cradle.principal,
+            mediaService: request.scope.cradle.mediaService,
+            pictRsClient: request.scope.cradle.pictRsClient,
+            mediaUploadLimiter: request.scope.cradle.mediaUploadLimiter,
             studentCourseAttemptService:
                 request.scope.cradle.studentCourseAttemptService,
             studentHistoryImportService:
@@ -96,7 +105,11 @@ export function createAppEndpointRegistries<
         registerAuthorization: (method, path, authorization) =>
             authRegistry.addPolicy(method, path, authorization),
         authorizationSecurity: (authorization) =>
-            authorization.kind === "public" ? [] : [{ BearerAuth: [] }]
+            authorization.kind === "public"
+                ? []
+                : authorization.kind === "optional-auth"
+                  ? [{} as Record<string, string[]>, { BearerAuth: [] }]
+                  : [{ BearerAuth: [] }]
     });
     return { router, registry: openApiRegistry, authRegistry };
 }

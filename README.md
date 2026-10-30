@@ -210,3 +210,18 @@ cancelamentos ou outras exceções do calendário acadêmico.
 ## LICENÇA
 
 O projeto está licenciado pelos termos da AGPL v3.0, para informações completas ver [licença](https://github.com/ominira-unicamp/pomi-backend/blob/main/LICENSE).
+
+## Avatares de pessoas e grupos
+
+A App API mantém somente avatares e as variantes `avatarSmall` e `avatarLarge`.
+Uploads recebem corte central quadrado. Os grupos não possuem banner.
+
+A migração `20261029173919_remove_group_banners` remove as colunas e o vínculo
+antigos, preservando avatares e registros de mídia. Após o deploy, o job de
+limpeza encaminha mídias ativas sem vínculo e com mais de 24 horas para
+`PENDING_DELETE`, seguindo o fluxo existente de exclusão e retentativas no pict-rs.
+Mídias vinculadas e uploads recentes são preservados.
+
+O deploy deve aplicar a migração junto da versão correspondente da App API e
+atualizar consumidores com o SDK regenerado. A migração foi gerada pelo Prisma
+e validada somente em banco descartável; o banco da cloud não foi alterado.
