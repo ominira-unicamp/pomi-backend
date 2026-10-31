@@ -104,7 +104,10 @@ for (const file of await sourceFiles(join(root, "app", "src", "modules"))) {
 
 const appSource = join(root, "app", "src");
 const mediaSource = join(appSource, "media");
-const mediaPublic = join(mediaSource, "public.js");
+const mediaPublic = new Set([
+    join(mediaSource, "public.js"),
+    join(mediaSource, "http.js")
+]);
 const providerConsumers = new Set([
     join(appSource, "Container.ts"),
     join(mediaSource, "PictRsStorage.ts"),
@@ -129,7 +132,7 @@ for (const file of await sourceFiles(appSource)) {
         if (
             insideModules &&
             imported.startsWith(mediaSource + "/") &&
-            imported !== mediaPublic
+            !mediaPublic.has(imported)
         ) {
             violations.push(`${path} bypasses the public media interface`);
         }

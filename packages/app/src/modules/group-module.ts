@@ -1,5 +1,6 @@
 import { AuthRegistry } from "#/auth.js";
 import type { ModuleDefinition } from "#/modules/Module.js";
+import avatar from "#/modules/group/GroupAvatar.endpoints.js";
 import event from "#/modules/group/event/GroupEvent.controller.js";
 import group from "#/modules/group/index.js";
 import invitation from "#/modules/group/invitation/GroupInvitation.controller.js";
@@ -10,6 +11,7 @@ import { Router } from "express";
 
 const controllers: ModuleDefinition["controllers"] = [
     group,
+    avatar,
     membership,
     invitation,
     role,

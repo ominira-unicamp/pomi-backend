@@ -13,6 +13,10 @@ process.env.DISABLED_AUTH = "true";
 
 const { default: mediaController } =
     await import("#/media/Media.controller.js");
+const { default: studentAvatarController } =
+    await import("#/modules/planning/student/StudentAvatar.endpoints.js");
+const { default: groupAvatarController } =
+    await import("#/modules/group/GroupAvatar.endpoints.js");
 
 test("media upload exposes stable validation and upstream failures", async () => {
     let failure: PictRsError = new PictRsError("Falha", "invalid-media");
@@ -74,8 +78,13 @@ test("media upload exposes stable validation and upstream failures", async () =>
                 },
                 {
                     get(target, property) {
+                        const expected = request.path.startsWith("/media/")
+                            ? ["principal", "mediaService"]
+                            : request.path.includes("/groups/")
+                              ? ["principal", "groupAvatars"]
+                              : ["principal", "studentAvatars"];
                         assert.ok(
-                            property in target,
+                            expected.includes(String(property)),
                             `Unexpected dependency: ${String(property)}`
                         );
                         return Reflect.get(target, property);
@@ -85,7 +94,11 @@ test("media upload exposes stable validation and upstream failures", async () =>
         } as never;
         next();
     });
-    application.use(mediaController.router);
+    application.use(
+        studentAvatarController.router,
+        groupAvatarController.router,
+        mediaController.router
+    );
     application.use(errorHandler);
     const server = application.listen(0, "127.0.0.1");
     try {
@@ -190,7 +203,11 @@ test("media upload rejects a rate-limited identity before forwarding the body", 
         } as never;
         next();
     });
-    application.use(mediaController.router);
+    application.use(
+        studentAvatarController.router,
+        groupAvatarController.router,
+        mediaController.router
+    );
     application.use(errorHandler);
     const server = application.listen(0, "127.0.0.1");
     try {
@@ -218,6 +235,79 @@ test("media upload rejects a rate-limited identity before forwarding the body", 
         assert.equal(problem.type, "urn:pomi:problem:media-upload-rate-limit");
         assert.equal(problem.retryAfterSeconds, 60);
         assert.equal(forwarded, 1);
+    } finally {
+        await new Promise<void>((resolve, reject) =>
+            server.close((error) => (error ? reject(error) : resolve()))
+        );
+    }
+});
+
+test("avatar contracts belong to their domains and media exposes only shared reads", () => {
+    assert.deepEqual(Object.keys(studentAvatarController.contracts), [
+        "putStudentAvatar",
+        "deleteStudentAvatar"
+    ]);
+    assert.deepEqual(Object.keys(groupAvatarController.contracts), [
+        "putGroupAvatar",
+        "deleteGroupAvatar"
+    ]);
+    assert.deepEqual(Object.keys(mediaController.contracts), [
+        "getImageVariant"
+    ]);
+});
+
+test("application composition routes avatar removals through the owning domain context", async () => {
+    const { appControllers } = await import("#/Controllers.js");
+    const calls: { actor: unknown; target: unknown }[] = [];
+    const application = express();
+    application.use((request, _response, next) => {
+        const dependency = request.path.includes("/groups/")
+            ? "groupAvatars"
+            : "studentAvatars";
+        request.scope = {
+            cradle: new Proxy(
+                {},
+                {
+                    get(_target, property) {
+                        if (property === "principal") return principal;
+                        assert.equal(property, dependency);
+                        return {
+                            remove: async (input: {
+                                actor: unknown;
+                                target: unknown;
+                            }) => {
+                                calls.push(input);
+                                return { revision: 1 };
+                            }
+                        };
+                    }
+                }
+            )
+        } as never;
+        next();
+    });
+    application.use(appControllers.router);
+    application.use(errorHandler);
+    const server = application.listen(0, "127.0.0.1");
+    try {
+        await new Promise<void>((resolve) => server.once("listening", resolve));
+        const address = server.address();
+        assert.ok(address && typeof address !== "string");
+        for (const path of [
+            "/student/42/avatar",
+            "/student/42/groups/7/avatar"
+        ]) {
+            const response = await fetch(
+                `http://127.0.0.1:${address.port}${path}`,
+                { method: "DELETE" }
+            );
+            assert.equal(response.status, 204);
+            await response.arrayBuffer();
+        }
+        assert.deepEqual(calls, [
+            { actor: principal, target: { studentId: 42 } },
+            { actor: principal, target: { studentId: 42, groupId: 7 } }
+        ]);
     } finally {
         await new Promise<void>((resolve, reject) =>
             server.close((error) => (error ? reject(error) : resolve()))

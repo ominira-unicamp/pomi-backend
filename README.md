@@ -230,8 +230,19 @@ e validada somente em banco descartável; o banco da cloud não foi alterado.
 ### Integração transversal de imagens
 
 A implementação de imagens fica em `packages/app/src/media`. Os módulos de
-negócio usam exclusivamente sua interface pública, `media/public.ts`, para
-definir recursos com `defineImageResource` e escolher `imageProfiles.avatar`.
+negócio usam `media/public.ts` para definir recursos com `defineImageResource`
+e escolher `imageProfiles.avatar`. Os componentes HTTP reutilizáveis ficam em
+`media/http.ts`; as declarações, os contratos e o registro dos endpoints de avatar ficam juntos
+nos arquivos `.endpoints.ts` dos módulos de estudante e grupo. Em `media`, somente o endpoint comum de leitura é registrado.
+Cada domínio declara seus endpoints de imagem em um objeto que referencia o recurso,
+com caminho, schema dos parâmetros, mapeamento para o alvo, autorização e metadados
+HTTP/SDK. Essa declaração não constrói componentes nem resolve dependências.
+`createImageContracts` transforma a declaração em contratos;
+`createImageActions` transforma a mesma declaração em actions, recebendo seletores
+das operações e da identidade no contexto local. O controller mantém a resolução
+das dependências e o registro das rotas. Novos recursos com uma imagem vinculada
+podem reutilizar essa construção para substituição e remoção.
+
 Cada definição fornece autorização, leitura do vínculo, substituição por
 comparação de revisão, descoberta de referências e autorização de leitura.
 Estudante e grupo mantêm seus vínculos `avatarMediaId` e `avatarRevision`.

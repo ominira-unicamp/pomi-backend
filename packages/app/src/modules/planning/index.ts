@@ -8,11 +8,13 @@ import studentAbsence from "#/modules/planning/student-absence/index.js";
 import studentCourseAttempt from "#/modules/planning/student-course-attempt/index.js";
 import studentHistoryImport from "#/modules/planning/student-history-import/index.js";
 import student from "#/modules/planning/student/index.js";
+import studentAvatar from "#/modules/planning/student/StudentAvatar.endpoints.js";
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 import { Router } from "express";
 
 const controllers: ModuleDefinition["controllers"] = [
     student,
+    studentAvatar,
     curriculum,
     periodPlan,
     sharedPeriodPlan,
