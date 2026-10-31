@@ -1,22 +1,7 @@
-import { AuthRegistry } from "#/auth.js";
-import type { ModuleDefinition } from "#/modules/Module.js";
-import exchangeNoticeSubscription from "#/modules/exchange/exchange-notice-subscription/index.js";
-import exchangeNoticeUnsubscribe from "#/modules/exchange/exchange-notice-unsubscribe/index.js";
-import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
-import { Router } from "express";
+import { createModule } from "#/Module.js";
+import exchangeNoticeSubscription from "./exchange-notice-subscription/ExchangeNoticeSubscription.controller.js";
+import exchangeNoticeUnsubscribe from "./exchange-notice-unsubscribe/ExchangeNoticeUnsubscribe.controller.js";
 
-const controllers: ModuleDefinition["controllers"] = [
-    exchangeNoticeSubscription,
-    exchangeNoticeUnsubscribe
-];
-
-export default {
-    router: Router().use(controllers.map((controller) => controller.router!)),
-    registry: new OpenAPIRegistry(
-        controllers.map((controller) => controller.registry!).flat()
-    ),
-    authRegistry: new AuthRegistry(
-        controllers.map((controller) => controller.authRegistry!)
-    ),
-    controllers
-} satisfies ModuleDefinition;
+export default createModule({
+    controllers: [exchangeNoticeSubscription, exchangeNoticeUnsubscribe]
+});

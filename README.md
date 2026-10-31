@@ -267,20 +267,46 @@ compartilhada antes de serem utilizados.
 
 ## Organização dos casos de uso da App API
 
+Cada área em `packages/app/src/modules` possui um `index.ts` que declara sua
+lista de controllers e endpoints. `createModule`, definido em `src/Module.ts`,
+constrói router, registry OpenAPI e registro de autorização a partir dessa lista.
+A composição global utiliza a mesma função; a agregação OpenAPI preserva as
+definições também em composições aninhadas. A ordem declarada das rotas é mantida.
+As funcionalidades internas são importadas diretamente, sem arquivos `index.ts`
+que apenas reexportam controllers.
+
+`student` reúne cadastro, seleção acadêmica, avatar e interesses de tags.
+`identity` mantém conta, identidade autenticada e concessões de acesso.
+`planning` reúne currículos, planos, tentativas, histórico e faltas.
+`academic/evaluation` reúne avaliações de professores e seus sumários públicos.
+`tagging` mantém o vocabulário de tags e suas associações com disciplinas.
+
+`social` separa configuração do perfil público, diretório de pessoas e amizades
+em contratos, controllers e serviços próprios. Os schemas, problemas e a
+representação pública de pessoas são compartilhados dentro dessa área.
+O contexto global continua disponível e fornece os três serviços sociais.
+
+Contratos e controllers extensos permanecem separados; integrações compactas,
+como avatares, usam um arquivo `.endpoints.ts` junto da definição do recurso.
+Arquivos de regras, consultas e apresentação são criados conforme a necessidade
+da funcionalidade, sem exigir a mesma quantidade de arquivos em todas as pastas.
+Esta organização preserva rotas, metadados do SDK e comportamento transacional.
+
 O módulo de grupos separa vínculos, convites, roles e eventos em serviços e
 controllers próprios. Cada controller recebe somente seu serviço por um contexto
 local. Cadastro e arquivamento continuam em `GroupService`, e o avatar utiliza a
 interface transversal de mídia. Autorização, governança e apresentação mantêm
 componentes internos específicos do domínio.
 
-Grupos e planejamento isolam decisões determinísticas em arquivos `.rules.ts`.
+Grupos, planejamento e avaliações isolam decisões determinísticas em arquivos `.rules.ts`.
 Essas regras recebem fatos já consultados e instantes explícitos; não consultam
 Prisma, contratos HTTP ou o relógio global. Os serviços carregam os dados,
 traduzem issues para os problemas existentes e coordenam a persistência. As
 fronteiras são verificadas por `npm run check:boundaries`.
 
 No planejamento, as regras cobrem currículo, plano de período, tentativas,
-importação de histórico, avaliações e faltas. Reordenações por posições
+importação de histórico e faltas. As regras de elegibilidade de avaliação ficam
+em `academic/evaluation/professor`. Reordenações por posições
 provisórias permanecem na persistência. A importação mantém seus estados aceitos
 e sua política de warnings; elegibilidade de avaliação e aprovação para
 pré-requisitos continuam sendo decisões distintas.

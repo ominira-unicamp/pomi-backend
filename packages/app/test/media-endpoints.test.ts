@@ -7,7 +7,7 @@ import { ImageStorageError } from "#/media/ImageStorage.js";
 import { MediaUploadRateLimitError } from "#/media/MediaUploadLimiter.js";
 import type { ImageResourceOperations } from "#/media/public.js";
 
-import type { GroupAvatarTarget } from "#/modules/group/GroupAvatar.js";
+import type { GroupAvatarTarget } from "#/modules/group/avatar/GroupAvatar.js";
 
 import type { Principal } from "#/Principal.js";
 import {
@@ -24,9 +24,9 @@ import test from "node:test";
 
 process.env.DISABLED_AUTH = "true";
 const { groupAvatarEndpoints } =
-    await import("#/modules/group/GroupAvatar.endpoints.js");
+    await import("#/modules/group/avatar/GroupAvatar.endpoints.js");
 const { studentAvatarEndpoints } =
-    await import("#/modules/planning/student/StudentAvatar.endpoints.js");
+    await import("#/modules/student/avatar/StudentAvatar.endpoints.js");
 
 type Context = {
     principal: Principal | undefined;

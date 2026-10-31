@@ -1,4 +1,4 @@
-import { createStudentService } from "#/modules/planning/student/Student.service.js";
+import { createStudentService } from "#/modules/student/Student.service.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 

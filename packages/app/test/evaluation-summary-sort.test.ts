@@ -1,4 +1,4 @@
-import { createEvaluationSummaryService } from "#/modules/academic/evaluation-summary/EvaluationSummary.service.js";
+import { createEvaluationSummaryService } from "#/modules/academic/evaluation/summary/EvaluationSummary.service.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 

@@ -17,9 +17,13 @@ import { PictRsClient } from "#/media/PictRsClient.js";
 import { createPictRsStorage } from "#/media/PictRsStorage.js";
 import type { ImageResourceOperations } from "#/media/public.js";
 import {
+    createProfessorEvaluationService,
+    type ProfessorEvaluationService
+} from "#/modules/academic/evaluation/professor/ProfessorEvaluation.service.js";
+import {
     createEvaluationSummaryService,
     type EvaluationSummaryService
-} from "#/modules/academic/evaluation-summary/EvaluationSummary.service.js";
+} from "#/modules/academic/evaluation/summary/EvaluationSummary.service.js";
 import {
     createExchangeNoticeSubscriptionService,
     type ExchangeNoticeSubscriptionService
@@ -37,7 +41,7 @@ import {
     createGroupService,
     type GroupService
 } from "#/modules/group/Group.service.js";
-import type { GroupAvatarTarget } from "#/modules/group/GroupAvatar.js";
+import type { GroupAvatarTarget } from "#/modules/group/avatar/GroupAvatar.js";
 import {
     createGroupEventService,
     type GroupEventService
@@ -75,10 +79,6 @@ import {
     type PeriodPlanService
 } from "#/modules/planning/period-plan/PeriodPlan.service.js";
 import {
-    createProfessorEvaluationService,
-    type ProfessorEvaluationService
-} from "#/modules/planning/professor-evaluation/ProfessorEvaluation.service.js";
-import {
     createSharedPeriodPlanService,
     type SharedPeriodPlanService
 } from "#/modules/planning/shared-period-plan/SharedPeriodPlan.service.js";
@@ -95,18 +95,26 @@ import {
     type StudentHistoryImportService
 } from "#/modules/planning/student-history-import/StudentHistoryImport.service.js";
 import {
+    createSocialFriendshipService,
+    type SocialFriendshipService
+} from "#/modules/social/friendship/SocialFriendship.service.js";
+import {
+    createSocialPeopleService,
+    type SocialPeopleService
+} from "#/modules/social/people/SocialPeople.service.js";
+import {
+    createSocialProfileService,
+    type SocialProfileService
+} from "#/modules/social/profile/SocialProfile.service.js";
+import {
     createStudentService,
     type StudentService
-} from "#/modules/planning/student/Student.service.js";
-import type { StudentAvatarTarget } from "#/modules/planning/student/StudentAvatar.js";
-import {
-    createStudentSocialService,
-    type StudentSocialService
-} from "#/modules/social/student-social/StudentSocial.service.js";
+} from "#/modules/student/Student.service.js";
+import type { StudentAvatarTarget } from "#/modules/student/avatar/StudentAvatar.js";
 import {
     createStudentTagInterestService,
     type StudentTagInterestService
-} from "#/modules/student-tag-interest/StudentTagInterest.service.js";
+} from "#/modules/student/interests/StudentTagInterest.service.js";
 import {
     createTaggingService,
     type TaggingService
@@ -136,7 +144,9 @@ export type AppCradle = {
     periodPlanService: PeriodPlanService;
     sharedPeriodPlanService: SharedPeriodPlanService;
     professorEvaluationService: ProfessorEvaluationService;
-    studentSocialService: StudentSocialService;
+    socialProfileService: SocialProfileService;
+    socialPeopleService: SocialPeopleService;
+    socialFriendshipService: SocialFriendshipService;
     feedbackReportService: FeedbackReportService;
     groupService: GroupService;
     groupMembershipService: GroupMembershipService;
@@ -202,7 +212,11 @@ export function createAppContainer(config: AppConfig, prisma: DatabaseClient) {
         professorEvaluationService: asFunction(
             createProfessorEvaluationService
         ).scoped(),
-        studentSocialService: asFunction(createStudentSocialService).scoped(),
+        socialProfileService: asFunction(createSocialProfileService).scoped(),
+        socialPeopleService: asFunction(createSocialPeopleService).scoped(),
+        socialFriendshipService: asFunction(
+            createSocialFriendshipService
+        ).scoped(),
         feedbackRateLimiter: asValue(
             new FeedbackRateLimiter(
                 config.feedbackRateLimitMax,

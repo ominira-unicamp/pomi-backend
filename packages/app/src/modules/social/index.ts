@@ -1,17 +1,8 @@
-import { AuthRegistry } from "#/auth.js";
-import type { ModuleDefinition } from "#/modules/Module.js";
-import studentSocial from "#/modules/social/student-social/index.js";
-import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
-import { Router } from "express";
+import { createModule } from "#/Module.js";
+import socialFriendship from "./friendship/SocialFriendship.controller.js";
+import socialPeople from "./people/SocialPeople.controller.js";
+import socialProfile from "./profile/SocialProfile.controller.js";
 
-const controllers: ModuleDefinition["controllers"] = [studentSocial];
-export default {
-    router: Router().use(controllers.map((controller) => controller.router!)),
-    registry: new OpenAPIRegistry(
-        controllers.map((controller) => controller.registry!).flat()
-    ),
-    authRegistry: new AuthRegistry(
-        controllers.map((controller) => controller.authRegistry!)
-    ),
-    controllers
-} satisfies ModuleDefinition;
+export default createModule({
+    controllers: [socialProfile, socialPeople, socialFriendship]
+});

@@ -87,7 +87,7 @@ for (const file of await sourceFiles(join(root, "app", "src", "modules"))) {
             );
         }
     }
-    if (file.endsWith(".controller.ts")) {
+    if (file.endsWith(".controller.ts") || file.endsWith(".endpoints.ts")) {
         for (const forbidden of [
             "ctx.prisma",
             "ctx.zodIds",

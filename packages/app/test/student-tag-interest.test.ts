@@ -1,5 +1,5 @@
-import IO from "#/modules/student-tag-interest/StudentTagInterest.contract.js";
-import { createStudentTagInterestService } from "#/modules/student-tag-interest/StudentTagInterest.service.js";
+import IO from "#/modules/student/interests/StudentTagInterest.contract.js";
+import { createStudentTagInterestService } from "#/modules/student/interests/StudentTagInterest.service.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 

@@ -14,9 +14,9 @@ process.env.DISABLED_AUTH = "true";
 const { default: mediaController } =
     await import("#/media/Media.controller.js");
 const { default: studentAvatarController } =
-    await import("#/modules/planning/student/StudentAvatar.endpoints.js");
+    await import("#/modules/student/avatar/StudentAvatar.endpoints.js");
 const { default: groupAvatarController } =
-    await import("#/modules/group/GroupAvatar.endpoints.js");
+    await import("#/modules/group/avatar/GroupAvatar.endpoints.js");
 
 test("media upload exposes stable validation and upstream failures", async () => {
     let failure: PictRsError = new PictRsError("Falha", "invalid-media");

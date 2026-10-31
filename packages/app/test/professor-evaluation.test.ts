@@ -1,6 +1,6 @@
-import IO from "#/modules/planning/professor-evaluation/ProfessorEvaluation.contract.js";
-import { isEligibleProfessorEvaluationAttempt } from "#/modules/planning/professor-evaluation/ProfessorEvaluation.rules.js";
-import { createProfessorEvaluationService } from "#/modules/planning/professor-evaluation/ProfessorEvaluation.service.js";
+import IO from "#/modules/academic/evaluation/professor/ProfessorEvaluation.contract.js";
+import { isEligibleProfessorEvaluationAttempt } from "#/modules/academic/evaluation/professor/ProfessorEvaluation.rules.js";
+import { createProfessorEvaluationService } from "#/modules/academic/evaluation/professor/ProfessorEvaluation.service.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 

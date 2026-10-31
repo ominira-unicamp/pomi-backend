@@ -1,4 +1,8 @@
 import {
+    isEligibleProfessorEvaluationAttempt,
+    validateProfessorEvaluationFacts
+} from "#/modules/academic/evaluation/professor/ProfessorEvaluation.rules.js";
+import {
     patchSelectionData,
     planCurriculumPeriodChanges,
     validateCurriculumCoursePeriods,
@@ -11,10 +15,6 @@ import {
     validateSavedGuide,
     validateSuggestionGuide
 } from "#/modules/planning/period-plan/PeriodPlan.rules.js";
-import {
-    isEligibleProfessorEvaluationAttempt,
-    validateProfessorEvaluationFacts
-} from "#/modules/planning/professor-evaluation/ProfessorEvaluation.rules.js";
 import type {
     AttemptStatus,
     EvaluationMode

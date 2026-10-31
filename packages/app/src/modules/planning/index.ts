@@ -1,44 +1,18 @@
-import { AuthRegistry } from "#/auth.js";
-import type { ModuleDefinition } from "#/modules/Module.js";
-import curriculum from "#/modules/planning/curriculum/index.js";
-import periodPlan from "#/modules/planning/period-plan/index.js";
-import professorEvaluation from "#/modules/planning/professor-evaluation/index.js";
-import sharedPeriodPlan from "#/modules/planning/shared-period-plan/index.js";
-import studentAbsence from "#/modules/planning/student-absence/index.js";
-import studentCourseAttempt from "#/modules/planning/student-course-attempt/index.js";
-import studentHistoryImport from "#/modules/planning/student-history-import/index.js";
-import student from "#/modules/planning/student/index.js";
-import studentAvatar from "#/modules/planning/student/StudentAvatar.endpoints.js";
-import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
-import { Router } from "express";
+import { createModule } from "#/Module.js";
+import curriculum from "./curriculum/Curriculum.controller.js";
+import periodPlan from "./period-plan/PeriodPlan.controller.js";
+import sharedPeriodPlan from "./shared-period-plan/SharedPeriodPlan.controller.js";
+import studentAbsence from "./student-absence/StudentAbsence.controller.js";
+import studentCourseAttempt from "./student-course-attempt/StudentCourseAttempt.controller.js";
+import studentHistoryImport from "./student-history-import/StudentHistoryImport.controller.js";
 
-const controllers: ModuleDefinition["controllers"] = [
-    student,
-    studentAvatar,
-    curriculum,
-    periodPlan,
-    sharedPeriodPlan,
-    professorEvaluation,
-    studentCourseAttempt,
-    studentHistoryImport,
-    studentAbsence
-];
-export default {
-    router: Router().use(
-        controllers
-            .filter((controller) => controller.router)
-            .map((controller) => controller.router!)
-    ),
-    registry: new OpenAPIRegistry(
-        controllers
-            .filter((controller) => controller.registry)
-            .map((controller) => controller.registry!)
-            .flat()
-    ),
-    authRegistry: new AuthRegistry(
-        controllers
-            .filter((controller) => controller.authRegistry)
-            .map((controller) => controller.authRegistry!)
-    ),
-    controllers
-} satisfies ModuleDefinition;
+export default createModule({
+    controllers: [
+        curriculum,
+        periodPlan,
+        sharedPeriodPlan,
+        studentCourseAttempt,
+        studentHistoryImport,
+        studentAbsence
+    ]
+});
