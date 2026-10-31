@@ -1,3 +1,4 @@
+import type { ZodType } from "zod";
 import {
     problemDetails,
     type DomainProblem,
@@ -55,7 +56,7 @@ export function resultToApiResponse<
 export function problemResponse<
     Problem extends DomainProblem,
     Status extends number,
-    Schema extends import("zod").ZodType,
+    Schema extends ZodType,
     Context extends ProblemResponseContext = ProblemResponseContext
 >(
     definition: ProblemDefinition<Problem, Status, Schema>,

@@ -21,6 +21,7 @@ import {
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
+import type { infer as Infer } from "zod";
 
 type ConflictProblem = ReturnType<
     typeof UniqueConstraintConflictProblem.create
@@ -55,24 +56,24 @@ const conflict = (detail: string) =>
 
 export type TaggingService = {
     listCategories(
-        query: import("zod").infer<typeof IO.listCategories.request>["query"]
+        query: Infer<typeof IO.listCategories.request>["query"]
     ): Promise<CategoryEntity[]>;
     getCategory(
         id: number
     ): Promise<Result<CategoryEntity, ReturnType<typeof resourceNotFound>>>;
     listTags(
-        query: import("zod").infer<typeof IO.listTags.request>["query"]
+        query: Infer<typeof IO.listTags.request>["query"]
     ): Promise<TagEntity[]>;
     getTag(
         id: number
     ): Promise<Result<TagEntity, ReturnType<typeof resourceNotFound>>>;
     listCourseTags(
         courseId: number,
-        query: import("zod").infer<typeof IO.listCourseTags.request>["query"]
+        query: Infer<typeof IO.listCourseTags.request>["query"]
     ): Promise<Result<TagEntity[], ReturnType<typeof resourceNotFound>>>;
     listTagCourses(
         tagId: number,
-        query: import("zod").infer<typeof IO.listTagCourses.request>["query"]
+        query: Infer<typeof IO.listTagCourses.request>["query"]
     ): Promise<
         Result<
             { items: RelatedCourse[]; total: number },

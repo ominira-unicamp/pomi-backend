@@ -1,3 +1,4 @@
+import type { resolvePrincipal as ResolvePrincipal } from "#/auth.js";
 import type { Request, Response } from "express";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import assert from "node:assert/strict";
@@ -8,7 +9,7 @@ let server: http.Server;
 let privateKey: Awaited<ReturnType<typeof generateKeyPair>>["privateKey"];
 let issuer: string;
 let verifyAccessToken: (token: string) => Promise<unknown>;
-let resolvePrincipal: (typeof import("#/auth.js"))["resolvePrincipal"];
+let resolvePrincipal: typeof ResolvePrincipal;
 
 before(async () => {
     const keys = await generateKeyPair("RS256", { extractable: true });

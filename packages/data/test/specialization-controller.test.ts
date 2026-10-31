@@ -1,10 +1,10 @@
+import type * as SpecializationController from "#/modules/catalog/specialization/Specialization.controller.js";
 import assert from "node:assert/strict";
 import { before, test } from "node:test";
 
 process.env.DISABLED_AUTH = "true";
 
-type ControllerModule =
-    typeof import("#/modules/catalog/specialization/Specialization.controller.js");
+type ControllerModule = typeof SpecializationController;
 
 let controller: ControllerModule;
 

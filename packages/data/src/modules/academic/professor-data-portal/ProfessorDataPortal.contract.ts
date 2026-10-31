@@ -14,7 +14,8 @@ import {
     resourceSortSchema,
     SpecBuilder,
     unpaginatedByDefault,
-    type Filter
+    type Filter,
+    type SortDefinition
 } from "@pomi/api-core";
 import z from "zod";
 
@@ -415,7 +416,7 @@ const simpleList = (
     identifierName: string,
     schema: z.ZodTypeAny,
     filter: z.ZodType<Filter> | undefined,
-    sort: import("@pomi/api-core").SortDefinition
+    sort: SortDefinition
 ) => ({
     meta: {
         ...new SpecBuilder([pathSeg.literal(path)], [tag], "id", {

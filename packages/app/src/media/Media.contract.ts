@@ -10,6 +10,7 @@ import {
     PayloadTooLargeProblemSchema,
     ServiceUnavailableProblemSchema
 } from "@pomi/api-core";
+import type { Readable } from "node:stream";
 import z from "zod";
 
 extendZodWithOpenApi(z);
@@ -164,7 +165,7 @@ const IO = {
         }),
         response: new OutputBuilder()
             .ok(
-                z.custom<import("node:stream").Readable>().openapi({
+                z.custom<Readable>().openapi({
                     type: "string",
                     format: "binary"
                 }),

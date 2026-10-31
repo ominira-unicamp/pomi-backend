@@ -18,6 +18,7 @@ import {
     ResourceNotFoundProblem,
     unpaginatedByDefault,
     type FilterWhereBuilder,
+    type ResolvedPagination,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -48,7 +49,7 @@ export type CoordinatorService = {
     list(query: Query): Promise<{
         items: Coordinator[];
         total: number;
-        pagination: import("@pomi/api-core").ResolvedPagination;
+        pagination: ResolvedPagination;
     }>;
     getById(
         id: number

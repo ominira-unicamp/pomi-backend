@@ -1,4 +1,7 @@
-import { createAppImageResourceRegistry } from "#/MediaResources.js";
+import {
+    createAppImageResourceRegistry,
+    studentAvatarResource
+} from "#/MediaResources.js";
 import { ImageResourceRegistry } from "#/media/ImageResourceRegistry.js";
 import { createMediaService } from "#/media/MediaService.js";
 import {
@@ -124,7 +127,6 @@ test("removal detaches before scheduling physical deletion and does not require 
         imageStorage: undefined,
         mediaUploadLimiter: new MediaUploadLimiter(2)
     });
-    const { studentAvatarResource } = await import("#/MediaResources.js");
     assert.deepEqual(
         await service
             .forResource(studentAvatarResource)
@@ -279,7 +281,6 @@ test("generic resource operations use the transaction for revalidation and roll 
 });
 
 test("registry rejects duplicate and unregistered resources", async () => {
-    const { studentAvatarResource } = await import("#/MediaResources.js");
     assert.throws(
         () =>
             new ImageResourceRegistry([
