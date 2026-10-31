@@ -5,30 +5,15 @@ import {
     type StudentHistoryImportProblem
 } from "#/modules/planning/student-history-import/StudentHistoryImport.problems.js";
 import { err, ok, type Result } from "@pomi/api-core";
-import { type CourseEvaluationMode, type DatabaseClient } from "@pomi/db";
+import { type DatabaseClient } from "@pomi/db";
 import z from "zod";
+import { planStudentHistoryImport } from "./StudentHistoryImport.rules.js";
 
 type ImportInput = z.infer<typeof IO.body>;
 type ImportSummary = z.infer<typeof IO.summary>;
-type Warning = ImportSummary["warnings"][number];
 
 function field(path: string[], message: string) {
     return { code: "INVALID_VALUE", path, message };
-}
-
-function statusAllowed(
-    evaluation: CourseEvaluationMode,
-    status: ImportInput["semesters"][number]["courses"][number]["status"]
-) {
-    if (status === "ENROLLED") return true;
-    if (status === "APPROVED_BY_PROFICIENCY") return true;
-    if (status === "DROPPED") return true;
-    if (evaluation === "CONCEPT") return status === "SUFFICIENT";
-    if (evaluation === "ATTENDANCE")
-        return ["APPROVED_BY_ATTENDANCE", "FAILED_BY_ATTENDANCE"].includes(
-            status
-        );
-    return ["APPROVED", "FAILED_BY_ATTENDANCE"].includes(status);
 }
 
 export type StudentHistoryImportService = {
@@ -92,21 +77,6 @@ export function createStudentHistoryImportService({
                     studyPeriodId: true
                 }
             });
-            const periodByKey = new Map(
-                periods.map((period) => [
-                    `${period.year}:${period.yearPeriod}`,
-                    period
-                ])
-            );
-            const courseByCode = new Map(
-                courses.map((course) => [course.code, course])
-            );
-            const classByKey = new Map(
-                classes.map((classData) => [
-                    `${classData.courseId}:${classData.studyPeriodId}:${classData.code}`,
-                    classData
-                ])
-            );
             const catalogCourses = await prisma.catalogCourse.findMany({
                 where: {
                     courseId: { in: courses.map((course) => course.id) },
@@ -126,128 +96,10 @@ export function createStudentHistoryImportService({
                     catalog: { select: { year: true } }
                 }
             });
-            const evaluationByCourseYear = new Map(
-                catalogCourses
-                    .filter((item) => item.evaluation !== null)
-                    .map((item) => [
-                        `${item.courseId}:${item.catalog.year}`,
-                        item.evaluation!
-                    ])
+            const { rows, warnings } = planStudentHistoryImport(
+                input.semesters,
+                { periods, courses, classes, catalogCourses }
             );
-
-            const warnings: Warning[] = [];
-            const rows: Array<{
-                courseId: number;
-                studyPeriodId: number;
-                evaluationMode: CourseEvaluationMode;
-                status: ImportInput["semesters"][number]["courses"][number]["status"];
-                grade: number | null;
-                classId: number | null | undefined;
-            }> = [];
-            const seen = new Set<string>();
-            for (const semester of input.semesters) {
-                const period = periodByKey.get(
-                    `${semester.year}:${semester.yearPeriod}`
-                );
-                for (const course of semester.courses) {
-                    const warningBase = {
-                        year: semester.year,
-                        yearPeriod: semester.yearPeriod,
-                        code: course.code
-                    };
-                    if (!period) {
-                        warnings.push({
-                            ...warningBase,
-                            message: "Período letivo não encontrado."
-                        });
-                        continue;
-                    }
-                    const persistedCourse = courseByCode.get(course.code);
-                    if (!persistedCourse) {
-                        warnings.push({
-                            ...warningBase,
-                            message:
-                                "Disciplina não encontrada no catálogo local."
-                        });
-                        continue;
-                    }
-                    const key = `${persistedCourse.id}:${period.id}`;
-                    if (seen.has(key)) {
-                        warnings.push({
-                            ...warningBase,
-                            message: "Disciplina repetida no mesmo semestre."
-                        });
-                        continue;
-                    }
-                    seen.add(key);
-                    const classData =
-                        course.classCode == null
-                            ? undefined
-                            : classByKey.get(
-                                  `${persistedCourse.id}:${period.id}:${course.classCode}`
-                              );
-                    if (course.classCode != null && !classData) {
-                        warnings.push({
-                            ...warningBase,
-                            message: "Turma não encontrada."
-                        });
-                        continue;
-                    }
-                    if (
-                        classData &&
-                        (classData.courseId !== persistedCourse.id ||
-                            classData.studyPeriodId !== period.id)
-                    ) {
-                        warnings.push({
-                            ...warningBase,
-                            message:
-                                "A turma não pertence à disciplina e ao período informados."
-                        });
-                        continue;
-                    }
-                    if (
-                        classData &&
-                        course.status === "APPROVED_BY_PROFICIENCY"
-                    ) {
-                        warnings.push({
-                            ...warningBase,
-                            message:
-                                "Uma disciplina aprovada por proficiência não pode estar vinculada a uma turma."
-                        });
-                        continue;
-                    }
-                    const evaluation = evaluationByCourseYear.get(
-                        `${persistedCourse.id}:${semester.year}`
-                    );
-                    if (!evaluation) {
-                        warnings.push({
-                            ...warningBase,
-                            message:
-                                "Modalidade de avaliação não encontrada no catálogo."
-                        });
-                        continue;
-                    }
-                    if (!statusAllowed(evaluation, course.status)) {
-                        warnings.push({
-                            ...warningBase,
-                            message:
-                                "Situação incompatível com a modalidade de avaliação do catálogo."
-                        });
-                        continue;
-                    }
-                    rows.push({
-                        courseId: persistedCourse.id,
-                        studyPeriodId: period.id,
-                        evaluationMode: evaluation,
-                        status: course.status,
-                        grade: course.grade,
-                        classId:
-                            course.classCode === undefined
-                                ? undefined
-                                : (classData?.id ?? null)
-                    });
-                }
-            }
 
             const result = await prisma.$transaction(async (tx) => {
                 let created = 0;

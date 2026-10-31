@@ -27,6 +27,7 @@ import {
     type PrismaClient
 } from "@pomi/db";
 import z from "zod";
+import { validateAttemptFacts } from "./StudentCourseAttempt.rules.js";
 
 type Attempt = z.infer<typeof IO.schema>;
 type CreateInput = z.infer<typeof IO.create.request>["body"];
@@ -106,76 +107,6 @@ export type StudentCourseAttemptService = {
 
 type ValidationIssue = { code: string; path: string[]; message: string };
 
-function invalidField(path: string[], message: string): ValidationIssue {
-    return { code: "INVALID_VALUE", path, message };
-}
-
-function requiredField(path: string[], message: string): ValidationIssue {
-    return { code: "REQUIRED", path, message };
-}
-
-function validateEvaluation(
-    input: AttemptInput,
-    evaluationMode: CourseEvaluationMode
-): ValidationIssue[] {
-    const issues: ValidationIssue[] = [];
-    const grade = input.grade ?? null;
-    const noResult = ["ENROLLED", "DROPPED"].includes(input.status);
-    const allowedStatuses: Record<CourseEvaluationMode, string[]> = {
-        GRADE_AND_ATTENDANCE: [
-            "ENROLLED",
-            "DROPPED",
-            "APPROVED",
-            "APPROVED_BY_PROFICIENCY",
-            "FAILED_BY_GRADE",
-            "FAILED_BY_ATTENDANCE"
-        ],
-        ATTENDANCE: [
-            "ENROLLED",
-            "DROPPED",
-            "APPROVED_BY_ATTENDANCE",
-            "APPROVED_BY_PROFICIENCY",
-            "FAILED_BY_ATTENDANCE"
-        ],
-        CONCEPT: [
-            "ENROLLED",
-            "DROPPED",
-            "APPROVED_BY_PROFICIENCY",
-            "SUFFICIENT",
-            "INSUFFICIENT"
-        ]
-    };
-    if (!allowedStatuses[evaluationMode].includes(input.status))
-        issues.push(
-            invalidField(
-                ["status"],
-                "O resultado informado não é compatível com a modalidade de avaliação."
-            )
-        );
-    if (input.status === "APPROVED_BY_PROFICIENCY" && grade !== null)
-        issues.push(
-            invalidField(
-                ["grade"],
-                "Uma disciplina aprovada por proficiência não possui nota numérica."
-            )
-        );
-    if (noResult && grade !== null)
-        issues.push(
-            invalidField(
-                ["grade"],
-                "Tentativas cursando ou desistidas não possuem nota final."
-            )
-        );
-    if (evaluationMode !== "GRADE_AND_ATTENDANCE" && grade !== null)
-        issues.push(
-            invalidField(
-                ["grade"],
-                "A modalidade de avaliação não aceita nota numérica."
-            )
-        );
-    return issues;
-}
-
 async function validateAttempt(
     prisma: PrismaClient,
     input: AttemptInput
@@ -188,7 +119,6 @@ async function validateAttempt(
           studyPeriodId: number | null;
       }
 > {
-    const fields: ValidationIssue[] = [];
     const [course, period, classData] = await Promise.all([
         prisma.course.findUnique({
             where: { id: input.courseId },
@@ -210,107 +140,30 @@ async function validateAttempt(
                   }
               })
     ]);
-    if (!course)
-        fields.push({
-            code: "REFERENCE_NOT_FOUND",
-            path: ["courseId"],
-            message: "A disciplina informada não foi encontrada."
-        });
-    if (input.studyPeriodId != null && !period)
-        fields.push({
-            code: "REFERENCE_NOT_FOUND",
-            path: ["studyPeriodId"],
-            message: "O período letivo informado não foi encontrado."
-        });
-    if (input.classId != null && !classData)
-        fields.push({
-            code: "REFERENCE_NOT_FOUND",
-            path: ["classId"],
-            message: "A turma informada não foi encontrada."
-        });
-    if (fields.length > 0) return { kind: "reference", fields };
-
-    if (input.status === "APPROVED_BY_PROFICIENCY" && input.classId != null)
-        return {
-            kind: "invalid",
-            fields: [
-                invalidField(
-                    ["classId"],
-                    "Uma disciplina aprovada por proficiência não pode estar vinculada a uma turma."
-                )
-            ]
-        };
-
-    if (!classData) {
-        if (!input.evaluationMode)
-            return {
-                kind: "invalid",
-                fields: [
-                    requiredField(
-                        ["evaluationMode"],
-                        "Uma tentativa sem turma exige a modalidade de avaliação."
-                    )
-                ]
-            };
-        const evaluationFields = validateEvaluation(
-            input,
-            input.evaluationMode
-        );
-        return evaluationFields.length > 0
-            ? { kind: "invalid", fields: evaluationFields }
-            : {
-                  kind: "valid",
-                  evaluationMode: input.evaluationMode,
-                  studyPeriodId: input.studyPeriodId ?? null
-              };
-    }
-
-    const invalid: ValidationIssue[] = [];
-    if (classData.courseId !== input.courseId)
-        invalid.push(
-            invalidField(
-                ["classId"],
-                "A turma deve pertencer à disciplina informada."
-            )
-        );
-    if (
-        input.studyPeriodId != null &&
-        classData.studyPeriod.id !== input.studyPeriodId
-    )
-        invalid.push(
-            invalidField(
-                ["studyPeriodId"],
-                "O período informado deve ser o período da turma."
-            )
-        );
-    const catalogCourse = await prisma.catalogCourse.findFirst({
-        where: {
-            courseId: classData.courseId,
-            catalog: { year: classData.studyPeriod.year },
-            evaluation: { not: null }
-        },
-        select: { evaluation: true }
+    const referencesValid =
+        !!course &&
+        (input.studyPeriodId == null || !!period) &&
+        (input.classId == null || !!classData);
+    const catalogCourse =
+        referencesValid &&
+        input.status !== "APPROVED_BY_PROFICIENCY" &&
+        classData
+            ? await prisma.catalogCourse.findFirst({
+                  where: {
+                      courseId: classData.courseId,
+                      catalog: { year: classData.studyPeriod.year },
+                      evaluation: { not: null }
+                  },
+                  select: { evaluation: true }
+              })
+            : undefined;
+    const result = validateAttemptFacts(input, {
+        courseFound: !!course,
+        periodFound: !!period,
+        classData,
+        catalogCourse
     });
-    if (!catalogCourse?.evaluation)
-        invalid.push(
-            invalidField(
-                ["classId"],
-                "A turma não possui modalidade de avaliação cadastrada no catálogo do seu ano."
-            )
-        );
-    if (invalid.length > 0) return { kind: "invalid", fields: invalid };
-    const evaluationMode = catalogCourse!.evaluation!;
-    if (input.evaluationMode && input.evaluationMode !== evaluationMode)
-        invalid.push(
-            invalidField(
-                ["evaluationMode"],
-                "A modalidade de uma tentativa com turma é definida pelo catálogo da turma."
-            )
-        );
-    invalid.push(...validateEvaluation(input, evaluationMode));
-    return invalid.length > 0
-        ? { kind: "invalid", fields: invalid }
-        : { kind: "valid", evaluationMode, studyPeriodId: null };
+    return result.isErr() ? result.error : result.value;
 }
 
 export function createStudentCourseAttemptService({

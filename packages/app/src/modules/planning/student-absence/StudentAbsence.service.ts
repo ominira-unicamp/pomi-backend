@@ -21,6 +21,7 @@ import {
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
+import { validateAbsenceFacts } from "./StudentAbsence.rules.js";
 
 type Absence = z.infer<typeof IO.schema>;
 type CreateInput = z.infer<typeof IO.create.request>["body"];
@@ -37,20 +38,6 @@ const absenceFilterWhere = {
     string,
     FilterWhereBuilder<MyPrisma.StudentAbsenceWhereInput>
 >;
-
-const dayOfWeekByDateDay = [
-    "SUNDAY",
-    "MONDAY",
-    "TUESDAY",
-    "WEDNESDAY",
-    "THURSDAY",
-    "FRIDAY",
-    "SATURDAY"
-] as const;
-
-function dateDayOfWeek(date: string) {
-    return dayOfWeekByDateDay[new Date(`${date}T00:00:00.000Z`).getUTCDay()];
-}
 
 export type StudentAbsenceService = {
     list(studentId: number, input: ListInput): Promise<Absence[]>;
@@ -117,56 +104,15 @@ export function createStudentAbsenceService({
                     select: { id: true, classId: true, dayOfWeek: true }
                 })
             ]);
-            const referenceFields = [] as Array<{
-                code: string;
-                path: string[];
-                message: string;
-            }>;
-            if (!attempt)
-                referenceFields.push({
-                    code: "REFERENCE_NOT_FOUND",
-                    path: ["courseAttemptId"],
-                    message:
-                        "A tentativa de disciplina informada não foi encontrada."
-                });
-            if (!schedule)
-                referenceFields.push({
-                    code: "REFERENCE_NOT_FOUND",
-                    path: ["classScheduleId"],
-                    message: "O horário de turma informado não foi encontrado."
-                });
-            if (referenceFields.length > 0)
+            const validation = validateAbsenceFacts(input, attempt, schedule);
+            if (validation.isErr())
                 return err(
-                    studentAbsenceReferenceNotFoundProblem(referenceFields)
+                    validation.error.kind === "reference"
+                        ? studentAbsenceReferenceNotFoundProblem(
+                              validation.error.fields
+                          )
+                        : invalidStudentAbsenceProblem(validation.error.fields)
                 );
-
-            const invalidFields = [] as Array<{
-                code: string;
-                path: string[];
-                message: string;
-            }>;
-            if (attempt!.classId === null)
-                invalidFields.push({
-                    code: "REQUIRED",
-                    path: ["courseAttemptId"],
-                    message: "Uma falta exige que a tentativa tenha uma turma."
-                });
-            if (attempt!.classId !== schedule!.classId)
-                invalidFields.push({
-                    code: "INVALID_VALUE",
-                    path: ["classScheduleId"],
-                    message: "O horário deve pertencer à turma da tentativa."
-                });
-            if (dateDayOfWeek(input.date) !== schedule!.dayOfWeek)
-                invalidFields.push({
-                    code: "INVALID_VALUE",
-                    path: ["date"],
-                    message:
-                        "A data deve corresponder ao dia da semana do horário."
-                });
-            if (invalidFields.length > 0)
-                return err(invalidStudentAbsenceProblem(invalidFields));
-
             const existing = await prisma.studentAbsence.findUnique({
                 where: {
                     studentCourseAttemptId_classScheduleId_date: {

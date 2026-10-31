@@ -67,6 +67,26 @@ for (const file of await sourceFiles(join(root, "app", "src", "modules"))) {
             }
         }
     }
+    if (file.endsWith(".rules.ts") || file.includes("/planning/rules/")) {
+        for (const match of source.matchAll(/from\s+["']([^"']+)["']/g)) {
+            const specifier = match[1];
+            if (
+                specifier === "@pomi/db" ||
+                specifier === "zod" ||
+                specifier === "express" ||
+                /\.(contract|service|problems)\.js$/.test(specifier) ||
+                specifier === "#/Container.js" ||
+                specifier === "#/BuildHandler.js"
+            ) {
+                violations.push(`${path} couples a pure rule to ${specifier}`);
+            }
+        }
+        if (/Date\.now\s*\(|new Date\s*\(\s*\)/.test(source)) {
+            violations.push(
+                `${path} reads the global clock instead of an explicit instant`
+            );
+        }
+    }
     if (file.endsWith(".controller.ts")) {
         for (const forbidden of [
             "ctx.prisma",

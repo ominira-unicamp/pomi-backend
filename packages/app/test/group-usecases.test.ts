@@ -1,14 +1,15 @@
+import { createGroupEventService } from "#/modules/group/event/GroupEvent.service.js";
 import {
     invitation,
-    managedInvitation,
-    publicMembership
-} from "#/modules/group/GroupCommunity.contract.js";
-import { createGroupCommunityService } from "#/modules/group/GroupCommunity.service.js";
+    managedInvitation
+} from "#/modules/group/invitation/GroupInvitation.contract.js";
+import { createGroupInvitationService } from "#/modules/group/invitation/GroupInvitation.service.js";
+import { publicMembership } from "#/modules/group/membership/GroupMembership.contract.js";
+import { createGroupMembershipService } from "#/modules/group/membership/GroupMembership.service.js";
 import { ConflictError, ForbiddenError, NotFoundError } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import assert from "node:assert/strict";
 import test from "node:test";
-
 test("public membership queries exclude hidden, former and archived memberships", async () => {
     let where: unknown;
     const prisma = {
@@ -20,7 +21,7 @@ test("public membership queries exclude hidden, former and archived memberships"
         }
     } as unknown as PrismaClient;
 
-    const result = await createGroupCommunityService({
+    const result = await createGroupMembershipService({
         prisma
     }).listPublicMemberships(42);
     assert.deepEqual(result, []);
@@ -31,7 +32,6 @@ test("public membership queries exclude hidden, former and archived memberships"
         group: { status: "ACTIVE" }
     });
 });
-
 test("public memberships expose profile links only for enabled active profiles", async () => {
     let where: unknown;
     const publicId = "a375fdb0-45d9-4a79-8415-89fcb64157b6";
@@ -75,7 +75,7 @@ test("public memberships expose profile links only for enabled active profiles",
         }
     } as unknown as PrismaClient;
 
-    const service = createGroupCommunityService({ prisma });
+    const service = createGroupMembershipService({ prisma });
     const values = await service.listPublicMemberships();
     assert.deepEqual(
         values.map((value) => value.profilePublicId),
@@ -108,7 +108,6 @@ test("public memberships expose profile links only for enabled active profiles",
         }
     });
 });
-
 test("own membership includes the union of role permissions", async () => {
     const prisma = {
         groupMembership: {
@@ -145,12 +144,11 @@ test("own membership includes the union of role permissions", async () => {
         }
     } as unknown as PrismaClient;
 
-    const [membership] = await createGroupCommunityService({
+    const [membership] = await createGroupMembershipService({
         prisma
     }).listOwnMemberships(9);
     assert.deepEqual(membership.permissions, ["EVENT_CREATE", "EVENT_EDIT"]);
 });
-
 test("group managers cannot discover private or inactive member avatars", async () => {
     const avatarMediaId = "8bf172b7-6e70-47e4-ad19-353292f77d34";
     const row = {
@@ -175,7 +173,7 @@ test("group managers cannot discover private or inactive member avatars", async 
         groupMembershipRole: { findFirst: async () => ({ roleId: 1 }) },
         groupMembership: { findMany: async () => [row] }
     } as unknown as PrismaClient;
-    const service = createGroupCommunityService({ prisma });
+    const service = createGroupMembershipService({ prisma });
     assert.equal(
         (await service.listManagedMemberships(1, 42))[0]!.avatarMediaId,
         avatarMediaId
@@ -192,7 +190,6 @@ test("group managers cannot discover private or inactive member avatars", async 
         null
     );
 });
-
 test("role managers can read memberships to assign roles", async () => {
     let permissionFilter: unknown;
     const prisma = {
@@ -211,7 +208,7 @@ test("role managers can read memberships to assign roles", async () => {
     } as unknown as PrismaClient;
 
     assert.deepEqual(
-        await createGroupCommunityService({ prisma }).listManagedMemberships(
+        await createGroupMembershipService({ prisma }).listManagedMemberships(
             9,
             42
         ),
@@ -221,7 +218,6 @@ test("role managers can read memberships to assign roles", async () => {
         in: ["MEMBER_MANAGE", "ROLE_MANAGE"]
     });
 });
-
 test("invitations resolve the recipient by public id", async () => {
     let requestedPublicId: unknown;
     const prisma = {
@@ -236,7 +232,7 @@ test("invitations resolve the recipient by public id", async () => {
     } as unknown as PrismaClient;
 
     await assert.rejects(
-        createGroupCommunityService({ prisma }).createInvitation(
+        createGroupInvitationService({ prisma }).createInvitation(
             9,
             42,
             "4c7ba34f-dc7b-48d7-90cd-e76a315ab037"
@@ -245,7 +241,6 @@ test("invitations resolve the recipient by public id", async () => {
     );
     assert.equal(requestedPublicId, "4c7ba34f-dc7b-48d7-90cd-e76a315ab037");
 });
-
 test("managed invitations require group permission and expose recipients", async () => {
     let requestedGroupId: unknown;
     let requestedPermission: unknown;
@@ -290,7 +285,7 @@ test("managed invitations require group permission and expose recipients", async
             }
         }
     } as unknown as PrismaClient;
-    const [result] = await createGroupCommunityService({
+    const [result] = await createGroupInvitationService({
         prisma
     }).listManagedInvitations(1, 42);
     assert.equal(requestedGroupId, 42);
@@ -301,19 +296,18 @@ test("managed invitations require group permission and expose recipients", async
         "8bf172b7-6e70-47e4-ad19-353292f77d34"
     );
     publicProfileEnabled = false;
-    const [hidden] = await createGroupCommunityService({
+    const [hidden] = await createGroupInvitationService({
         prisma
     }).listManagedInvitations(1, 42);
     assert.equal(hidden.recipientAvatarMediaId, null);
     publicProfileEnabled = true;
     active = false;
-    const [inactive] = await createGroupCommunityService({
+    const [inactive] = await createGroupInvitationService({
         prisma
     }).listManagedInvitations(1, 42);
     assert.equal(inactive.recipientAvatarMediaId, null);
     assert.equal(managedInvitation.safeParse(result).success, true);
 });
-
 test("managed invitations are hidden without member management permission", async () => {
     const prisma = {
         group: { count: async () => 1 },
@@ -323,11 +317,10 @@ test("managed invitations are hidden without member management permission", asyn
         }
     } as unknown as PrismaClient;
     await assert.rejects(
-        createGroupCommunityService({ prisma }).listManagedInvitations(1, 42),
+        createGroupInvitationService({ prisma }).listManagedInvitations(1, 42),
         ForbiddenError
     );
 });
-
 test("expired invitations cannot create memberships", async () => {
     const prisma = {
         groupInvitation: {
@@ -344,11 +337,10 @@ test("expired invitations cannot create memberships", async () => {
     } as unknown as PrismaClient;
 
     await assert.rejects(
-        createGroupCommunityService({ prisma }).acceptInvitation(9, 7),
+        createGroupInvitationService({ prisma }).acceptInvitation(9, 7),
         ConflictError
     );
 });
-
 test("published event requires a start date", async () => {
     const prisma = {
         groupEvent: {
@@ -367,11 +359,10 @@ test("published event requires a start date", async () => {
     } as unknown as PrismaClient;
 
     await assert.rejects(
-        createGroupCommunityService({ prisma }).publishEvent(9, 15),
+        createGroupEventService({ prisma }).publishEvent(9, 15),
         ConflictError
     );
 });
-
 test("private memberships have no public detail", async () => {
     const prisma = {
         groupMembership: {
@@ -385,11 +376,10 @@ test("private memberships have no public detail", async () => {
     } as unknown as PrismaClient;
 
     await assert.rejects(
-        createGroupCommunityService({ prisma }).getPublicMembership(4),
+        createGroupMembershipService({ prisma }).getPublicMembership(4),
         NotFoundError
     );
 });
-
 test("expired invitations have the public status and no persistence keys", async () => {
     const prisma = {
         groupInvitation: {
@@ -409,14 +399,13 @@ test("expired invitations have the public status and no persistence keys", async
         }
     } as unknown as PrismaClient;
 
-    const [result] = await createGroupCommunityService({
+    const [result] = await createGroupInvitationService({
         prisma
     }).listInvitations(9);
     assert.equal(result.status, "EXPIRED");
     assert.equal(invitation.safeParse(result).success, true);
     assert.equal("pendingKey" in result, false);
 });
-
 test("removing the last manager role is rejected before changing assignments", async () => {
     const prisma = {
         group: { count: async () => 1 },
@@ -443,7 +432,7 @@ test("removing the last manager role is rejected before changing assignments", a
     } as unknown as PrismaClient;
 
     await assert.rejects(
-        createGroupCommunityService({ prisma }).patchManagedMembership(9, 4, {
+        createGroupMembershipService({ prisma }).patchManagedMembership(9, 4, {
             roles: { remove: [2] }
         }),
         ConflictError

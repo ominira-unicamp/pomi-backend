@@ -1,4 +1,4 @@
-import { createAppEndpointRegistries, type Context } from "#/BuildHandler.js";
+import { createAppEndpointRegistries } from "#/BuildHandler.js";
 import type { AuthorizationPolicy } from "#/auth.js";
 import {
     ApiResponse,
@@ -7,7 +7,9 @@ import {
     type EndpointActions
 } from "@pomi/api-core";
 import IO from "./Group.contract.js";
+import type { GroupService } from "./Group.service.js";
 
+type Context = { groupService: GroupService };
 const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     list: async (ctx, input) =>
         ApiResponse.ok(
@@ -38,8 +40,11 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     }
 };
 
-const { router, registry, authRegistry } = createAppEndpointRegistries(
-    IO,
-    actions
-);
+const { router, registry, authRegistry } = createAppEndpointRegistries({
+    contracts: IO,
+    actions,
+    createContext: (request) => ({
+        groupService: request.scope.cradle.groupService
+    })
+});
 export default { contracts: IO, router, registry, authRegistry };

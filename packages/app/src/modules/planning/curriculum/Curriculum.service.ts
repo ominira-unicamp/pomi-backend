@@ -19,6 +19,15 @@ import {
 } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import z from "zod";
+import { missingCourseIssues, planningIssues } from "../rules/PlanningRule.js";
+import {
+    patchSelectionData,
+    planCurriculumPeriodChanges,
+    planningStartData,
+    selectionData,
+    validateCurriculumCoursePeriods,
+    validateCurriculumSelection
+} from "./Curriculum.rules.js";
 
 type Curriculum = z.infer<typeof IO.schema>;
 type CurriculumSummary = z.infer<typeof IO.summarySchema>;
@@ -67,44 +76,6 @@ export type CurriculumService = {
     ): Promise<Result<void, ReturnType<typeof curriculumNotFoundProblem>>>;
 };
 
-function selectionData(selection: CreateCurriculumInput["selection"]) {
-    return {
-        catalogProgramId: selection?.catalogProgramId ?? null,
-        catalogProgramVariantId: selection?.catalogProgramVariantId ?? null,
-        languageId: selection?.languageId ?? null
-    };
-}
-
-function patchSelectionData(
-    selection: PatchCurriculumInput["selection"],
-    existing: {
-        catalogProgramId: number | null;
-        catalogProgramVariant: { id: number } | null;
-        catalogLanguage: { languageId: number } | null;
-    }
-) {
-    const catalogProgramId =
-        selection?.catalogProgramId !== undefined
-            ? selection.catalogProgramId
-            : existing.catalogProgramId;
-    const programChanged =
-        selection?.catalogProgramId !== undefined &&
-        catalogProgramId !== existing.catalogProgramId;
-    return selectionData({
-        catalogProgramId,
-        catalogProgramVariantId: programChanged
-            ? null
-            : selection?.catalogProgramVariantId !== undefined
-              ? selection.catalogProgramVariantId
-              : (existing.catalogProgramVariant?.id ?? null),
-        languageId: programChanged
-            ? null
-            : selection?.languageId !== undefined
-              ? selection.languageId
-              : (existing.catalogLanguage?.languageId ?? null)
-    });
-}
-
 async function resolveSelection(
     prisma: TransactionClient | PrismaClient,
     selection: ReturnType<typeof selectionData>
@@ -138,22 +109,6 @@ async function resolveSelection(
     };
 }
 
-function planningStartData(
-    planningStart: CreateCurriculumInput["planningStart"] | undefined
-) {
-    return planningStart
-        ? {
-              planningStartYear: planningStart.year,
-              planningStartSemester: planningStart.semester,
-              planningStartNumber: planningStart.semesterNumber
-          }
-        : {
-              planningStartYear: null,
-              planningStartSemester: null,
-              planningStartNumber: null
-          };
-}
-
 async function selectionFields(
     prisma: TransactionClient,
     selection: ReturnType<typeof selectionData>,
@@ -162,7 +117,6 @@ async function selectionFields(
         catalogLanguageId: number | null;
     }
 ): Promise<ProblemField[]> {
-    const fields: ProblemField[] = [];
     const [program, variant, language] = await Promise.all([
         selection.catalogProgramId === null
             ? null
@@ -190,32 +144,9 @@ async function selectionFields(
                   select: { catalogProgramId: true }
               })
     ]);
-    if (selection.catalogProgramId !== null && !program)
-        fields.push({
-            code: "REFERENCE_NOT_FOUND",
-            path: ["selection", "catalogProgramId"],
-            message: "O programa de catálogo informado não foi encontrado."
-        });
-    if (
-        selection.catalogProgramVariantId !== null &&
-        (!variant || variant.catalogProgramId !== selection.catalogProgramId)
-    )
-        fields.push({
-            code: variant ? "INVALID_VALUE" : "REFERENCE_NOT_FOUND",
-            path: ["selection", "catalogProgramVariantId"],
-            message:
-                "A variante não pertence ao programa de catálogo informado."
-        });
-    if (
-        selection.languageId !== null &&
-        (!language || language.catalogProgramId !== selection.catalogProgramId)
-    )
-        fields.push({
-            code: language ? "INVALID_VALUE" : "REFERENCE_NOT_FOUND",
-            path: ["selection", "languageId"],
-            message: "A língua não pertence ao programa de catálogo informado."
-        });
-    return fields;
+    return planningIssues(
+        validateCurriculumSelection(selection, { program, variant, language })
+    );
 }
 
 async function courseFields(
@@ -232,13 +163,7 @@ async function courseFields(
             })
         ).map(({ id }) => id)
     );
-    return ids
-        .filter((id) => !found.has(id))
-        .map((id) => ({
-            code: "REFERENCE_NOT_FOUND",
-            path: [...path, String(id)],
-            message: `A disciplina ${id} não foi encontrada.`
-        }));
+    return missingCourseIssues(ids, found, path);
 }
 
 async function load(prisma: PrismaClient, studentId: number, id: number) {
@@ -257,44 +182,9 @@ async function patchPeriods(
         where: { curriculumId },
         select: { id: true, position: true }
     });
-    const ids = new Set(existing.map(({ id }) => id));
-    const fields: ProblemField[] = [];
-    for (const [index, update] of (operations.update ?? []).entries())
-        if (!ids.has(update.id))
-            fields.push({
-                code: "REFERENCE_NOT_FOUND",
-                path: ["periods", "update", String(index), "id"],
-                message: "O período não pertence ao planejamento."
-            });
-    for (const [index, id] of (operations.remove ?? []).entries())
-        if (!ids.has(id))
-            fields.push({
-                code: "REFERENCE_NOT_FOUND",
-                path: ["periods", "remove", String(index)],
-                message: "O período não pertence ao planejamento."
-            });
-    if (fields.length) return fields;
-
-    const removed = new Set(operations.remove ?? []);
-    const positions = [
-        ...existing
-            .filter(({ id }) => !removed.has(id))
-            .map(
-                ({ id, position }) =>
-                    operations.update?.find((item) => item.id === id)
-                        ?.position ?? position
-            ),
-        ...(operations.add ?? []).map(({ position }) => position)
-    ];
-    if (new Set(positions).size !== positions.length)
-        return [
-            {
-                code: "INVALID_VALUE",
-                path: ["periods"],
-                message: "As posições dos períodos devem ser únicas."
-            }
-        ];
-
+    const planned = planCurriculumPeriodChanges(existing, operations);
+    if (planned.isErr()) return planned.error;
+    const removed = new Set(planned.value.removed);
     await tx.curriculumCourse.updateMany({
         where: { curriculumId, periodId: { in: [...removed] } },
         data: { periodId: null }
@@ -340,12 +230,11 @@ async function patchCourses(
     const validPeriods = await tx.curriculumPeriod.count({
         where: { curriculumId, id: { in: [...new Set(periodIds)] } }
     });
-    if (validPeriods !== new Set(periodIds).size)
-        fields.push({
-            code: "REFERENCE_NOT_FOUND",
-            path: ["courses", "upsert"],
-            message: "Todos os períodos devem pertencer ao planejamento."
-        });
+    fields.push(
+        ...planningIssues(
+            validateCurriculumCoursePeriods(periodIds, validPeriods)
+        )
+    );
     if (fields.length) return fields;
     if (operations.remove?.length)
         await tx.curriculumCourse.deleteMany({

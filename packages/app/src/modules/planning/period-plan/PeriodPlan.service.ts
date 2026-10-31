@@ -21,6 +21,14 @@ import {
 } from "@pomi/api-core";
 import { studyPeriodCode, type PrismaClient } from "@pomi/db";
 import z from "zod";
+import { missingCourseIssues, planningIssues } from "../rules/PlanningRule.js";
+import {
+    resolvePeriodPlanClasses,
+    validatePeriodPlanClasses,
+    validateProgramGuide,
+    validateSavedGuide,
+    validateSuggestionGuide
+} from "./PeriodPlan.rules.js";
 
 type PeriodPlan = z.infer<typeof IO.schema>;
 type ListQuery = z.infer<typeof periodPlanningListQuery>;
@@ -71,12 +79,7 @@ async function guideFields(
             where: { id: curriculumId, studentId },
             select: { id: true }
         });
-        if (!curriculum)
-            fields.push({
-                path: ["guide", "curriculum", "saved", "curriculumId"],
-                code: "REFERENCE_NOT_FOUND",
-                message: "O currículo salvo não pertence a este estudante."
-            });
+        fields.push(...planningIssues(validateSavedGuide(!!curriculum)));
     }
     if (
         guide.mode === "CURRICULUM" &&
@@ -92,21 +95,14 @@ async function guideFields(
                 }
             }
         });
-        if (!suggestion)
-            fields.push({
-                path: ["guide", "curriculum", "suggestion", "suggestionId"],
-                code: "REFERENCE_NOT_FOUND",
-                message: "A sugestão curricular não foi encontrada."
-            });
-        else if (
-            suggestion.catalogProgramVariant.catalogProgramId !==
-            catalogProgramId
-        )
-            fields.push({
-                path: ["guide", "curriculum", "suggestion", "catalogProgramId"],
-                code: "INVALID_VALUE",
-                message: "A sugestão não pertence ao programa de catálogo."
-            });
+        fields.push(
+            ...planningIssues(
+                validateSuggestionGuide(
+                    catalogProgramId,
+                    suggestion?.catalogProgramVariant.catalogProgramId ?? null
+                )
+            )
+        );
     }
     if (guide.mode === "PROGRAM") {
         const { catalogProgramId, catalogProgramVariantId, languageId } =
@@ -128,24 +124,15 @@ async function guideFields(
                 select: { languageId: true }
             })
         ]);
-        if (!program)
-            fields.push({
-                path: ["guide", "program", "catalogProgramId"],
-                code: "REFERENCE_NOT_FOUND",
-                message: "O programa de catálogo não foi encontrado."
-            });
-        if (!variant)
-            fields.push({
-                path: ["guide", "program", "catalogProgramVariantId"],
-                code: "REFERENCE_NOT_FOUND",
-                message: "A variante não está disponível para o programa."
-            });
-        if (!language)
-            fields.push({
-                path: ["guide", "program", "languageId"],
-                code: "REFERENCE_NOT_FOUND",
-                message: "A língua não está disponível para o programa."
-            });
+        fields.push(
+            ...planningIssues(
+                validateProgramGuide({
+                    program: !!program,
+                    variant: !!variant,
+                    language: !!language
+                })
+            )
+        );
     }
 
     const courseIds = [...new Set(guide.manualCourseIds)];
@@ -155,13 +142,12 @@ async function guideFields(
             select: { id: true }
         });
         const found = new Set(courses.map(({ id }) => id));
-        for (const id of courseIds)
-            if (!found.has(id))
-                fields.push({
-                    path: ["guide", "manualCourseIds", String(id)],
-                    code: "REFERENCE_NOT_FOUND",
-                    message: `A disciplina ${id} não foi encontrada.`
-                });
+        fields.push(
+            ...missingCourseIssues(courseIds, found, [
+                "guide",
+                "manualCourseIds"
+            ])
+        );
     }
     return fields;
 }
@@ -177,36 +163,9 @@ async function classFields(
         where: { id: { in: [...classIds] } },
         select: { id: true, courseId: true, studyPeriodId: true }
     });
-    const byId = new Map(classes.map((item) => [item.id, item]));
-    const fields: ProblemField[] = [];
-    for (const id of classIds) {
-        const classEntity = byId.get(id);
-        if (!classEntity)
-            fields.push({
-                code: "REFERENCE_NOT_FOUND",
-                path: [...path, String(id)],
-                message: `A turma ${id} não foi encontrada.`
-            });
-        else if (classEntity.studyPeriodId !== studyPeriodId)
-            fields.push({
-                code: "INVALID_VALUE",
-                path: [...path, String(id)],
-                message: `A turma ${id} pertence a outro período letivo.`
-            });
-    }
-    const firstClassByCourse = new Map<number, number>();
-    for (const classEntity of classes) {
-        const firstId = firstClassByCourse.get(classEntity.courseId);
-        if (firstId === undefined)
-            firstClassByCourse.set(classEntity.courseId, classEntity.id);
-        else
-            fields.push({
-                code: "INVALID_VALUE",
-                path: [...path, String(classEntity.id)],
-                message: `As turmas ${firstId} e ${classEntity.id} são da mesma disciplina.`
-            });
-    }
-    return fields;
+    return planningIssues(
+        validatePeriodPlanClasses(classIds, classes, studyPeriodId, path)
+    );
 }
 
 function classUpdateData(
@@ -396,17 +355,10 @@ export function createPeriodPlanService({
                 ? await guideFields(prisma, guide, studentId)
                 : [];
             if (input.classes) {
-                const ids = input.classes.set
-                    ? new Set(input.classes.set)
-                    : new Set([
-                          ...existing.classes
-                              .map(({ id: classId }) => classId)
-                              .filter(
-                                  (classId) =>
-                                      !input.classes?.remove?.has(classId)
-                              ),
-                          ...(input.classes.add ?? [])
-                      ]);
+                const ids = resolvePeriodPlanClasses(
+                    existing.classes.map(({ id }) => id),
+                    input.classes
+                );
                 fields.push(
                     ...(await classFields(prisma, ids, existing.studyPeriodId, [
                         "classes",

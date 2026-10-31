@@ -39,9 +39,21 @@ import {
 } from "#/modules/group/Group.service.js";
 import type { GroupAvatarTarget } from "#/modules/group/GroupAvatar.js";
 import {
-    createGroupCommunityService,
-    type GroupCommunityService
-} from "#/modules/group/GroupCommunity.service.js";
+    createGroupEventService,
+    type GroupEventService
+} from "#/modules/group/event/GroupEvent.service.js";
+import {
+    createGroupInvitationService,
+    type GroupInvitationService
+} from "#/modules/group/invitation/GroupInvitation.service.js";
+import {
+    createGroupMembershipService,
+    type GroupMembershipService
+} from "#/modules/group/membership/GroupMembership.service.js";
+import {
+    createGroupRoleService,
+    type GroupRoleService
+} from "#/modules/group/role/GroupRole.service.js";
 import {
     createAuthUserService,
     type AuthUserService
@@ -127,7 +139,10 @@ export type AppCradle = {
     studentSocialService: StudentSocialService;
     feedbackReportService: FeedbackReportService;
     groupService: GroupService;
-    groupCommunityService: GroupCommunityService;
+    groupMembershipService: GroupMembershipService;
+    groupInvitationService: GroupInvitationService;
+    groupRoleService: GroupRoleService;
+    groupEventService: GroupEventService;
     feedbackRateLimiter: FeedbackRateLimiter;
     exchangeNoticeSubscriptionService: ExchangeNoticeSubscriptionService;
     exchangeNoticeUnsubscribeService: ExchangeNoticeUnsubscribeService;
@@ -196,7 +211,14 @@ export function createAppContainer(config: AppConfig, prisma: DatabaseClient) {
         ),
         feedbackReportService: asFunction(createFeedbackReportService).scoped(),
         groupService: asFunction(createGroupService).scoped(),
-        groupCommunityService: asFunction(createGroupCommunityService).scoped(),
+        groupMembershipService: asFunction(
+            createGroupMembershipService
+        ).scoped(),
+        groupInvitationService: asFunction(
+            createGroupInvitationService
+        ).scoped(),
+        groupRoleService: asFunction(createGroupRoleService).scoped(),
+        groupEventService: asFunction(createGroupEventService).scoped(),
         exchangeNoticeSubscriptionService: asFunction(
             createExchangeNoticeSubscriptionService
         ).scoped(),

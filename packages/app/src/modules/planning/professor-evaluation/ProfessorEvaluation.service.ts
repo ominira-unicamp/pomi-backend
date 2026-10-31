@@ -7,7 +7,7 @@ import {
     professorEvaluationReferenceNotFoundProblem,
     type ProfessorEvaluationProblem
 } from "#/modules/planning/professor-evaluation/ProfessorEvaluation.problems.js";
-import { isEligibleProfessorEvaluationAttempt } from "#/modules/planning/professor-evaluation/ProfessorEvaluation.rules.js";
+import { validateProfessorEvaluationFacts } from "#/modules/planning/professor-evaluation/ProfessorEvaluation.rules.js";
 import {
     compareBySort,
     compileFilterWhere,
@@ -78,43 +78,21 @@ async function validateContext(prisma: PrismaClient, context: Context) {
         })
     ]);
 
-    const referenceFields = [] as Array<{
-        code: string;
-        path: string[];
-        message: string;
-    }>;
-    if (!classData)
-        referenceFields.push({
-            code: "REFERENCE_NOT_FOUND",
-            path: ["classId"],
-            message: "A turma informada não foi encontrada."
-        });
-    if (!professor)
-        referenceFields.push({
-            code: "REFERENCE_NOT_FOUND",
-            path: ["professorId"],
-            message: "O professor informado não foi encontrado."
-        });
-    if (referenceFields.length > 0)
-        return err(
-            professorEvaluationReferenceNotFoundProblem(referenceFields)
-        );
-
-    if (classData!.professors.length === 0)
-        return err(
-            invalidProfessorEvaluationProblem([
-                {
-                    code: "INVALID_VALUE",
-                    path: ["professorId"],
-                    message: "O professor deve pertencer à turma informada."
-                }
-            ])
-        );
-
-    return ok({
-        eligible:
-            !!attempt && isEligibleProfessorEvaluationAttempt(attempt.status)
+    const validation = validateProfessorEvaluationFacts({
+        classFound: !!classData,
+        professorFound: !!professor,
+        professorInClass: !!classData?.professors.length,
+        attemptStatus: attempt?.status ?? null
     });
+    if (validation.isErr())
+        return err(
+            validation.error.kind === "reference"
+                ? professorEvaluationReferenceNotFoundProblem(
+                      validation.error.fields
+                  )
+                : invalidProfessorEvaluationProblem(validation.error.fields)
+        );
+    return validation;
 }
 
 export function createProfessorEvaluationService({

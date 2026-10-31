@@ -302,3 +302,155 @@ test("curriculum patch clears dependent selections when changing program", async
         catalogLanguageId: null
     });
 });
+
+function curriculumMutationFixture() {
+    let periods = [
+        { id: 1, position: 1 },
+        { id: 2, position: 2 }
+    ];
+    let assignments: { courseId: number; periodId: number | null }[] = [];
+    const writes: number[] = [];
+    let rolledBack = false;
+    const tx = {
+        curriculumPeriod: {
+            findMany: async () => structuredClone(periods),
+            update: async ({
+                where,
+                data
+            }: {
+                where: { id: number };
+                data: { position: number };
+            }) => {
+                assert.equal(
+                    periods.some(
+                        (period) =>
+                            period.id !== where.id &&
+                            period.position === data.position
+                    ),
+                    false
+                );
+                periods.find((period) => period.id === where.id)!.position =
+                    data.position;
+                writes.push(data.position);
+            },
+            deleteMany: async ({
+                where
+            }: {
+                where: { id: { in: number[] } };
+            }) => {
+                periods = periods.filter(
+                    (period) => !where.id.in.includes(period.id)
+                );
+            },
+            count: async ({ where }: { where: { id: { in: number[] } } }) =>
+                periods.filter((period) => where.id.in.includes(period.id))
+                    .length,
+            findFirst: async ({ where }: { where: { id: number } }) =>
+                periods.find((period) => period.id === where.id) ?? null
+        },
+        curriculumCourse: {
+            updateMany: async ({
+                where
+            }: {
+                where: { periodId: { in: number[] } };
+            }) => {
+                for (const assignment of assignments)
+                    if (
+                        assignment.periodId !== null &&
+                        where.periodId.in.includes(assignment.periodId)
+                    )
+                        assignment.periodId = null;
+            },
+            upsert: async ({
+                create
+            }: {
+                create: { courseId: number; periodId: number | null };
+            }) => {
+                assignments.push({
+                    courseId: create.courseId,
+                    periodId: create.periodId
+                });
+            }
+        },
+        course: { findMany: async () => [{ id: 10 }] },
+        curriculum: { update: async () => undefined }
+    };
+    const prisma = {
+        curriculum: {
+            findUnique: async () => ({
+                ...curriculumEntityFixture({
+                    catalogProgramId: null,
+                    catalogProgramVariantId: null,
+                    languageId: null
+                }),
+                periods
+            })
+        },
+        $transaction: async (work: (client: typeof tx) => Promise<unknown>) => {
+            const before = {
+                periods: structuredClone(periods),
+                assignments: structuredClone(assignments)
+            };
+            try {
+                return await work(tx);
+            } catch (error) {
+                periods = before.periods;
+                assignments = before.assignments;
+                rolledBack = true;
+                throw error;
+            }
+        }
+    } as never;
+    return {
+        service: createCurriculumService({ prisma }),
+        state: () => ({ periods, assignments, rolledBack }),
+        writes
+    };
+}
+
+test("curriculum period swaps keep temporary positions inside persistence", async () => {
+    const fixture = curriculumMutationFixture();
+    const result = await fixture.service.patch(7, 42, {
+        periods: {
+            update: [
+                { id: 1, position: 2 },
+                { id: 2, position: 1 }
+            ]
+        }
+    });
+    assert.ok(result.isOk());
+    assert.deepEqual(fixture.writes, [-1, -2, 2, 1]);
+    assert.deepEqual(fixture.state().periods, [
+        { id: 1, position: 2 },
+        { id: 2, position: 1 }
+    ]);
+});
+
+test("combined curriculum patch validates course periods after period changes", async () => {
+    const fixture = curriculumMutationFixture();
+    const result = await fixture.service.patch(7, 42, {
+        periods: { remove: [1] },
+        courses: { upsert: [{ courseId: 10, periodId: 2 }] },
+        currentPeriodId: 2
+    });
+    assert.ok(result.isOk());
+    assert.deepEqual(fixture.state().periods, [{ id: 2, position: 2 }]);
+    assert.deepEqual(fixture.state().assignments, [
+        { courseId: 10, periodId: 2 }
+    ]);
+});
+
+test("invalid course reference throws through the transaction before becoming a result", async () => {
+    const fixture = curriculumMutationFixture();
+    const result = await fixture.service.patch(7, 42, {
+        periods: { remove: [1] },
+        courses: { upsert: [{ courseId: 10, periodId: 1 }] }
+    });
+    assert.ok(result.isErr());
+    assert.equal(fixture.state().rolledBack, true);
+    assert.deepEqual(fixture.state().periods, [
+        { id: 1, position: 1 },
+        { id: 2, position: 2 }
+    ]);
+    assert.deepEqual(fixture.state().assignments, []);
+});

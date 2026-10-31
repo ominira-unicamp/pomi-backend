@@ -253,3 +253,28 @@ privadas e de grupos arquivados também impedem exclusão: autorização de leit
 não determina se uma imagem está vinculada. Falhas na descoberta interrompem o
 descarte afetado. Novos recursos de imagem precisam ser registrados na composição
 compartilhada antes de serem utilizados.
+
+## Organização dos casos de uso da App API
+
+O módulo de grupos separa vínculos, convites, roles e eventos em serviços e
+controllers próprios. Cada controller recebe somente seu serviço por um contexto
+local. Cadastro e arquivamento continuam em `GroupService`, e o avatar utiliza a
+interface transversal de mídia. Autorização, governança e apresentação mantêm
+componentes internos específicos do domínio.
+
+Grupos e planejamento isolam decisões determinísticas em arquivos `.rules.ts`.
+Essas regras recebem fatos já consultados e instantes explícitos; não consultam
+Prisma, contratos HTTP ou o relógio global. Os serviços carregam os dados,
+traduzem issues para os problemas existentes e coordenam a persistência. As
+fronteiras são verificadas por `npm run check:boundaries`.
+
+No planejamento, as regras cobrem currículo, plano de período, tentativas,
+importação de histórico, avaliações e faltas. Reordenações por posições
+provisórias permanecem na persistência. A importação mantém seus estados aceitos
+e sua política de warnings; elegibilidade de avaliação e aprovação para
+pré-requisitos continuam sendo decisões distintas.
+
+A refatoração preserva os limites transacionais e as verificações atuais. A
+exclusão global de roles na busca de outro gestor ao remover uma atribuição e as
+verificações de acesso/estado anteriores às transações continuam pendentes de
+análise e correção específicas, com testes de concorrência em PostgreSQL.
