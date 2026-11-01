@@ -1,7 +1,8 @@
 import { createAppEndpointRegistries } from "#/BuildHandler.js";
 import type { AuthorizationPolicy } from "#/auth.js";
 import { ApiResponse, type EndpointActions } from "@pomi/api-core";
-import { groupId, page } from "../GroupControllerSupport.js";
+import { groupId, page } from "../Group.http.js";
+import { unwrapGroupMutation } from "../Group.problems.js";
 import IO from "./GroupRole.contract.js";
 import type { GroupRoleService } from "./GroupRole.service.js";
 
@@ -27,10 +28,12 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         ),
     patchRole: async (ctx, input) =>
         ApiResponse.ok(
-            await ctx.groupRoleService.patchRole(
-                input.path.sid,
-                input.path.id,
-                input.body
+            unwrapGroupMutation(
+                await ctx.groupRoleService.patchRole(
+                    input.path.sid,
+                    input.path.id,
+                    input.body
+                )
             )
         ),
     deleteRole: async (ctx, input) => {

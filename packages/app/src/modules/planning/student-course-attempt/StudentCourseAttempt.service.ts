@@ -1,7 +1,7 @@
 import IO, {
     studentCourseAttemptSort
 } from "#/modules/planning/student-course-attempt/StudentCourseAttempt.contract.js";
-import attemptEntity from "#/modules/planning/student-course-attempt/StudentCourseAttempt.entity.js";
+import attemptPresenter from "#/modules/planning/student-course-attempt/StudentCourseAttempt.presenter.js";
 import {
     activeStudentCourseAttemptProblem,
     invalidStudentCourseAttemptProblem,
@@ -9,6 +9,7 @@ import {
     studentCourseReferenceNotFoundProblem,
     type StudentCourseAttemptProblem
 } from "#/modules/planning/student-course-attempt/StudentCourseAttempt.problems.js";
+import { prismaStudentCourseFieldSelection } from "#/modules/planning/student-course-attempt/StudentCourseAttempt.queries.js";
 import {
     compileFilterWhere,
     compileSort,
@@ -179,7 +180,7 @@ export function createStudentCourseAttemptService({
                 "student course attempts"
             );
             const attempts = await prisma.studentCourseAttempt.findMany({
-                ...attemptEntity.prismaSelection,
+                ...prismaStudentCourseFieldSelection,
                 where: { AND: [{ studentId }, ...filterWhere] },
                 orderBy: compileSort(
                     resolveSort(input.sort, studentCourseAttemptSort),
@@ -195,15 +196,15 @@ export function createStudentCourseAttemptService({
                     }
                 )
             });
-            return attempts.map(attemptEntity.build);
+            return attempts.map(attemptPresenter.build);
         },
         async getById(studentId, id) {
             const attempt = await prisma.studentCourseAttempt.findFirst({
-                ...attemptEntity.prismaSelection,
+                ...prismaStudentCourseFieldSelection,
                 where: { id, studentId }
             });
             return attempt
-                ? ok(attemptEntity.build(attempt))
+                ? ok(attemptPresenter.build(attempt))
                 : err(studentCourseAttemptNotFoundProblem());
         },
         async create(studentId, input) {
@@ -228,7 +229,7 @@ export function createStudentCourseAttemptService({
                 if (active) return err(activeStudentCourseAttemptProblem());
             }
             const attempt = await prisma.studentCourseAttempt.create({
-                ...attemptEntity.prismaSelection,
+                ...prismaStudentCourseFieldSelection,
                 data: {
                     studentId,
                     courseId: input.courseId,
@@ -239,7 +240,7 @@ export function createStudentCourseAttemptService({
                     grade: input.grade ?? null
                 }
             });
-            return ok(attemptEntity.build(attempt));
+            return ok(attemptPresenter.build(attempt));
         },
         async patch(studentId, id, input) {
             const existing = await prisma.studentCourseAttempt.findFirst({
@@ -282,7 +283,7 @@ export function createStudentCourseAttemptService({
                 if (active) return err(activeStudentCourseAttemptProblem());
             }
             const attempt = await prisma.studentCourseAttempt.update({
-                ...attemptEntity.prismaSelection,
+                ...prismaStudentCourseFieldSelection,
                 where: { id },
                 data: {
                     classId: next.classId,
@@ -292,7 +293,7 @@ export function createStudentCourseAttemptService({
                     grade: next.grade ?? null
                 }
             });
-            return ok(attemptEntity.build(attempt));
+            return ok(attemptPresenter.build(attempt));
         },
         async remove(studentId, id) {
             const existing = await prisma.studentCourseAttempt.findFirst({

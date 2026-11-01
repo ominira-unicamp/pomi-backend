@@ -26,6 +26,7 @@ test("friendship acceptance preserves atomic conditions, conflicts and removal o
     let deletion: unknown;
     let updatedCount = 1;
     const service = createSocialFriendshipService({
+        clock: { now: () => new Date("2026-01-02") },
         prisma: {
             studentFriendship: {
                 findFirst: async () => row,
@@ -70,6 +71,7 @@ test("friendship creation orders the pair and translates duplicate requests", as
     let duplicate = false;
     let data: unknown;
     const service = createSocialFriendshipService({
+        clock: { now: () => new Date("2026-01-02") },
         prisma: {
             student: { findFirst: async () => ({ id: targetId }) },
             studentFriendship: {
@@ -103,6 +105,7 @@ test("friendship lists preserve filters and hide private profile details", async
     row.studentB.publicProfileEnabled = false;
     let where: unknown;
     const service = createSocialFriendshipService({
+        clock: { now: () => new Date("2026-01-02") },
         prisma: {
             studentFriendship: {
                 findMany: async (input: { where: unknown }) => {

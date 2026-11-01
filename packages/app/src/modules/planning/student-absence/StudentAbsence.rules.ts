@@ -1,5 +1,5 @@
 import { err, ok } from "@pomi/api-core";
-import type { PlanningIssue } from "../rules/PlanningRule.js";
+import type { PlanningIssue } from "../Planning.rules.js";
 const dayOfWeekByDateDay = [
     "SUNDAY",
     "MONDAY",

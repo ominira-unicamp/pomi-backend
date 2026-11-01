@@ -1,7 +1,7 @@
 import IO, {
     studentAbsenceSort
 } from "#/modules/planning/student-absence/StudentAbsence.contract.js";
-import absenceEntity from "#/modules/planning/student-absence/StudentAbsence.entity.js";
+import absencePresenter from "#/modules/planning/student-absence/StudentAbsence.presenter.js";
 import {
     duplicateStudentAbsenceProblem,
     invalidStudentAbsenceProblem,
@@ -9,6 +9,7 @@ import {
     studentAbsenceReferenceNotFoundProblem,
     type StudentAbsenceProblem
 } from "#/modules/planning/student-absence/StudentAbsence.problems.js";
+import { prismaStudentAbsenceSelection } from "#/modules/planning/student-absence/StudentAbsence.queries.js";
 import {
     compileFilterWhere,
     compileSort,
@@ -64,7 +65,7 @@ export function createStudentAbsenceService({
                 "student absences"
             );
             const absences = await prisma.studentAbsence.findMany({
-                ...absenceEntity.prismaSelection,
+                ...prismaStudentAbsenceSelection,
                 where: {
                     AND: [
                         { studentCourseAttempt: { studentId } },
@@ -91,7 +92,7 @@ export function createStudentAbsenceService({
                     }
                 )
             });
-            return absences.map(absenceEntity.build);
+            return absences.map(absencePresenter.build);
         },
         async create(studentId, input) {
             const [attempt, schedule] = await Promise.all([
@@ -125,14 +126,14 @@ export function createStudentAbsenceService({
             });
             if (existing) return err(duplicateStudentAbsenceProblem());
             const absence = await prisma.studentAbsence.create({
-                ...absenceEntity.prismaSelection,
+                ...prismaStudentAbsenceSelection,
                 data: {
                     studentCourseAttemptId: input.courseAttemptId,
                     classScheduleId: input.classScheduleId,
                     date: new Date(`${input.date}T00:00:00.000Z`)
                 }
             });
-            return ok(absenceEntity.build(absence));
+            return ok(absencePresenter.build(absence));
         },
         async remove(studentId, id) {
             const absence = await prisma.studentAbsence.findFirst({

@@ -1,4 +1,7 @@
-import type { EvaluationMode, YearPeriod } from "../rules/PlanningRule.js";
+import type {
+    EvaluationMode,
+    YearPeriod
+} from "#/modules/academic/Academic.types.js";
 export type HistoryStatus =
     | "ENROLLED"
     | "APPROVED"

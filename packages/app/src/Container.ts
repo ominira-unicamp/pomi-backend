@@ -1,3 +1,5 @@
+import type { OperationTelemetry } from "#/application/OperationTelemetry.js";
+import { requestLogger } from "@pomi/api-core";
 import { asFunction, asValue, createContainer, InjectionMode } from "awilix";
 import type { RequestHandler } from "express";
 
@@ -8,6 +10,7 @@ import {
     studentAvatarResource
 } from "#/MediaResources.js";
 import { buildZodIds } from "#/PrismaValidator.js";
+import { systemClock, type Clock } from "#/application/Clock.js";
 import type { Principal } from "#/auth.js";
 import type { ImageResourceRegistry } from "#/media/ImageResourceRegistry.js";
 import type { ImageStorage } from "#/media/ImageStorage.js";
@@ -32,7 +35,7 @@ import {
     createExchangeNoticeUnsubscribeService,
     type ExchangeNoticeUnsubscribeService
 } from "#/modules/exchange/exchange-notice-unsubscribe/ExchangeNoticeUnsubscribe.service.js";
-import { FeedbackRateLimiter } from "#/modules/feedback/feedback-report/FeedbackRateLimiter.js";
+import { FeedbackRateLimiter } from "#/modules/feedback/feedback-report/Feedback.limiter.js";
 import {
     createFeedbackReportService,
     type FeedbackReportService
@@ -41,7 +44,7 @@ import {
     createGroupService,
     type GroupService
 } from "#/modules/group/Group.service.js";
-import type { GroupAvatarTarget } from "#/modules/group/avatar/GroupAvatar.js";
+import type { GroupAvatarTarget } from "#/modules/group/avatar/GroupAvatar.resource.js";
 import {
     createGroupEventService,
     type GroupEventService
@@ -110,7 +113,7 @@ import {
     createStudentService,
     type StudentService
 } from "#/modules/student/Student.service.js";
-import type { StudentAvatarTarget } from "#/modules/student/avatar/StudentAvatar.js";
+import type { StudentAvatarTarget } from "#/modules/student/avatar/StudentAvatar.resource.js";
 import {
     createStudentTagInterestService,
     type StudentTagInterestService
@@ -124,6 +127,8 @@ import type { DatabaseClient } from "@pomi/db";
 export type AppCradle = {
     config: AppConfig;
     prisma: DatabaseClient;
+    clock: Clock;
+    operationTelemetry: OperationTelemetry | undefined;
     principal: Principal | undefined;
     imageStorage: ImageStorage | undefined;
     imageResourceRegistry: ImageResourceRegistry;
@@ -166,6 +171,8 @@ export function createAppContainer(config: AppConfig, prisma: DatabaseClient) {
     }).register({
         config: asValue(config),
         prisma: asValue(prisma),
+        clock: asValue(systemClock),
+        operationTelemetry: asValue(undefined),
         principal: asValue(undefined),
         imageResourceRegistry: asValue(createAppImageResourceRegistry()),
         imageStorage: asValue(
@@ -218,10 +225,10 @@ export function createAppContainer(config: AppConfig, prisma: DatabaseClient) {
             createSocialFriendshipService
         ).scoped(),
         feedbackRateLimiter: asValue(
-            new FeedbackRateLimiter(
-                config.feedbackRateLimitMax,
-                config.feedbackRateLimitWindowSeconds * 1000
-            )
+            new FeedbackRateLimiter({
+                maximum: config.feedbackRateLimitMax,
+                windowMilliseconds: config.feedbackRateLimitWindowSeconds * 1000
+            })
         ),
         feedbackReportService: asFunction(createFeedbackReportService).scoped(),
         groupService: asFunction(createGroupService).scoped(),
@@ -249,8 +256,31 @@ export function createAppContainer(config: AppConfig, prisma: DatabaseClient) {
 export type AppContainer = ReturnType<typeof createAppContainer>;
 
 export function appScopeMiddleware(container: AppContainer): RequestHandler {
-    return (request, _response, next) => {
+    return (request, response, next) => {
         const scope = container.createScope();
+        const logger = requestLogger(response);
+        if (logger)
+            scope.register({
+                operationTelemetry: asValue<OperationTelemetry>((event) => {
+                    const attributes = {
+                        event: `application.operation.${event.outcome}`,
+                        ...event
+                    };
+                    if (
+                        event.outcome === "completed" ||
+                        event.outcome === "recovery-scheduled"
+                    )
+                        logger.info(
+                            attributes,
+                            "Operação de aplicação concluída"
+                        );
+                    else
+                        logger.warn(
+                            attributes,
+                            "Operação de aplicação rejeitada ou com recuperação pendente"
+                        );
+                })
+            });
         request.scope = scope;
         request.prisma = scope.cradle.prisma;
         next();

@@ -2,12 +2,13 @@ import { AuthRoles, type Capability, type Principal } from "#/auth.js";
 import IO, {
     authUserSort
 } from "#/modules/identity/auth-user/AuthUser.contract.js";
-import authUserEntity from "#/modules/identity/auth-user/AuthUser.entity.js";
+import authUserPresenter from "#/modules/identity/auth-user/AuthUser.presenter.js";
 import {
     adminIdentityManagedByCliProblem,
     authUserNotFoundProblem,
     type AuthUserProblem
 } from "#/modules/identity/auth-user/AuthUser.problems.js";
+import { prismaAuthUserSelection } from "#/modules/identity/auth-user/AuthUser.queries.js";
 import { compileSort, err, ok, resolveSort, type Result } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import z from "zod";
@@ -42,7 +43,7 @@ export function createAuthUserService({
         async list(query) {
             return (
                 await prisma.authUser.findMany({
-                    ...authUserEntity.prismaSelection,
+                    ...prismaAuthUserSelection,
                     orderBy: compileSort(
                         resolveSort(query.sort, authUserSort),
                         {
@@ -55,7 +56,7 @@ export function createAuthUserService({
                         }
                     )
                 })
-            ).map(authUserEntity.build);
+            ).map(authUserPresenter.build);
         },
         async create(principal, input) {
             const authUser = await prisma.authUser.upsert({
@@ -77,7 +78,7 @@ export function createAuthUserService({
                     }
                 },
                 update: { displayName: input.displayName, status: "ACTIVE" },
-                ...authUserEntity.prismaSelection
+                ...prismaAuthUserSelection
             });
             await prisma.authUserRole.upsert({
                 where: {
@@ -89,7 +90,7 @@ export function createAuthUserService({
                 create: { authUserId: authUser.id, role: AuthRoles.BOT },
                 update: {}
             });
-            return authUserEntity.build(authUser);
+            return authUserPresenter.build(authUser);
         },
         async patch(id, input) {
             const existing = await prisma.authUser.findUnique({
@@ -119,10 +120,10 @@ export function createAuthUserService({
                             ? { displayName: input.displayName }
                             : {})
                     },
-                    ...authUserEntity.prismaSelection
+                    ...prismaAuthUserSelection
                 });
             });
-            return ok(authUserEntity.build(authUser));
+            return ok(authUserPresenter.build(authUser));
         }
     };
 }

@@ -1,16 +1,18 @@
+import { systemClock, type Clock } from "#/application/Clock.js";
 import { BadRequestError, ConflictError, NotFoundError } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
-import { requirePermission } from "../access/GroupAccess.js";
-import { requireGroupRule } from "../GroupRuleErrors.js";
+import { requireGroupRule, requirePermission } from "../Group.problems.js";
 import { ownMember } from "../membership/GroupMembership.presenter.js";
 import { loadMember } from "../membership/GroupMembership.queries.js";
 import { invitation } from "./GroupInvitation.presenter.js";
 import { validateInvitationAcceptance } from "./GroupInvitation.rules.js";
 
 export function createGroupInvitationService({
-    prisma
+    prisma,
+    clock = systemClock
 }: {
     prisma: PrismaClient;
+    clock?: Clock;
 }) {
     return {
         async listInvitations(studentId: number, groupId?: number) {
@@ -19,7 +21,7 @@ export function createGroupInvitationService({
                     where: { recipientStudentId: studentId, groupId },
                     orderBy: { createdAt: "desc" }
                 })
-            ).map(invitation);
+            ).map((value) => invitation(value, clock.now()));
         },
         async listManagedInvitations(studentId: number, groupId?: number) {
             if (!groupId)
@@ -51,7 +53,7 @@ export function createGroupInvitationService({
                     orderBy: [{ createdAt: "desc" }, { id: "desc" }]
                 })
             ).map((value) => ({
-                ...invitation(value),
+                ...invitation(value, clock.now()),
                 recipientName: value.recipient.name,
                 recipientPublicId: value.recipient.publicId,
                 recipientAvatarMediaId:
@@ -96,7 +98,7 @@ export function createGroupInvitationService({
                             groupId,
                             recipientStudentId,
                             status: "PENDING",
-                            expiresAt: { lte: new Date() }
+                            expiresAt: { lte: clock.now() }
                         },
                         data: { status: "EXPIRED", pendingKey: null }
                     });
@@ -116,11 +118,12 @@ export function createGroupInvitationService({
                             recipientStudentId,
                             inviterStudentId: studentId,
                             expiresAt: new Date(
-                                Date.now() + 14 * 24 * 60 * 60 * 1000
+                                clock.now().getTime() + 14 * 24 * 60 * 60 * 1000
                             )
                         }
                     });
-                })
+                }),
+                clock.now()
             );
         },
         async acceptInvitation(studentId: number, id: number) {
@@ -133,7 +136,7 @@ export function createGroupInvitationService({
                 validateInvitationAcceptance(
                     invite.status,
                     invite.expiresAt,
-                    new Date()
+                    clock.now()
                 )
             );
             if (
@@ -147,12 +150,12 @@ export function createGroupInvitationService({
                     where: {
                         id,
                         status: "PENDING",
-                        expiresAt: { gt: new Date() }
+                        expiresAt: { gt: clock.now() }
                     },
                     data: {
                         status: "ACCEPTED",
                         pendingKey: null,
-                        respondedAt: new Date()
+                        respondedAt: clock.now()
                     }
                 });
                 if (updated.count !== 1)
@@ -169,7 +172,7 @@ export function createGroupInvitationService({
                 data: {
                     status: "DECLINED",
                     pendingKey: null,
-                    respondedAt: new Date()
+                    respondedAt: clock.now()
                 }
             });
             if (!updated.count)

@@ -8,7 +8,10 @@ import {
     unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
-import { socialProblemResponses } from "../Social.problems.js";
+import {
+    socialProblemResponses,
+    toAcceptFriendshipProblem
+} from "../Social.problems.js";
 import contracts from "./SocialFriendship.contract.js";
 
 const respond = createResultResponder(socialProblemResponses);
@@ -37,10 +40,12 @@ const actions: EndpointActions<typeof contracts, AuthorizationPolicy, Context> =
             ),
         acceptFriendship: async (ctx, input) =>
             respond(
-                await ctx.socialFriendshipService.acceptFriendship(
-                    input.path.sid,
-                    input.path.id
-                ),
+                (
+                    await ctx.socialFriendshipService.acceptFriendship(
+                        input.path.sid,
+                        input.path.id
+                    )
+                ).mapErr(toAcceptFriendshipProblem),
                 ApiResponse.ok
             ),
         removeFriendship: async (ctx, input) =>

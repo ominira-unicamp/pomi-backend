@@ -1,5 +1,5 @@
 import { err, ok } from "@pomi/api-core";
-import { planningRule, type PlanningIssue } from "../rules/PlanningRule.js";
+import { planningRule, type PlanningIssue } from "../Planning.rules.js";
 export type CurriculumSelection = {
     catalogProgramId?: number | null;
     catalogProgramVariantId?: number | null;

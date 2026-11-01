@@ -6,6 +6,7 @@ import {
 import { createGroupInvitationService } from "#/modules/group/invitation/GroupInvitation.service.js";
 import { publicMembership } from "#/modules/group/membership/GroupMembership.contract.js";
 import { createGroupMembershipService } from "#/modules/group/membership/GroupMembership.service.js";
+import { createGroupRoleService } from "#/modules/group/role/GroupRole.service.js";
 import { ConflictError, ForbiddenError, NotFoundError } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import assert from "node:assert/strict";
@@ -407,7 +408,7 @@ test("expired invitations have the public status and no persistence keys", async
     assert.equal("pendingKey" in result, false);
 });
 test("removing the last manager role is rejected before changing assignments", async () => {
-    const prisma = {
+    const tx = {
         group: { count: async () => 1 },
         groupMembership: {
             findUnique: async () => ({
@@ -418,23 +419,128 @@ test("removing the last manager role is rejected before changing assignments", a
                 roles: []
             })
         },
-        groupMembershipRole: { findFirst: async () => ({ roleId: 2 }) },
+        groupMembershipRole: {
+            findFirst: async () => ({ roleId: 2 }),
+            findMany: async () => [{ membershipId: 4, roleId: 2 }],
+            deleteMany: async () => assert.fail("Last manager role was removed")
+        },
         groupRole: { count: async () => 1 },
-        groupPosition: { count: async () => 0 },
+        groupPosition: { count: async () => 0 }
+    };
+    const prisma = {
         $transaction: async (work: (tx: unknown) => Promise<unknown>) =>
-            work({
-                groupMembershipRole: {
-                    findFirst: async () => null,
-                    deleteMany: async () =>
-                        assert.fail("Last manager role was removed")
-                }
-            })
+            work(tx)
     } as unknown as PrismaClient;
+    const result = await createGroupMembershipService({
+        prisma
+    }).patchManagedMembership(9, 4, { roles: { remove: [2] } });
+    assert.deepEqual(result._unsafeUnwrapErr(), {
+        kind: "conflict",
+        message: "O grupo precisa manter um gestor de roles."
+    });
+});
 
+test("role mutations reject repeated and opposing permissions before writes", async () => {
+    let writes = 0;
+    const row = { id: 3, groupId: 42, name: "Gestor", permissions: [] };
+    const tx = {
+        group: { count: async () => 1 },
+        groupMembershipRole: { findFirst: async () => ({ roleId: 3 }) },
+        groupRole: {
+            findUnique: async () => row,
+            create: async () => {
+                writes++;
+                return row;
+            }
+        }
+    };
+    const prisma = {
+        ...tx,
+        $transaction: async (work: (tx: unknown) => Promise<unknown>) =>
+            work(tx)
+    } as unknown as PrismaClient;
+    const service = createGroupRoleService({ prisma });
     await assert.rejects(
-        createGroupMembershipService({ prisma }).patchManagedMembership(9, 4, {
-            roles: { remove: [2] }
-        }),
+        service.createRole(7, 42, "Gestor", ["ROLE_MANAGE", "ROLE_MANAGE"]),
         ConflictError
     );
+    const result = await service.patchRole(7, 3, {
+        permissions: { add: ["ROLE_MANAGE"], remove: ["ROLE_MANAGE"] }
+    });
+    assert.deepEqual(result._unsafeUnwrapErr(), {
+        kind: "conflict",
+        message: "Permissão repetida."
+    });
+    assert.equal(writes, 0);
+    assert.deepEqual(
+        await service.createRole(7, 42, "Gestor", ["ROLE_MANAGE"]),
+        row
+    );
+    assert.equal(writes, 1);
+});
+
+test("group mutations translate Prisma and adapter serialization conflicts without hiding technical errors", async () => {
+    for (const failure of [
+        { code: "P2034" },
+        { cause: { kind: "TransactionWriteConflict", originalCode: "40001" } }
+    ]) {
+        const prisma = {
+            $transaction: async () => {
+                throw failure;
+            }
+        } as unknown as PrismaClient;
+        assert.deepEqual(
+            (
+                await createGroupRoleService({ prisma }).patchRole(7, 3, {})
+            )._unsafeUnwrapErr(),
+            {
+                kind: "concurrent-change",
+                message: "O grupo mudou durante a operação. Tente novamente."
+            }
+        );
+        assert.equal(
+            (
+                await createGroupMembershipService({
+                    prisma
+                }).patchManagedMembership(7, 3, {})
+            )._unsafeUnwrapErr().kind,
+            "concurrent-change"
+        );
+    }
+    const failure = new Error("technical error");
+    const prisma = {
+        $transaction: async () => {
+            throw failure;
+        }
+    } as unknown as PrismaClient;
+    await assert.rejects(
+        createGroupRoleService({ prisma }).patchRole(7, 3, {}),
+        (error) => error === failure
+    );
+});
+
+test("invitation representation uses the injected instant at the expiration boundary", async () => {
+    let now = new Date("2026-11-01T00:00:00Z");
+    const service = createGroupInvitationService({
+        prisma: {
+            groupInvitation: {
+                findMany: async () => [
+                    {
+                        id: 1,
+                        groupId: 7,
+                        recipientStudentId: 42,
+                        inviterStudentId: 9,
+                        status: "PENDING",
+                        expiresAt: new Date("2026-11-01T00:00:01Z"),
+                        createdAt: now,
+                        respondedAt: null
+                    }
+                ]
+            }
+        } as never,
+        clock: { now: () => now }
+    });
+    assert.equal((await service.listInvitations(42))[0]?.status, "PENDING");
+    now = new Date("2026-11-01T00:00:01Z");
+    assert.equal((await service.listInvitations(42))[0]?.status, "EXPIRED");
 });

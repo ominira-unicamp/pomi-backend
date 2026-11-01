@@ -1,4 +1,4 @@
-import type { FeedbackRateLimiter } from "#/modules/feedback/feedback-report/FeedbackRateLimiter.js";
+import type { FeedbackRateLimiter } from "#/modules/feedback/feedback-report/Feedback.limiter.js";
 import IO, {
     feedbackReportSort
 } from "#/modules/feedback/feedback-report/FeedbackReport.contract.js";

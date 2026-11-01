@@ -354,14 +354,26 @@ export function createTaggingService({
             const value = await prisma.tag.findUnique({
                 where: { id },
                 select: {
-                    _count: { select: { children: true, courseTags: true } }
+                    _count: {
+                        select: {
+                            children: true,
+                            courseTags: true,
+                            groupTags: true,
+                            groupEventTags: true
+                        }
+                    }
                 }
             });
             if (!value) return err(resourceNotFound("Tag not found"));
-            if (value._count.children > 0 || value._count.courseTags > 0)
+            if (
+                value._count.children > 0 ||
+                value._count.courseTags > 0 ||
+                value._count.groupTags > 0 ||
+                value._count.groupEventTags > 0
+            )
                 return err(
                     conflict(
-                        "Não é possível remover uma tag que possui filhas ou associações com disciplinas."
+                        "Não é possível remover uma tag que possui filhas ou associações com disciplinas, grupos ou eventos."
                     )
                 );
             await prisma.tag.delete({ where: { id } });

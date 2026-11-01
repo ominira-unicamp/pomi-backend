@@ -104,3 +104,31 @@ test("imports an enrolled course attempt", async () => {
         grade: null
     });
 });
+
+test("history failures remain local and translate to the existing public problems", async () => {
+    const { toStudentHistoryImportProblem } =
+        await import("#/modules/planning/student-history-import/StudentHistoryImport.problems.js");
+    for (const [student, kind, type] of [
+        [null, "student-not-found", "resource-not-found"],
+        [{ ra: "654321" }, "ra-mismatch", "invalid-student-history-import"]
+    ] as const) {
+        const service = createStudentHistoryImportService({
+            prisma: { student: { findUnique: async () => student } } as never
+        });
+        const failure = (
+            await service.import(1, enrolledHistory)
+        )._unsafeUnwrapErr();
+        assert.equal(failure.kind, kind);
+        const problem = toStudentHistoryImportProblem(failure);
+        assert.equal(problem.type, `urn:pomi:problem:${type}`);
+        if ("fields" in problem)
+            assert.deepEqual(problem.fields, [
+                {
+                    code: "INVALID_VALUE",
+                    path: ["student", "ra"],
+                    message:
+                        "O RA do documento não corresponde ao aluno autenticado."
+                }
+            ]);
+    }
+});

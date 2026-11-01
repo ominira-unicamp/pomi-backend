@@ -1,6 +1,5 @@
-import periodPlanningEntity, {
-    prismaPeriodPlanningFieldSelection
-} from "#/modules/planning/period-plan/PeriodPlan.entity.js";
+import periodPlanningPresenter from "#/modules/planning/period-plan/PeriodPlan.presenter.js";
+import { prismaPeriodPlanningFieldSelection } from "#/modules/planning/period-plan/PeriodPlan.queries.js";
 import IO, {
     sharedPeriodPlanningPagination,
     sharedPeriodPlanningSort
@@ -68,7 +67,7 @@ function notFound(): NotFound {
 function buildShared(row: NonNullable<Selected>): SharedPeriodPlan {
     if (row.visibility === "PRIVATE")
         throw new Error("A private period plan cannot be shared.");
-    const entity = periodPlanningEntity.build(row);
+    const entity = periodPlanningPresenter.build(row);
     return {
         shareId: row.shareId,
         name: row.name,

@@ -1,3 +1,8 @@
+import type { Clock } from "#/application/Clock.js";
+import {
+    observeOperation,
+    type OperationTelemetry
+} from "#/application/OperationTelemetry.js";
 import {
     compileFilterWhere,
     compileSort,
@@ -16,9 +21,11 @@ import {
     socialNotFoundProblem
 } from "../Social.problems.js";
 import type { friendship } from "../Social.schemas.js";
-import { personSelection } from "../SocialPerson.queries.js";
+import type { AcceptFriendshipFailure } from "./AcceptFriendship.use-case.js";
+import { acceptFriendship } from "./AcceptFriendship.use-case.js";
 import IO, { studentFriendshipSort } from "./SocialFriendship.contract.js";
 import { buildFriendship } from "./SocialFriendship.presenter.js";
+import { friendshipSelection } from "./SocialFriendship.queries.js";
 
 type NotFoundProblem = ReturnType<typeof socialNotFoundProblem>;
 type Friendship = z.infer<typeof friendship>;
@@ -47,13 +54,6 @@ function directionWhere(
     };
 }
 
-const friendshipSelection = {
-    include: {
-        studentA: { select: personSelection },
-        studentB: { select: personSelection }
-    }
-} as const;
-
 function isUniqueViolation(error: unknown) {
     return (
         typeof error === "object" &&
@@ -75,7 +75,7 @@ export type SocialFriendshipService = {
     acceptFriendship(
         studentId: number,
         id: number
-    ): Promise<Result<Friendship, NotFoundProblem | ConflictProblem>>;
+    ): Promise<Result<Friendship, AcceptFriendshipFailure>>;
     removeFriendship(
         studentId: number,
         id: number
@@ -83,15 +83,14 @@ export type SocialFriendshipService = {
 };
 
 export function createSocialFriendshipService({
-    prisma
+    prisma,
+    clock,
+    operationTelemetry
 }: {
     prisma: PrismaClient;
+    clock: Clock;
+    operationTelemetry?: OperationTelemetry;
 }): SocialFriendshipService {
-    const findFriendship = (id: number) =>
-        prisma.studentFriendship.findUnique({
-            where: { id },
-            ...friendshipSelection
-        });
     return {
         async listFriendships(studentId, input) {
             const filter = input.filter ?? [];
@@ -171,48 +170,16 @@ export function createSocialFriendshipService({
                 throw error;
             }
         },
-        async acceptFriendship(studentId, id) {
-            const existing = await prisma.studentFriendship.findFirst({
-                where: {
-                    id,
-                    OR: [{ studentAId: studentId }, { studentBId: studentId }]
-                },
-                select: { status: true, requestedById: true }
-            });
-            if (!existing)
-                return err(
-                    socialNotFoundProblem("A solicitação não foi encontrada.")
-                );
-            if (
-                existing.status !== "PENDING" ||
-                existing.requestedById === studentId
-            )
-                return err(
-                    socialConflictProblem(
-                        "A solicitação não pode ser aceita por este aluno."
-                    )
-                );
-            const updated = await prisma.studentFriendship.updateMany({
-                where: {
-                    id,
-                    status: "PENDING",
-                    requestedById: { not: studentId },
-                    OR: [{ studentAId: studentId }, { studentBId: studentId }]
-                },
-                data: { status: "ACCEPTED", acceptedAt: new Date() }
-            });
-            if (!updated.count)
-                return err(
-                    socialConflictProblem(
-                        "A solicitação já foi alterada e não pode mais ser aceita."
-                    )
-                );
-            const row = await findFriendship(id);
-            return row
-                ? ok(buildFriendship(row, studentId))
-                : err(
-                      socialNotFoundProblem("A solicitação não foi encontrada.")
-                  );
+        acceptFriendship(studentId, id) {
+            return observeOperation(
+                "social.friendship.accept",
+                () =>
+                    acceptFriendship(
+                        { prisma, clock },
+                        { studentId, friendshipId: id }
+                    ),
+                operationTelemetry
+            );
         },
         async removeFriendship(studentId, id) {
             const removed = await prisma.studentFriendship.deleteMany({

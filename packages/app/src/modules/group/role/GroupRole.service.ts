@@ -1,18 +1,54 @@
-import { BadRequestError, ConflictError } from "@pomi/api-core";
-import type { GroupPermission, PrismaClient } from "@pomi/db";
-import type z from "zod";
-import { requirePermission } from "../access/GroupAccess.js";
-import { requireManagerRemains } from "../governance/GroupGovernance.js";
-import { requireGroupRule } from "../GroupRuleErrors.js";
-import { serializable } from "../GroupTransaction.js";
-import { loadRole } from "../role/GroupRole.queries.js";
-import type IO from "./GroupRole.contract.js";
+import {
+    observeOperation,
+    type OperationTelemetry
+} from "#/application/OperationTelemetry.js";
+import {
+    BadRequestError,
+    ConflictError,
+    NotFoundError,
+    err,
+    ok
+} from "@pomi/api-core";
+import type { GroupPermission, MyPrisma, PrismaClient } from "@pomi/db";
+import type { GroupRuleIssue } from "../Group.errors.js";
+import { requireGroupRule, requirePermission } from "../Group.problems.js";
 import { role, roleInclude } from "./GroupRole.presenter.js";
-import { validateRolePermissions } from "./GroupRole.rules.js";
+import type { RolePatch } from "./GroupRole.schemas.js";
+import { patchGroupRole } from "./PatchGroupRole.use-case.js";
 
-type RolePatch = z.infer<typeof IO.patchRole.request>["body"];
 type Permission = GroupPermission;
-export function createGroupRoleService({ prisma }: { prisma: PrismaClient }) {
+async function loadRole(
+    prisma: Pick<MyPrisma.TransactionClient, "groupRole">,
+    id: number
+) {
+    const value = await prisma.groupRole.findUnique({
+        where: { id },
+        include: roleInclude
+    });
+    if (!value) throw new NotFoundError("Role não encontrada.");
+    return value;
+}
+
+function validateRolePermissions(
+    added: readonly string[],
+    removed: readonly string[] = []
+) {
+    const permissions = [...added, ...removed];
+    return permissions.length !== new Set(permissions).size
+        ? err<never, GroupRuleIssue>({
+              code: "DUPLICATE_PERMISSION",
+              message: "Permissão repetida."
+          })
+        : ok(undefined);
+}
+
+export function createGroupRoleService({
+    prisma,
+    operationTelemetry
+}: {
+    prisma: PrismaClient;
+    operationTelemetry?: OperationTelemetry;
+}) {
     return {
         async listRoles(studentId: number, groupId?: number) {
             if (!groupId)
@@ -49,46 +85,12 @@ export function createGroupRoleService({ prisma }: { prisma: PrismaClient }) {
                 })
             );
         },
-        async patchRole(studentId: number, id: number, input: RolePatch) {
-            const value = await loadRole(prisma, id);
-            await requirePermission(
-                prisma,
-                value.groupId,
-                studentId,
-                "ROLE_MANAGE"
+        patchRole(studentId: number, id: number, input: RolePatch) {
+            return observeOperation(
+                "group.role.patch",
+                () => patchGroupRole({ prisma }, { studentId, id, input }),
+                operationTelemetry
             );
-            const added = input.permissions?.add ?? [];
-            const removed = input.permissions?.remove ?? [];
-            requireGroupRule(validateRolePermissions(added, removed));
-            await serializable(prisma, async (tx) => {
-                if (
-                    removed.includes("ROLE_MANAGE") &&
-                    value.permissions.some(
-                        ({ permission }) => permission === "ROLE_MANAGE"
-                    )
-                )
-                    await requireManagerRemains(tx, value.groupId, undefined, [
-                        id
-                    ]);
-                if (input.name !== undefined)
-                    await tx.groupRole.update({
-                        where: { id },
-                        data: { name: input.name }
-                    });
-                if (removed.length)
-                    await tx.groupRolePermission.deleteMany({
-                        where: { roleId: id, permission: { in: removed } }
-                    });
-                if (added.length)
-                    await tx.groupRolePermission.createMany({
-                        data: added.map((permission) => ({
-                            roleId: id,
-                            permission
-                        })),
-                        skipDuplicates: true
-                    });
-            });
-            return role(await loadRole(prisma, id));
         },
         async deleteRole(studentId: number, id: number) {
             const value = await loadRole(prisma, id);

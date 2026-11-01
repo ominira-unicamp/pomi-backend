@@ -1,3 +1,4 @@
+import type { OperationTelemetry } from "#/application/OperationTelemetry.js";
 import type { ImageStorage, StoredImage } from "#/media/ImageStorage.js";
 import { createMediaService } from "#/media/MediaService.js";
 import { MediaUploadLimiter } from "#/media/MediaUploadLimiter.js";
@@ -47,7 +48,8 @@ export function testStorage(
 type Asset = { alias: string; status: string; nextDeleteAt: Date | null };
 export function mediaFixture(
     storageOverrides: Partial<ImageStorage> = {},
-    limiter = new MediaUploadLimiter(2)
+    limiter = new MediaUploadLimiter(2),
+    operationTelemetry?: OperationTelemetry
 ) {
     let state = {
         userStatus: "ACTIVE",
@@ -216,7 +218,8 @@ export function mediaFixture(
         prisma: database,
         imageResourceRegistry: registry,
         imageStorage: storage,
-        mediaUploadLimiter: limiter
+        mediaUploadLimiter: limiter,
+        operationTelemetry
     });
     return {
         service,

@@ -14,7 +14,7 @@ import {
     sidId,
     studentBase,
     studentMeta
-} from "../GroupContractSupport.js";
+} from "../Group.http.js";
 import { ownMembership } from "../membership/GroupMembership.contract.js";
 
 export const invitation = z
@@ -46,11 +46,14 @@ export const managedInvitation = invitation
     .openapi("ManagedGroupInvitation", entityMeta("ManagedGroupInvitation"));
 export const listInvitations = {
     meta: {
-        ...studentMeta(
-            "listGroupInvitations",
-            "get",
-            studentBase("group-invitations")
-        ),
+        ...studentMeta({
+            operationId: "listGroupInvitations",
+            method: "get",
+            path: studentBase("group-invitations"),
+            sdkAction: "list",
+            queryFeatures: { filter: true },
+            capability: "STUDENT_PROFILE_READ"
+        }),
         pagination: unpaginatedByDefault
     },
     request: z.object({ path: sid, query: listQuery }),
@@ -60,11 +63,14 @@ export const listInvitations = {
 } satisfies IO;
 export const listManagedInvitations = {
     meta: {
-        ...studentMeta(
-            "listManagedGroupInvitations",
-            "get",
-            studentBase("managed-group-invitations")
-        ),
+        ...studentMeta({
+            operationId: "listManagedGroupInvitations",
+            method: "get",
+            path: studentBase("managed-group-invitations"),
+            sdkAction: "list",
+            queryFeatures: { filter: true },
+            capability: "STUDENT_PROFILE_READ"
+        }),
         pagination: unpaginatedByDefault
     },
     request: z.object({ path: sid, query: listQuery }),
@@ -76,12 +82,14 @@ export const listManagedInvitations = {
         .build()
 } satisfies IO;
 export const createInvitation = {
-    meta: studentMeta(
-        "createGroupInvitation",
-        "post",
-        studentBase("group-invitations"),
-        true
-    ),
+    meta: studentMeta({
+        operationId: "createGroupInvitation",
+        method: "post",
+        path: studentBase("group-invitations"),
+        sdkAction: "create",
+        queryFeatures: { filter: false },
+        capability: "STUDENT_PROFILE_WRITE"
+    }),
     request: z.object({
         path: sid,
         query: groupQuery,
@@ -90,16 +98,18 @@ export const createInvitation = {
     response: new OutputBuilder().created(invitation, "Convite criado").build()
 } satisfies IO;
 export const acceptInvitation = {
-    meta: studentMeta(
-        "acceptGroupInvitation",
-        "post",
-        [
+    meta: studentMeta({
+        operationId: "acceptGroupInvitation",
+        method: "post",
+        path: [
             ...studentBase("group-invitations"),
             pathSeg.param("id"),
             pathSeg.literal("accept")
         ],
-        true
-    ),
+        sdkAction: "create",
+        queryFeatures: { filter: false },
+        capability: "STUDENT_PROFILE_WRITE"
+    }),
     request: z.object({ path: sidId }),
     response: new OutputBuilder()
         .ok(ownMembership, "Convite aceito")
@@ -107,16 +117,18 @@ export const acceptInvitation = {
         .build()
 } satisfies IO;
 export const declineInvitation = {
-    meta: studentMeta(
-        "declineGroupInvitation",
-        "post",
-        [
+    meta: studentMeta({
+        operationId: "declineGroupInvitation",
+        method: "post",
+        path: [
             ...studentBase("group-invitations"),
             pathSeg.param("id"),
             pathSeg.literal("decline")
         ],
-        true
-    ),
+        sdkAction: "create",
+        queryFeatures: { filter: false },
+        capability: "STUDENT_PROFILE_WRITE"
+    }),
     request: z.object({ path: sidId }),
     response: new OutputBuilder()
         .noContent("Convite recusado")

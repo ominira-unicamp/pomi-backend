@@ -1,3 +1,7 @@
+import type {
+    AttemptStatus,
+    EvaluationMode
+} from "#/modules/academic/Academic.types.js";
 import {
     isEligibleProfessorEvaluationAttempt,
     validateProfessorEvaluationFacts
@@ -15,10 +19,6 @@ import {
     validateSavedGuide,
     validateSuggestionGuide
 } from "#/modules/planning/period-plan/PeriodPlan.rules.js";
-import type {
-    AttemptStatus,
-    EvaluationMode
-} from "#/modules/planning/rules/PlanningRule.js";
 import { validateAbsenceFacts } from "#/modules/planning/student-absence/StudentAbsence.rules.js";
 import {
     isAttemptApprovedForPrerequisite,

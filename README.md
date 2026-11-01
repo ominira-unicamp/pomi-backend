@@ -226,7 +226,6 @@ O deploy deve aplicar a migração junto da versão correspondente da App API e
 atualizar consumidores com o SDK regenerado. A migração foi gerada pelo Prisma
 e validada somente em banco descartável; o banco da cloud não foi alterado.
 
-
 ### Integração transversal de imagens
 
 A implementação de imagens fica em `packages/app/src/media`. Os módulos de
@@ -286,6 +285,20 @@ em contratos, controllers e serviços próprios. Os schemas, problemas e a
 representação pública de pessoas são compartilhados dentro dessa área.
 O contexto global continua disponível e fornece os três serviços sociais.
 
+A aceitação de amizade é o primeiro piloto de separação por responsabilidades.
+`AcceptFriendship.use-case.ts` coordena a operação, verifica as condições locais
+e define seus tipos de rejeição esperada
+sem informações HTTP. O serviço mantém sua interface de chamada e o controller
+traduz essas falhas pelos mapeadores de `Social.problems.ts`. O relógio é uma
+dependência de aplicação, registrada no container e substituível nos testes.
+A seleção de amizade é compartilhada com listagem e criação por um arquivo de queries.
+
+O piloto preserva a atualização condicionada e a leitura posterior da resposta,
+sem adicionar transação ou repetição automática. A leitura pode não encontrar o
+registro depois da escrita, mantendo a resposta de ausência já existente.
+Os testes de persistência simulada verificam esse protocolo, sem demonstrar
+concorrência real no banco. As demais operações sociais mantêm seu modelo atual.
+
 Contratos e controllers extensos permanecem separados; integrações compactas,
 como avatares, usam um arquivo `.endpoints.ts` junto da definição do recurso.
 Arquivos de regras, consultas e apresentação são criados conforme a necessidade
@@ -311,7 +324,61 @@ provisórias permanecem na persistência. A importação mantém seus estados ac
 e sua política de warnings; elegibilidade de avaliação e aprovação para
 pré-requisitos continuam sendo decisões distintas.
 
-A refatoração preserva os limites transacionais e as verificações atuais. A
-exclusão global de roles na busca de outro gestor ao remover uma atribuição e as
-verificações de acesso/estado anteriores às transações continuam pendentes de
-análise e correção específicas, com testes de concorrência em PostgreSQL.
+As alterações de role e de vínculo gerenciado delegam a casos de uso com falhas
+locais, traduzidas nos controllers para os problemas públicos existentes. As
+leituras de acesso, estado, referências e governança ocorrem na mesma transação
+serializável das gravações. A resposta também é construída nessa transação.
+A regra de governança avalia o estado final: remover uma atribuição afeta apenas
+seu vínculo, remover a permissão de uma role afeta todas as suas atribuições, e
+uma troca atômica de roles pode manter o único gestor ativo.
+
+`application/transactions.ts` oferece `runAtomic`: um `err` no callback desfaz as
+gravações, assim como uma exceção. O sinal de rollback é interno à invocação.
+O mecanismo identifica conflitos do Prisma e do adaptador PostgreSQL; cada caso
+de uso decide a tradução para sua falha local, sem repetição automática.
+
+Em social, o presenter recebe uma decisão nomeada de divulgação, calculada por
+uma função pura no mesmo arquivo. As condições atuais para perfil e disciplinas
+continuam independentes, e os filtros de consulta permanecem nos serviços.
+
+A importação de histórico delega a coordenação a um caso de uso e reutiliza seu
+planejador puro. Seus fatos institucionais são carregados antes da transação,
+conforme a hipótese existente de estabilidade durante a importação. A
+reconciliação preserva warnings e resumo; repetir o documento com os mesmos
+fatos atualiza as tentativas correspondentes, sem promessa de idempotência sob
+concorrência. Ela usa a transação Prisma diretamente porque suas rejeições
+esperadas ocorrem antes das gravações.
+
+Os testes de integração de grupo e histórico usam exclusivamente
+`POMI_APP_TEST_DATABASE_URL`, apontando para um banco descartável cujo nome termina
+em `_test`. Não há fallback para `DATABASE_URL`. Prepare esse banco com as
+migrations existentes e execute:
+
+```bash
+DATABASE_URL="$POMI_APP_TEST_DATABASE_URL" npm run prisma:deploy
+POMI_APP_TEST_DATABASE_URL="$POMI_APP_TEST_DATABASE_URL" npm test --workspace @pomi/app
+```
+
+Sem essa variável, os testes de integração ficam explicitamente marcados como
+ignorados. A suíte comum não comprova rollback e concorrência no PostgreSQL.
+
+A adoção da proposta arquitetural também consolidou os metadados declarados de
+comunidade em `Group.http.ts`, os tipos acadêmicos em `Academic.types.ts` e os
+comandos migrados em schemas compartilhados com o transporte. Os presenters da
+App API usam `.presenter.ts`; seleções reutilizadas ficam em `.queries.ts`. A
+Data API mantém sua convenção de entidades. Recursos de avatar continuam nos
+respectivos domínios, com `.resource.ts` e `.endpoints.ts` separados.
+
+Os limites de feedback interpretam uma definição local e validada, mantendo uma
+única instância por processo. A resposta de rejeição preserva o problema e envia
+`Retry-After`. O relógio é injetável; presenters de convite recebem o instante
+explicitamente. As transições de publicação e cancelamento de evento são
+informações locais consumidas pelas regras e pela gravação.
+
+Os resultados das operações migradas são registrados após sua conclusão, usando
+o logger da requisição. Os eventos distinguem sucesso, rejeição e concorrência
+sem registrar corpos ou documentos. Em mídia, registram ativação confirmada,
+limpeza agendada ou recuperação pendente; não confundem agendamento com exclusão
+física concluída. Falhas técnicas continuam no handler central. As fronteiras
+verificam imports de tipo, estáticos e dinâmicos e possuem testes negativos em
+`npm run test:boundaries`, também executados por `npm test`.

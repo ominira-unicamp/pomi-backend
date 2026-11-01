@@ -1,10 +1,20 @@
 import type { Principal } from "#/auth.js";
-import entity from "#/modules/identity/current-user/CurrentUser.entity.js";
+import type z from "zod";
+import type IO from "./CurrentUser.contract.js";
 
 export type CurrentUserService = {
-    get(principal: Principal): ReturnType<typeof entity.build>;
+    get(principal: Principal): z.infer<typeof IO.schemas.entity>;
 };
 
 export function createCurrentUserService(): CurrentUserService {
-    return { get: entity.build };
+    return {
+        get(principal) {
+            return {
+                id: principal.authUserId,
+                roles: [...principal.roles],
+                capabilities: [...principal.capabilities],
+                studentId: principal.studentId
+            };
+        }
+    };
 }

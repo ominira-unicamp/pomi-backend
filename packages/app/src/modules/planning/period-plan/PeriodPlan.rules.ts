@@ -1,4 +1,4 @@
-import { planningRule, type PlanningIssue } from "../rules/PlanningRule.js";
+import { planningRule, type PlanningIssue } from "../Planning.rules.js";
 
 export function validateSavedGuide(found: boolean) {
     return planningRule(

@@ -1,7 +1,4 @@
-import {
-    createAppImageResourceRegistry,
-    studentAvatarResource
-} from "#/MediaResources.js";
+import type { OperationEvent } from "#/application/OperationTelemetry.js";
 import { ImageResourceRegistry } from "#/media/ImageResourceRegistry.js";
 import { createMediaService } from "#/media/MediaService.js";
 import {
@@ -9,6 +6,10 @@ import {
     MediaUploadRateLimitError
 } from "#/media/MediaUploadLimiter.js";
 import { defineImageResource, imageProfiles } from "#/media/public.js";
+import {
+    createAppImageResourceRegistry,
+    studentAvatarResource
+} from "#/MediaResources.js";
 import {
     ConflictError,
     ForbiddenError,
@@ -430,4 +431,57 @@ test("serializable conflicts preserve the HTTP conflict classification", async (
         ConflictError
     );
     assert.equal(fixture.state().assets["created-1"].status, "PENDING_DELETE");
+});
+
+test("media reports committed activation and distinguishes scheduled cleanup from pending recovery", async () => {
+    const events: OperationEvent[] = [];
+    const success: ReturnType<typeof mediaFixture> = mediaFixture(
+        {},
+        undefined,
+        (event) => {
+            assert.equal(success.state().student.avatarRevision, 4);
+            events.push(event);
+        }
+    );
+    await success.studentAvatars.replace({
+        actor: principal,
+        target,
+        upload: upload()
+    });
+    assert.deepEqual(events, [
+        {
+            operation: "media.replace",
+            outcome: "completed",
+            stage: "activation"
+        }
+    ]);
+    for (const compensationFails of [false, true]) {
+        const fixture = mediaFixture(
+            {
+                upload: async () => {
+                    fixture.state().userStatus = "DISABLED";
+                    return uploaded;
+                }
+            },
+            undefined,
+            (event) => events.push(event)
+        );
+        if (compensationFails)
+            fixture.database.mediaAsset.create = (() => {
+                throw new Error("compensation failed");
+            }) as typeof fixture.database.mediaAsset.create;
+        await assert.rejects(
+            fixture.studentAvatars.replace({
+                actor: principal,
+                target,
+                upload: upload()
+            }),
+            ForbiddenError
+        );
+        assert.equal(
+            events.at(-1)?.outcome,
+            compensationFails ? "recovery-pending" : "recovery-scheduled"
+        );
+        assert.equal(JSON.stringify(events).includes(uploaded.alias), false);
+    }
 });

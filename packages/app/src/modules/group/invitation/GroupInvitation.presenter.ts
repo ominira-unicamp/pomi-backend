@@ -1,21 +1,24 @@
 import { invitationStatus } from "./GroupInvitation.rules.js";
 const date = (value: Date | null) => value?.toISOString() ?? null;
-export function invitation(value: {
-    id: number;
-    groupId: number;
-    recipientStudentId: number;
-    inviterStudentId: number;
-    status: "PENDING" | "ACCEPTED" | "DECLINED" | "CANCELLED" | "EXPIRED";
-    expiresAt: Date;
-    createdAt: Date;
-    respondedAt: Date | null;
-}) {
+export function invitation(
+    value: {
+        id: number;
+        groupId: number;
+        recipientStudentId: number;
+        inviterStudentId: number;
+        status: "PENDING" | "ACCEPTED" | "DECLINED" | "CANCELLED" | "EXPIRED";
+        expiresAt: Date;
+        createdAt: Date;
+        respondedAt: Date | null;
+    },
+    now: Date
+) {
     return {
         id: value.id,
         groupId: value.groupId,
         recipientStudentId: value.recipientStudentId,
         inviterStudentId: value.inviterStudentId,
-        status: invitationStatus(value.status, value.expiresAt, new Date()),
+        status: invitationStatus(value.status, value.expiresAt, now),
         expiresAt: value.expiresAt.toISOString(),
         createdAt: value.createdAt.toISOString(),
         respondedAt: date(value.respondedAt)

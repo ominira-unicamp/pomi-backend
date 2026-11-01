@@ -1,6 +1,7 @@
 import {
     ReferenceNotFoundProblem,
     ResourceNotFoundProblem,
+    ResponseEffects,
     defineProblem,
     prefixProblemFields,
     problemResponse,
@@ -76,6 +77,17 @@ export const feedbackReportProblemResponses = {
         (problem, context: ProblemResponseContext) =>
             prefixProblemFields(problem, context.inputLocation)
     ),
-    [FeedbackRateLimitProblem.type]: problemResponse(FeedbackRateLimitProblem),
+    [FeedbackRateLimitProblem.type]: (
+        problem: ReturnType<typeof feedbackRateLimitProblem>,
+        context: ProblemResponseContext
+    ) => ({
+        ...problemResponse(FeedbackRateLimitProblem)(problem, context),
+        effects: [
+            ResponseEffects.setHeader(
+                "Retry-After",
+                String(problem.retryAfterSeconds)
+            )
+        ]
+    }),
     [ResourceNotFoundProblem.type]: problemResponse(ResourceNotFoundProblem)
 } satisfies ProblemResponseMap<FeedbackReportProblem, ProblemResponseContext>;

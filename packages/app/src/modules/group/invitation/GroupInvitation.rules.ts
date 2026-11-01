@@ -1,5 +1,5 @@
 import { err, ok } from "@pomi/api-core";
-import type { GroupRuleIssue } from "../GroupRuleErrors.js";
+import type { GroupRuleIssue } from "../Group.errors.js";
 
 export type InvitationStatus =
     | "PENDING"

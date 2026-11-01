@@ -87,3 +87,73 @@ for (const [dependency, path, controller, method] of controllers) {
         }
     });
 }
+
+test("group mutation controllers preserve public failure status, type and detail", async () => {
+    const { err } = await import("@pomi/api-core");
+    for (const [dependency, path, controller, method] of [
+        [
+            "groupRoleService",
+            "/student/42/group-roles/3",
+            controllers[3][2],
+            "patchRole"
+        ],
+        [
+            "groupMembershipService",
+            "/student/42/managed-group-memberships/3",
+            controllers[1][2],
+            "patchManagedMembership"
+        ]
+    ] as const) {
+        for (const [kind, status, type] of [
+            ["not-found", 404, "resource-not-found"],
+            ["forbidden", 403, "forbidden"],
+            ["conflict", 409, "conflict"]
+        ] as const) {
+            const application = express();
+            application.use(express.json());
+            application.use((request, _response, next) => {
+                request.scope = {
+                    cradle: {
+                        [dependency]: {
+                            [method]: async () =>
+                                err({ kind, message: "Mensagem preservada." })
+                        }
+                    }
+                } as never;
+                next();
+            });
+            application.use(controller.router);
+            application.use(errorHandler);
+            const server = application.listen(0, "127.0.0.1");
+            try {
+                await new Promise<void>((resolve) =>
+                    server.once("listening", resolve)
+                );
+                const address = server.address();
+                assert.ok(address && typeof address !== "string");
+                const response = await fetch(
+                    `http://127.0.0.1:${address.port}${path}`,
+                    {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: "{}"
+                    }
+                );
+                assert.equal(response.status, status);
+                const problem = await response.json();
+                assert.ok(
+                    typeof problem === "object" &&
+                        problem !== null &&
+                        "type" in problem &&
+                        "detail" in problem
+                );
+                assert.equal(problem.type, `urn:pomi:problem:${type}`);
+                assert.equal(problem.detail, "Mensagem preservada.");
+            } finally {
+                await new Promise<void>((resolve, reject) =>
+                    server.close((error) => (error ? reject(error) : resolve()))
+                );
+            }
+        }
+    }
+});

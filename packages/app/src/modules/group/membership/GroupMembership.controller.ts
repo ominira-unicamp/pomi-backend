@@ -1,7 +1,8 @@
 import { createAppEndpointRegistries } from "#/BuildHandler.js";
 import type { AuthorizationPolicy } from "#/auth.js";
 import { ApiResponse, type EndpointActions } from "@pomi/api-core";
-import { groupId, page, profilePublicId } from "../GroupControllerSupport.js";
+import { groupId, page, profilePublicId } from "../Group.http.js";
+import { unwrapGroupMutation } from "../Group.problems.js";
 import IO from "./GroupMembership.contract.js";
 import type { GroupMembershipService } from "./GroupMembership.service.js";
 
@@ -55,10 +56,12 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         ),
     patchManagedMembership: async (ctx, input) =>
         ApiResponse.ok(
-            await ctx.groupMembershipService.patchManagedMembership(
-                input.path.sid,
-                input.path.id,
-                input.body
+            unwrapGroupMutation(
+                await ctx.groupMembershipService.patchManagedMembership(
+                    input.path.sid,
+                    input.path.id,
+                    input.body
+                )
             )
         )
 };

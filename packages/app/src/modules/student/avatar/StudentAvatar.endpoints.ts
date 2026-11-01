@@ -12,7 +12,7 @@ import z from "zod";
 import {
     studentAvatarResource,
     type StudentAvatarTarget
-} from "./StudentAvatar.js";
+} from "./StudentAvatar.resource.js";
 
 const pathSchema = z.object({ sid: pathParam.positiveInteger() });
 export const studentAvatarEndpoints = {

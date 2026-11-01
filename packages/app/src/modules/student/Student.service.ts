@@ -1,7 +1,6 @@
 import type { Principal } from "#/auth.js";
 import { raFromDacEmail } from "#/Authorization.js";
 import IO, { studentSort } from "#/modules/student/Student.contract.js";
-import studentEntity from "#/modules/student/Student.entity.js";
 import {
     invalidStudentProfileProblem,
     studentIdentityConflictProblem,
@@ -170,22 +169,18 @@ export function createStudentService({
 }): StudentService {
     return {
         async list(query) {
-            return (
-                await prisma.student.findMany({
-                    orderBy: compileSort(resolveSort(query.sort, studentSort), {
-                        id: (direction) => ({ id: direction }),
-                        ra: (direction) => ({ ra: direction }),
-                        name: (direction) => ({ name: direction }),
-                        entryYear: (direction) => ({ entryYear: direction })
-                    })
+            return prisma.student.findMany({
+                orderBy: compileSort(resolveSort(query.sort, studentSort), {
+                    id: (direction) => ({ id: direction }),
+                    ra: (direction) => ({ ra: direction }),
+                    name: (direction) => ({ name: direction }),
+                    entryYear: (direction) => ({ entryYear: direction })
                 })
-            ).map(studentEntity.build);
+            });
         },
         async getById(id) {
             const student = await prisma.student.findUnique({ where: { id } });
-            return student
-                ? ok(studentEntity.build(student))
-                : err(studentNotFoundProblem());
+            return student ? ok(student) : err(studentNotFoundProblem());
         },
         async create(principal, input) {
             const ra = raFromDacEmail(principal?.email ?? null);
@@ -208,7 +203,7 @@ export function createStudentService({
                     data: { studentId: existing.id }
                 });
                 return ok({
-                    student: studentEntity.build(existing),
+                    student: existing,
                     linked: true
                 });
             }
@@ -240,7 +235,7 @@ export function createStudentService({
                 });
                 return student;
             });
-            return ok({ student: studentEntity.build(student), linked: false });
+            return ok({ student: student, linked: false });
         },
         async patch(id, input) {
             const existing = await prisma.student.findUnique({ where: { id } });
@@ -268,9 +263,7 @@ export function createStudentService({
             if (validation)
                 return err(invalidStudentProfileProblem(validation.fields));
             return ok(
-                studentEntity.build(
-                    await prisma.student.update({ where: { id }, data: input })
-                )
+                await prisma.student.update({ where: { id }, data: input })
             );
         },
         async remove(id, confirmationRa) {

@@ -1,7 +1,7 @@
 import { createAppEndpointRegistries } from "#/BuildHandler.js";
 import type { AuthorizationPolicy } from "#/auth.js";
 import { ApiResponse, type EndpointActions } from "@pomi/api-core";
-import { groupId, page } from "../GroupControllerSupport.js";
+import { groupId, page } from "../Group.http.js";
 import IO from "./GroupInvitation.contract.js";
 import type { GroupInvitationService } from "./GroupInvitation.service.js";
 

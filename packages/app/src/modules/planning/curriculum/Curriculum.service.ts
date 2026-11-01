@@ -3,12 +3,16 @@ import IO, {
     curriculumSort,
     patchBody
 } from "#/modules/planning/curriculum/Curriculum.contract.js";
-import curriculumEntity from "#/modules/planning/curriculum/Curriculum.entity.js";
+import curriculumPresenter from "#/modules/planning/curriculum/Curriculum.presenter.js";
 import {
     curriculumInputProblem,
     curriculumNotFoundProblem,
     type CurriculumProblem
 } from "#/modules/planning/curriculum/Curriculum.problems.js";
+import {
+    prismaCurriculumFieldSelection,
+    prismaCurriculumSummaryFieldSelection
+} from "#/modules/planning/curriculum/Curriculum.queries.js";
 import {
     compareBySort,
     err,
@@ -19,7 +23,7 @@ import {
 } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import z from "zod";
-import { missingCourseIssues, planningIssues } from "../rules/PlanningRule.js";
+import { missingCourseIssues, planningIssues } from "../Planning.rules.js";
 import {
     patchSelectionData,
     planCurriculumPeriodChanges,
@@ -168,7 +172,7 @@ async function courseFields(
 
 async function load(prisma: PrismaClient, studentId: number, id: number) {
     return prisma.curriculum.findUnique({
-        ...curriculumEntity.prismaSelection,
+        ...prismaCurriculumFieldSelection,
         where: { studentId, id }
     });
 }
@@ -263,12 +267,12 @@ export function createCurriculumService({
         async list(studentId, query) {
             return (
                 await prisma.curriculum.findMany({
-                    ...curriculumEntity.prismaSummarySelection,
+                    ...prismaCurriculumSummaryFieldSelection,
                     where: { studentId },
                     orderBy: { updatedAt: "desc" }
                 })
             )
-                .map(curriculumEntity.buildSummary)
+                .map(curriculumPresenter.buildSummary)
                 .sort(
                     compareBySort(resolveSort(query.sort, curriculumSort), {
                         isFavorite: (left, right) =>
@@ -284,7 +288,7 @@ export function createCurriculumService({
         async getById(studentId, id) {
             const curriculum = await load(prisma, studentId, id);
             return curriculum
-                ? ok(curriculumEntity.build(curriculum))
+                ? ok(curriculumPresenter.build(curriculum))
                 : err(curriculumNotFoundProblem());
         },
         async create(studentId, input) {
@@ -324,11 +328,11 @@ export function createCurriculumService({
                     select: { id: true }
                 });
                 return tx.curriculum.findUniqueOrThrow({
-                    ...curriculumEntity.prismaSelection,
+                    ...prismaCurriculumFieldSelection,
                     where: { id: created.id }
                 });
             });
-            return ok(curriculumEntity.build(curriculum));
+            return ok(curriculumPresenter.build(curriculum));
         },
         async patch(studentId, id, input) {
             const existing = await prisma.curriculum.findUnique({
@@ -434,7 +438,7 @@ export function createCurriculumService({
                 throw error;
             }
             return ok(
-                curriculumEntity.build((await load(prisma, studentId, id))!)
+                curriculumPresenter.build((await load(prisma, studentId, id))!)
             );
         },
         async remove(studentId, id) {

@@ -5,12 +5,13 @@ import IO, {
     periodPlanningListQuery,
     periodPlanningSort
 } from "#/modules/planning/period-plan/PeriodPlan.contract.js";
-import periodPlanningEntity from "#/modules/planning/period-plan/PeriodPlan.entity.js";
+import periodPlanningPresenter from "#/modules/planning/period-plan/PeriodPlan.presenter.js";
 import {
     periodPlanInputProblem,
     periodPlanNotFoundProblem,
     type PeriodPlanProblem
 } from "#/modules/planning/period-plan/PeriodPlan.problems.js";
+import { prismaPeriodPlanningFieldSelection } from "#/modules/planning/period-plan/PeriodPlan.queries.js";
 import {
     compileSort,
     err,
@@ -21,7 +22,7 @@ import {
 } from "@pomi/api-core";
 import { studyPeriodCode, type PrismaClient } from "@pomi/db";
 import z from "zod";
-import { missingCourseIssues, planningIssues } from "../rules/PlanningRule.js";
+import { missingCourseIssues, planningIssues } from "../Planning.rules.js";
 import {
     resolvePeriodPlanClasses,
     validatePeriodPlanClasses,
@@ -252,7 +253,7 @@ function guideCreateData(guide: GuideInput) {
 
 function load(prisma: PrismaClient, studentId: number, id: number) {
     return prisma.periodPlanning.findUnique({
-        ...periodPlanningEntity.prismaSelection,
+        ...prismaPeriodPlanningFieldSelection,
         where: { studentId, id }
     });
 }
@@ -266,7 +267,7 @@ export function createPeriodPlanService({
         async list(studentId, query) {
             return (
                 await prisma.periodPlanning.findMany({
-                    ...periodPlanningEntity.prismaSelection,
+                    ...prismaPeriodPlanningFieldSelection,
                     where: { studentId },
                     orderBy: compileSort(
                         resolveSort(query.sort, periodPlanningSort),
@@ -288,12 +289,12 @@ export function createPeriodPlanService({
                         }
                     )
                 })
-            ).map(periodPlanningEntity.build);
+            ).map(periodPlanningPresenter.build);
         },
         async getById(studentId, id) {
             const periodPlan = await load(prisma, studentId, id);
             return periodPlan
-                ? ok(periodPlanningEntity.build(periodPlan))
+                ? ok(periodPlanningPresenter.build(periodPlan))
                 : err(periodPlanNotFoundProblem());
         },
         async create(studentId, input) {
@@ -325,7 +326,7 @@ export function createPeriodPlanService({
             );
             if (fields.length) return err(periodPlanInputProblem(fields));
             const periodPlan = await prisma.periodPlanning.create({
-                ...periodPlanningEntity.prismaSelection,
+                ...prismaPeriodPlanningFieldSelection,
                 data: {
                     student: { connect: { id: studentId } },
                     studyPeriod: { connect: { id: input.studyPeriodId } },
@@ -345,7 +346,7 @@ export function createPeriodPlanService({
                     }
                 }
             });
-            return ok(periodPlanningEntity.build(periodPlan));
+            return ok(periodPlanningPresenter.build(periodPlan));
         },
         async patch(studentId, id, input) {
             const existing = await load(prisma, studentId, id);
@@ -368,7 +369,7 @@ export function createPeriodPlanService({
             }
             if (fields.length) return err(periodPlanInputProblem(fields));
             const periodPlan = await prisma.periodPlanning.update({
-                ...periodPlanningEntity.prismaSelection,
+                ...prismaPeriodPlanningFieldSelection,
                 where: { id },
                 data: {
                     ...(input.name !== undefined && { name: input.name }),
@@ -381,7 +382,7 @@ export function createPeriodPlanService({
                         : {})
                 }
             });
-            return ok(periodPlanningEntity.build(periodPlan));
+            return ok(periodPlanningPresenter.build(periodPlan));
         },
         async remove(studentId, id) {
             const existing = await prisma.periodPlanning.findUnique({

@@ -1,4 +1,4 @@
-import type { AttemptStatus } from "#/modules/planning/rules/PlanningRule.js";
+import type { AttemptStatus } from "#/modules/academic/Academic.types.js";
 import { err, ok } from "@pomi/api-core";
 
 export function isEligibleProfessorEvaluationAttempt(status: AttemptStatus) {

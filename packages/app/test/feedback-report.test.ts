@@ -1,4 +1,4 @@
-import { FeedbackRateLimiter } from "#/modules/feedback/feedback-report/FeedbackRateLimiter.js";
+import { FeedbackRateLimiter } from "#/modules/feedback/feedback-report/Feedback.limiter.js";
 import IO from "#/modules/feedback/feedback-report/FeedbackReport.contract.js";
 import { createFeedbackReportService } from "#/modules/feedback/feedback-report/FeedbackReport.service.js";
 import assert from "node:assert/strict";
@@ -69,7 +69,10 @@ test("lists a student's feedback reports", async () => {
                 ]
             }
         } as never,
-        feedbackRateLimiter: new FeedbackRateLimiter(2, 60)
+        feedbackRateLimiter: new FeedbackRateLimiter({
+            maximum: 2,
+            windowMilliseconds: 60
+        })
     });
 
     await assert.doesNotReject(async () => {
@@ -108,7 +111,10 @@ test("updates a report status and administrative message", async () => {
                 }
             }
         } as never,
-        feedbackRateLimiter: new FeedbackRateLimiter(2, 60)
+        feedbackRateLimiter: new FeedbackRateLimiter({
+            maximum: 2,
+            windowMilliseconds: 60
+        })
     });
 
     const result = await service.patchAdmin(3, {
@@ -141,7 +147,10 @@ test("stores an anonymous feedback report without a student", async () => {
                 }
             }
         } as never,
-        feedbackRateLimiter: new FeedbackRateLimiter(2, 60)
+        feedbackRateLimiter: new FeedbackRateLimiter({
+            maximum: 2,
+            windowMilliseconds: 60
+        })
     });
 
     const result = await service.createAnonymous(
@@ -167,7 +176,10 @@ test("rejects an academic feedback report for an unknown resource", async () => 
         prisma: {
             catalogCourse: { findUnique: async () => null }
         } as never,
-        feedbackRateLimiter: new FeedbackRateLimiter(2, 60)
+        feedbackRateLimiter: new FeedbackRateLimiter({
+            maximum: 2,
+            windowMilliseconds: 60
+        })
     });
 
     const result = await service.createForStudent(1, {
@@ -195,7 +207,10 @@ test("limits anonymous feedback reports by source address", async () => {
                 })
             }
         } as never,
-        feedbackRateLimiter: new FeedbackRateLimiter(1, 60)
+        feedbackRateLimiter: new FeedbackRateLimiter({
+            maximum: 1,
+            windowMilliseconds: 60
+        })
     });
     const input = {
         kind: "BUG" as const,

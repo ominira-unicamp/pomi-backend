@@ -1,5 +1,10 @@
 import { err, ok } from "@pomi/api-core";
-import type { GroupRuleIssue } from "../GroupRuleErrors.js";
+import type { GroupRuleIssue } from "../Group.errors.js";
+
+export const eventTransitions = {
+    publish: { from: ["DRAFT"], to: "PUBLISHED" },
+    cancel: { from: ["PUBLISHED"], to: "CANCELLED" }
+} as const;
 
 type EventFacts = {
     status: string;
@@ -75,7 +80,9 @@ export function planEventPatch(current: EventFacts, patch: EventPatch) {
 }
 export function validateEventPublication(current: EventFacts) {
     if (
-        current.status !== "DRAFT" ||
+        !eventTransitions.publish.from.some(
+            (status) => status === current.status
+        ) ||
         !current.name.trim() ||
         !current.description.trim() ||
         !current.startsAt
@@ -87,7 +94,7 @@ export function validateEventPublication(current: EventFacts) {
     return validateEventDates(current.startsAt, current.endsAt);
 }
 export function validateEventCancellation(status: string) {
-    return status !== "PUBLISHED"
+    return !eventTransitions.cancel.from.some((from) => from === status)
         ? err<never, GroupRuleIssue>({
               code: "EVENT_NOT_PUBLISHED",
               message: "Somente evento publicado pode ser cancelado."

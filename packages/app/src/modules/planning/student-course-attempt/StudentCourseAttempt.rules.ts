@@ -1,10 +1,9 @@
+import type {
+    AttemptStatus,
+    EvaluationMode
+} from "#/modules/academic/Academic.types.js";
 import { err, ok } from "@pomi/api-core";
-import {
-    planningRule,
-    type AttemptStatus,
-    type EvaluationMode,
-    type PlanningIssue
-} from "../rules/PlanningRule.js";
+import { planningRule, type PlanningIssue } from "../Planning.rules.js";
 export type AttemptFactsInput = {
     courseId: number;
     studyPeriodId?: number | null;

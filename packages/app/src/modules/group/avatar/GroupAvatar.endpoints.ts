@@ -9,7 +9,10 @@ import type { ImageResourceOperations } from "#/media/public.js";
 import type { Principal } from "#/Principal.js";
 import { pathParam, pathSeg } from "@pomi/api-core";
 import z from "zod";
-import { groupAvatarResource, type GroupAvatarTarget } from "./GroupAvatar.js";
+import {
+    groupAvatarResource,
+    type GroupAvatarTarget
+} from "./GroupAvatar.resource.js";
 
 const pathSchema = z.object({
     sid: pathParam.positiveInteger(),

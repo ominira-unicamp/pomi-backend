@@ -12,7 +12,10 @@ import type { PrismaClient } from "@pomi/db";
 import z from "zod";
 import { socialNotFoundProblem } from "../Social.problems.js";
 import type { person } from "../Social.schemas.js";
-import { buildPerson } from "../SocialPerson.presenter.js";
+import {
+    buildPerson,
+    decidePersonDisclosure
+} from "../SocialPerson.presenter.js";
 import { personSelection } from "../SocialPerson.queries.js";
 import IO, {
     studentPeoplePagination,
@@ -118,7 +121,17 @@ export function createSocialPeopleService({
             }
             return {
                 items: students.map((student) =>
-                    buildPerson(student, studentId, false, acceptedFriendIds)
+                    buildPerson(
+                        student,
+                        decidePersonDisclosure({
+                            profileEnabled: student.publicProfileEnabled,
+                            forceMinimal: false,
+                            isOwner: student.id === studentId,
+                            currentCoursesVisibility:
+                                student.currentCoursesVisibility,
+                            acceptedFriend: acceptedFriendIds.has(student.id)
+                        })
+                    )
                 ),
                 total,
                 pagination
@@ -155,7 +168,17 @@ export function createSocialPeopleService({
                 if (friendship) acceptedFriendIds.add(student.id);
             }
             return ok(
-                buildPerson(student, studentId, false, acceptedFriendIds)
+                buildPerson(
+                    student,
+                    decidePersonDisclosure({
+                        profileEnabled: student.publicProfileEnabled,
+                        forceMinimal: false,
+                        isOwner: student.id === studentId,
+                        currentCoursesVisibility:
+                            student.currentCoursesVisibility,
+                        acceptedFriend: acceptedFriendIds.has(student.id)
+                    })
+                )
             );
         }
     };

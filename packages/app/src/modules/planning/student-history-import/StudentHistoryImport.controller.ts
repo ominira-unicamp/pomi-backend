@@ -1,7 +1,10 @@
 import { createAppEndpointRegistries, type Context } from "#/BuildHandler.js";
 import type { AuthorizationPolicy } from "#/auth.js";
 import IO from "#/modules/planning/student-history-import/StudentHistoryImport.contract.js";
-import { studentHistoryImportProblemResponses } from "#/modules/planning/student-history-import/StudentHistoryImport.problems.js";
+import {
+    studentHistoryImportProblemResponses,
+    toStudentHistoryImportProblem
+} from "#/modules/planning/student-history-import/StudentHistoryImport.problems.js";
 import {
     ApiResponse,
     createResultResponder,
@@ -15,10 +18,12 @@ const respond = createResultResponder(studentHistoryImportProblemResponses);
 
 const importHistory: Actions["importHistory"] = async (ctx, input) =>
     respond(
-        await ctx.studentHistoryImportService.import(
-            input.path.sid,
-            input.body
-        ),
+        (
+            await ctx.studentHistoryImportService.import(
+                input.path.sid,
+                input.body
+            )
+        ).mapErr(toStudentHistoryImportProblem),
         ApiResponse.ok,
         problemInput.body
     );

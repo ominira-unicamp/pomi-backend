@@ -15,7 +15,9 @@ import {
     sidId,
     studentBase,
     studentMeta
-} from "../GroupContractSupport.js";
+} from "../Group.http.js";
+import { rolePatch } from "./GroupRole.schemas.js";
+export { rolePatch } from "./GroupRole.schemas.js";
 
 export const role = z
     .object({
@@ -26,21 +28,16 @@ export const role = z
     })
     .strict()
     .openapi("GroupRole", entityMeta("GroupRole"));
-export const rolePatch = z
-    .object({
-        name: z.string().trim().min(1).max(80).optional(),
-        permissions: z
-            .object({
-                add: z.array(groupPermission).optional(),
-                remove: z.array(groupPermission).optional()
-            })
-            .strict()
-            .optional()
-    })
-    .strict();
 export const listRoles = {
     meta: {
-        ...studentMeta("listGroupRoles", "get", studentBase("group-roles")),
+        ...studentMeta({
+            operationId: "listGroupRoles",
+            method: "get",
+            path: studentBase("group-roles"),
+            sdkAction: "list",
+            queryFeatures: { filter: true },
+            capability: "STUDENT_PROFILE_READ"
+        }),
         pagination: unpaginatedByDefault
     },
     request: z.object({ path: sid, query: listQuery }),
@@ -49,12 +46,14 @@ export const listRoles = {
         .build()
 } satisfies IO;
 export const createRole = {
-    meta: studentMeta(
-        "createGroupRole",
-        "post",
-        studentBase("group-roles"),
-        true
-    ),
+    meta: studentMeta({
+        operationId: "createGroupRole",
+        method: "post",
+        path: studentBase("group-roles"),
+        sdkAction: "create",
+        queryFeatures: { filter: false },
+        capability: "STUDENT_PROFILE_WRITE"
+    }),
     request: z.object({
         path: sid,
         query: groupQuery,
@@ -68,22 +67,26 @@ export const createRole = {
     response: new OutputBuilder().created(role, "Role criada").build()
 } satisfies IO;
 export const patchRole = {
-    meta: studentMeta(
-        "updateGroupRole",
-        "patch",
-        [...studentBase("group-roles"), pathSeg.param("id")],
-        true
-    ),
+    meta: studentMeta({
+        operationId: "updateGroupRole",
+        method: "patch",
+        path: [...studentBase("group-roles"), pathSeg.param("id")],
+        sdkAction: "update",
+        queryFeatures: { filter: false },
+        capability: "STUDENT_PROFILE_WRITE"
+    }),
     request: z.object({ path: sidId, body: rolePatch }),
     response: new OutputBuilder().ok(role, "Role atualizada").notFound().build()
 } satisfies IO;
 export const deleteRole = {
-    meta: studentMeta(
-        "deleteGroupRole",
-        "delete",
-        [...studentBase("group-roles"), pathSeg.param("id")],
-        true
-    ),
+    meta: studentMeta({
+        operationId: "deleteGroupRole",
+        method: "delete",
+        path: [...studentBase("group-roles"), pathSeg.param("id")],
+        sdkAction: "delete",
+        queryFeatures: { filter: false },
+        capability: "STUDENT_PROFILE_WRITE"
+    }),
     request: z.object({ path: sidId }),
     response: new OutputBuilder().noContent("Role removida").notFound().build()
 } satisfies IO;

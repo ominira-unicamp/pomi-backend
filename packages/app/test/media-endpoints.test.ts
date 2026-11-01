@@ -7,7 +7,7 @@ import { ImageStorageError } from "#/media/ImageStorage.js";
 import { MediaUploadRateLimitError } from "#/media/MediaUploadLimiter.js";
 import type { ImageResourceOperations } from "#/media/public.js";
 
-import type { GroupAvatarTarget } from "#/modules/group/avatar/GroupAvatar.js";
+import type { GroupAvatarTarget } from "#/modules/group/avatar/GroupAvatar.resource.js";
 
 import type { Principal } from "#/Principal.js";
 import {

@@ -1,7 +1,7 @@
 import IO, {
     pendingProfessorEvaluationSort
 } from "#/modules/academic/evaluation/professor/ProfessorEvaluation.contract.js";
-import { buildProfessorEvaluationEntity } from "#/modules/academic/evaluation/professor/ProfessorEvaluation.entity.js";
+import { buildProfessorEvaluation } from "#/modules/academic/evaluation/professor/ProfessorEvaluation.presenter.js";
 import {
     invalidProfessorEvaluationProblem,
     professorEvaluationReferenceNotFoundProblem,
@@ -112,7 +112,7 @@ export function createProfessorEvaluationService({
             return ok({
                 eligible: validation.value.eligible,
                 evaluation: evaluation
-                    ? buildProfessorEvaluationEntity(evaluation)
+                    ? buildProfessorEvaluation(evaluation)
                     : null
             });
         },
@@ -137,7 +137,7 @@ export function createProfessorEvaluationService({
                 create: { ...context, ...body },
                 update: body
             });
-            return ok(buildProfessorEvaluationEntity(evaluation));
+            return ok(buildProfessorEvaluation(evaluation));
         },
         async listPending(studentId, input) {
             const filterWhere = compileFilterWhere(

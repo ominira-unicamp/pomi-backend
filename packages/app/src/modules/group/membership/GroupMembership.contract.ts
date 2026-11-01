@@ -14,14 +14,15 @@ import {
     groupPermission,
     id,
     listQuery,
-    operations,
     publicId,
     publicMeta,
     sid,
     sidId,
     studentBase,
     studentMeta
-} from "../GroupContractSupport.js";
+} from "../Group.http.js";
+import { memberPatch } from "./GroupMembership.schemas.js";
+export { memberPatch, positionInput } from "./GroupMembership.schemas.js";
 
 export const publicMembershipQuery = createPaginationQuerySchema(
     unpaginatedByDefault,
@@ -73,37 +74,15 @@ export const managedMembership = ownMembership
     .extend({ studentName: z.string(), avatarMediaId: z.uuid().nullable() })
     .strict()
     .openapi("ManagedGroupMembership", entityMeta("ManagedGroupMembership"));
-export const positionInput = z
-    .object({
-        title: z.string().trim().min(1).max(120),
-        startedAt: z.iso.datetime({ offset: true }).nullable().optional(),
-        endedAt: z.iso.datetime({ offset: true }).nullable().optional(),
-        sortOrder: z.number().int().optional()
-    })
-    .strict();
-export const memberPatch = z
-    .object({
-        positions: z
-            .object({
-                add: z.array(positionInput).optional(),
-                update: z
-                    .array(positionInput.partial().extend({ id }))
-                    .optional(),
-                remove: z.array(id).optional()
-            })
-            .strict()
-            .optional(),
-        roles: operations(id).optional(),
-        leave: z.boolean().optional()
-    })
-    .strict();
 export const listPublicMemberships = {
     meta: {
-        ...publicMeta(
-            "listPublicGroupMemberships",
-            "get",
-            base("group-memberships")
-        ),
+        ...publicMeta({
+            operationId: "listPublicGroupMemberships",
+            method: "get",
+            path: base("group-memberships"),
+            sdkAction: "list",
+            queryFeatures: { filter: true }
+        }),
         pagination: unpaginatedByDefault
     },
     request: z.object({ query: publicMembershipQuery }),
@@ -112,10 +91,13 @@ export const listPublicMemberships = {
         .build()
 } satisfies IO;
 export const getPublicMembership = {
-    meta: publicMeta("getPublicGroupMembership", "get", [
-        ...base("group-memberships"),
-        pathSeg.param("id")
-    ]),
+    meta: publicMeta({
+        operationId: "getPublicGroupMembership",
+        method: "get",
+        path: [...base("group-memberships"), pathSeg.param("id")],
+        sdkAction: "get",
+        queryFeatures: { filter: false }
+    }),
     request: z.object({ path: publicId }),
     response: new OutputBuilder()
         .ok(publicMembership, "Membro público")
@@ -124,11 +106,14 @@ export const getPublicMembership = {
 } satisfies IO;
 export const listOwnMemberships = {
     meta: {
-        ...studentMeta(
-            "listStudentGroupMemberships",
-            "get",
-            studentBase("group-memberships")
-        ),
+        ...studentMeta({
+            operationId: "listStudentGroupMemberships",
+            method: "get",
+            path: studentBase("group-memberships"),
+            sdkAction: "list",
+            queryFeatures: { filter: true },
+            capability: "STUDENT_PROFILE_READ"
+        }),
         pagination: unpaginatedByDefault
     },
     request: z.object({ path: sid, query: listQuery }),
@@ -137,10 +122,14 @@ export const listOwnMemberships = {
         .build()
 } satisfies IO;
 export const getOwnMembership = {
-    meta: studentMeta("getStudentGroupMembership", "get", [
-        ...studentBase("group-memberships"),
-        pathSeg.param("id")
-    ]),
+    meta: studentMeta({
+        operationId: "getStudentGroupMembership",
+        method: "get",
+        path: [...studentBase("group-memberships"), pathSeg.param("id")],
+        sdkAction: "get",
+        queryFeatures: { filter: false },
+        capability: "STUDENT_PROFILE_READ"
+    }),
     request: z.object({ path: sidId }),
     response: new OutputBuilder()
         .ok(ownMembership, "Vínculo do estudante")
@@ -148,12 +137,14 @@ export const getOwnMembership = {
         .build()
 } satisfies IO;
 export const patchOwnMembership = {
-    meta: studentMeta(
-        "updateStudentGroupMembership",
-        "patch",
-        [...studentBase("group-memberships"), pathSeg.param("id")],
-        true
-    ),
+    meta: studentMeta({
+        operationId: "updateStudentGroupMembership",
+        method: "patch",
+        path: [...studentBase("group-memberships"), pathSeg.param("id")],
+        sdkAction: "update",
+        queryFeatures: { filter: false },
+        capability: "STUDENT_PROFILE_WRITE"
+    }),
     request: z.object({
         path: sidId,
         body: z.object({ isPublic: z.boolean() }).strict()
@@ -165,11 +156,14 @@ export const patchOwnMembership = {
 } satisfies IO;
 export const listManagedMemberships = {
     meta: {
-        ...studentMeta(
-            "listManagedGroupMemberships",
-            "get",
-            studentBase("managed-group-memberships")
-        ),
+        ...studentMeta({
+            operationId: "listManagedGroupMemberships",
+            method: "get",
+            path: studentBase("managed-group-memberships"),
+            sdkAction: "list",
+            queryFeatures: { filter: true },
+            capability: "STUDENT_PROFILE_READ"
+        }),
         pagination: unpaginatedByDefault
     },
     request: z.object({ path: sid, query: listQuery }),
@@ -178,12 +172,17 @@ export const listManagedMemberships = {
         .build()
 } satisfies IO;
 export const patchManagedMembership = {
-    meta: studentMeta(
-        "updateManagedGroupMembership",
-        "patch",
-        [...studentBase("managed-group-memberships"), pathSeg.param("id")],
-        true
-    ),
+    meta: studentMeta({
+        operationId: "updateManagedGroupMembership",
+        method: "patch",
+        path: [
+            ...studentBase("managed-group-memberships"),
+            pathSeg.param("id")
+        ],
+        sdkAction: "update",
+        queryFeatures: { filter: false },
+        capability: "STUDENT_PROFILE_WRITE"
+    }),
     request: z.object({ path: sidId, body: memberPatch }),
     response: new OutputBuilder()
         .ok(managedMembership, "Membro atualizado")

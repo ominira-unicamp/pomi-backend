@@ -6,6 +6,7 @@ import {
     type ProblemResponseMap
 } from "@pomi/api-core";
 import z from "zod";
+import type { ImportStudentHistoryFailure } from "./ImportStudentHistory.use-case.js";
 
 export const InvalidStudentHistoryImportProblem = defineProblem({
     schemaName: "InvalidStudentHistoryImportProblem",
@@ -48,3 +49,17 @@ export const studentHistoryImportProblemResponses = {
         InvalidStudentHistoryImportProblem
     )
 } satisfies ProblemResponseMap<StudentHistoryImportProblem, object>;
+
+export function toStudentHistoryImportProblem(
+    failure: ImportStudentHistoryFailure
+): StudentHistoryImportProblem {
+    if (failure.kind === "student-not-found")
+        return studentHistoryStudentNotFoundProblem();
+    return invalidStudentHistoryImportProblem([
+        {
+            code: "INVALID_VALUE",
+            path: ["student", "ra"],
+            message: "O RA do documento não corresponde ao aluno autenticado."
+        }
+    ]);
+}

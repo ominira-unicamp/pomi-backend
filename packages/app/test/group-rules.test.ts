@@ -1,4 +1,4 @@
-import { requirePermission } from "#/modules/group/access/GroupAccess.js";
+import { requirePermission } from "#/modules/group/Group.problems.js";
 import {
     planEventPatch,
     validateEventCancellation,
@@ -7,8 +7,7 @@ import {
     validateEventPublication,
     validateEventTags
 } from "#/modules/group/event/GroupEvent.rules.js";
-import { requireManagerRemains } from "#/modules/group/governance/GroupGovernance.js";
-import { serializable } from "#/modules/group/GroupTransaction.js";
+import { validateManagerRetention } from "#/modules/group/governance/GroupGovernance.rules.js";
 import {
     invitationStatus,
     validateInvitationAcceptance
@@ -21,8 +20,7 @@ import {
     validateRoleAssignments
 } from "#/modules/group/membership/GroupMembership.rules.js";
 import { createGroupMembershipService } from "#/modules/group/membership/GroupMembership.service.js";
-import { validateRolePermissions } from "#/modules/group/role/GroupRole.rules.js";
-import { ConflictError, ForbiddenError, NotFoundError } from "@pomi/api-core";
+import { ForbiddenError, NotFoundError } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -95,10 +93,6 @@ test("membership rules preserve ended visibility and conflicting operations", ()
     assert.ok(validateMembershipVisibility(null, false).isOk());
     assert.ok(validateRoleAssignments([1, 1]).isErr());
     assert.ok(validatePositionOperations([1, 1]).isErr());
-    assert.ok(
-        validateRolePermissions(["ROLE_MANAGE"], ["ROLE_MANAGE"]).isErr()
-    );
-    assert.ok(validateRolePermissions(["ROLE_MANAGE"], []).isOk());
 });
 
 test("partial position dates use the previous value and allow an explicit clear", () => {
@@ -160,9 +154,9 @@ test("group access retains alternative permission matching and archived resource
     );
 });
 
-test("mixed membership patches require both permissions before any write", async () => {
+test("mixed membership patches require both permissions within the transaction", async () => {
     const permissions: unknown[] = [];
-    const prisma = {
+    const tx = {
         groupMembership: { findUnique: async () => ({ id: 1, groupId: 7 }) },
         group: { count: async () => 1 },
         groupMembershipRole: {
@@ -178,50 +172,66 @@ test("mixed membership patches require both permissions before any write", async
                 );
                 return permissions.length === 1 ? { roleId: 1 } : null;
             }
-        },
-        $transaction: async () => assert.fail("Unauthorized mutation started")
+        }
+    };
+    const prisma = {
+        $transaction: async (work: (tx: unknown) => Promise<unknown>) =>
+            work(tx)
     } as unknown as PrismaClient;
-    await assert.rejects(
-        createGroupMembershipService({ prisma }).patchManagedMembership(42, 1, {
-            roles: { add: [1] },
-            positions: { add: [{ title: "Cargo" }] }
-        }),
-        ForbiddenError
-    );
+    const result = await createGroupMembershipService({
+        prisma
+    }).patchManagedMembership(42, 1, {
+        roles: { add: [1] },
+        positions: { add: [{ title: "Cargo" }] }
+    });
+    assert.equal(result._unsafeUnwrapErr().kind, "forbidden");
     assert.deepEqual(permissions, [["MEMBER_MANAGE"], ["ROLE_MANAGE"]]);
 });
 
-test("governance keeps the current exclusion semantics and serializable conflict mapping", async () => {
-    let where: unknown;
-    await requireManagerRemains(
-        {
-            groupMembershipRole: {
-                findFirst: async (input: { where: unknown }) => {
-                    where = input.where;
-                    return { membershipId: 1 };
-                }
-            }
-        } as never,
-        7,
-        undefined,
-        [3]
+test("governance evaluates the final assignments", async () => {
+    const assignments = [
+        { membershipId: 1, roleId: 3 },
+        { membershipId: 2, roleId: 3 }
+    ];
+    assert.ok(
+        validateManagerRetention(assignments, {
+            kind: "change-membership",
+            membershipId: 1,
+            leave: false,
+            addRoleIds: [],
+            removeRoleIds: [3]
+        }).isOk()
     );
-    assert.deepEqual(where, {
-        groupId: 7,
-        membershipId: undefined,
-        membership: { activeKey: "ACTIVE" },
-        roleId: { notIn: [3] },
-        role: { permissions: { some: { permission: "ROLE_MANAGE" } } }
-    });
-    await assert.rejects(
-        serializable(
+    assert.ok(
+        validateManagerRetention(assignments, {
+            kind: "remove-manager-permission",
+            roleId: 3
+        }).isErr()
+    );
+    assert.ok(
+        validateManagerRetention(
+            [assignments[0]!],
             {
-                $transaction: async () => {
-                    throw { code: "P2034" };
-                }
-            } as never,
-            async () => undefined
-        ),
-        ConflictError
+                kind: "change-membership",
+                membershipId: 1,
+                leave: false,
+                addRoleIds: [4],
+                removeRoleIds: [3]
+            },
+            [4]
+        ).isOk()
+    );
+    assert.ok(
+        validateManagerRetention(
+            [assignments[0]!],
+            {
+                kind: "change-membership",
+                membershipId: 1,
+                leave: true,
+                addRoleIds: [4],
+                removeRoleIds: [3]
+            },
+            [4]
+        ).isErr()
     );
 });

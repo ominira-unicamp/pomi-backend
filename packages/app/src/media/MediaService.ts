@@ -1,3 +1,5 @@
+import type { OperationTelemetry } from "#/application/OperationTelemetry.js";
+import { isTransactionConflict } from "#/application/transactions.js";
 import type { Principal } from "#/Principal.js";
 import {
     BadRequestError,
@@ -21,12 +23,14 @@ export function createMediaService({
     prisma,
     imageResourceRegistry,
     imageStorage,
-    mediaUploadLimiter
+    mediaUploadLimiter,
+    operationTelemetry
 }: {
     prisma: PrismaClient;
     imageResourceRegistry: ImageResourceRegistry;
     imageStorage: ImageStorage | undefined;
     mediaUploadLimiter: MediaUploadLimiter;
+    operationTelemetry?: OperationTelemetry;
 }) {
     function requireStorage() {
         if (!imageStorage)
@@ -45,7 +49,7 @@ export function createMediaService({
                 timeout: 5_000
             });
         } catch (error) {
-            if ((error as { code?: string }).code === "P2034")
+            if (isTransactionConflict(error))
                 throw new ConflictError("A imagem mudou durante a operação.");
             throw error;
         }
@@ -119,7 +123,7 @@ export function createMediaService({
                             resource.profile
                         );
                         try {
-                            return await serializable(async (tx) => {
+                            const result = await serializable(async (tx) => {
                                 await resource.authorizeWrite({
                                     db: tx,
                                     actor,
@@ -157,8 +161,27 @@ export function createMediaService({
                                     revision: expected.revision + 1
                                 };
                             });
+                            operationTelemetry?.({
+                                operation: "media.replace",
+                                outcome: "completed",
+                                stage: "activation"
+                            });
+                            return result;
                         } catch (error) {
-                            await recordUnlinked(uploaded).catch(() => {});
+                            try {
+                                await recordUnlinked(uploaded);
+                                operationTelemetry?.({
+                                    operation: "media.replace",
+                                    outcome: "recovery-scheduled",
+                                    stage: "compensation"
+                                });
+                            } catch {
+                                operationTelemetry?.({
+                                    operation: "media.replace",
+                                    outcome: "recovery-pending",
+                                    stage: "compensation"
+                                });
+                            }
                             throw error;
                         }
                     } finally {

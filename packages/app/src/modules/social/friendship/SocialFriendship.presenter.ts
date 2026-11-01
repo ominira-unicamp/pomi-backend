@@ -1,6 +1,9 @@
 import type z from "zod";
 import type { friendship } from "../Social.schemas.js";
-import { buildPerson } from "../SocialPerson.presenter.js";
+import {
+    buildPerson,
+    decidePersonDisclosure
+} from "../SocialPerson.presenter.js";
 import type { SelectedPerson } from "../SocialPerson.queries.js";
 
 type Friendship = z.infer<typeof friendship>;
@@ -32,9 +35,13 @@ export function buildFriendship(
                   : "INCOMING",
         friend: buildPerson(
             friend,
-            studentId,
-            !friend.publicProfileEnabled,
-            row.status === "ACCEPTED" ? new Set([friend.id]) : undefined
+            decidePersonDisclosure({
+                profileEnabled: friend.publicProfileEnabled,
+                forceMinimal: !friend.publicProfileEnabled,
+                isOwner: friend.id === studentId,
+                currentCoursesVisibility: friend.currentCoursesVisibility,
+                acceptedFriend: row.status === "ACCEPTED"
+            })
         ),
         createdAt: row.createdAt.toISOString(),
         acceptedAt: row.acceptedAt?.toISOString() ?? null

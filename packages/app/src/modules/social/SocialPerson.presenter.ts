@@ -2,32 +2,41 @@ import type z from "zod";
 import type { person } from "./Social.schemas.js";
 import type { SelectedPerson } from "./SocialPerson.queries.js";
 type Person = z.infer<typeof person>;
+export function decidePersonDisclosure(facts: {
+    profileEnabled: boolean;
+    forceMinimal: boolean;
+    isOwner: boolean;
+    currentCoursesVisibility: "PRIVATE" | "FRIENDS" | "PUBLIC";
+    acceptedFriend: boolean;
+}) {
+    return {
+        showProfile: facts.profileEnabled && !facts.forceMinimal,
+        showCurrentCourses:
+            !facts.forceMinimal &&
+            (facts.isOwner ||
+                facts.currentCoursesVisibility === "PUBLIC" ||
+                (facts.currentCoursesVisibility === "FRIENDS" &&
+                    facts.acceptedFriend))
+    };
+}
+
 export function buildPerson(
     student: SelectedPerson,
-    viewerStudentId: number,
-    forceMinimal = false,
-    acceptedFriendIds?: ReadonlySet<number>
+    disclosure: ReturnType<typeof decidePersonDisclosure>
 ): Person {
-    const disclose = student.publicProfileEnabled && !forceMinimal;
-    const canViewCurrentCourses =
-        !forceMinimal &&
-        (student.id === viewerStudentId ||
-            student.currentCoursesVisibility === "PUBLIC" ||
-            (student.currentCoursesVisibility === "FRIENDS" &&
-                acceptedFriendIds?.has(student.id) === true));
     return {
         publicId: student.publicId,
         displayName: student.publicDisplayName ?? student.name,
-        avatarMediaId: disclose ? student.avatarMediaId : null,
-        bio: disclose ? student.publicBio : null,
-        interests: disclose
+        avatarMediaId: disclosure.showProfile ? student.avatarMediaId : null,
+        bio: disclosure.showProfile ? student.publicBio : null,
+        interests: disclosure.showProfile
             ? student.tagInterests
                   .map(({ tag }) => ({ id: tag.id, name: tag.name }))
                   .sort((left, right) =>
                       left.name.localeCompare(right.name, "pt-BR")
                   )
             : [],
-        currentCourses: canViewCurrentCourses
+        currentCourses: disclosure.showCurrentCourses
             ? student.courseAttempts.map(({ course, class: classData }) => ({
                   courseCode: course.code,
                   courseName: course.name,
@@ -42,8 +51,8 @@ export function buildPerson(
                       })) ?? []
               }))
             : [],
-        program: disclose ? student.program : null,
-        specialization: disclose ? student.specialization : null,
-        entryYear: disclose ? student.entryYear : null
+        program: disclosure.showProfile ? student.program : null,
+        specialization: disclosure.showProfile ? student.specialization : null,
+        entryYear: disclosure.showProfile ? student.entryYear : null
     };
 }
