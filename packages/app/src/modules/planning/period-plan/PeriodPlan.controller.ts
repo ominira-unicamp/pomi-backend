@@ -19,7 +19,10 @@ export const periodPlanActions: Actions = {
     list: async (ctx, input) =>
         ApiResponse.ok(
             buildArrayPaginationResponse(
-                await ctx.periodPlanService.list(input.path.sid, input.query),
+                await ctx.periodPlanService.list(
+                    await ctx.resolveLegacyUser(input.path.sid),
+                    input.query
+                ),
                 input.query,
                 unpaginatedByDefault,
                 `/student/${input.path.sid}/period-plannings`
@@ -27,19 +30,25 @@ export const periodPlanActions: Actions = {
         ),
     get: async (ctx, input) =>
         respond(
-            await ctx.periodPlanService.getById(input.path.sid, input.path.id),
+            await ctx.periodPlanService.getById(
+                await ctx.resolveLegacyUser(input.path.sid),
+                input.path.id
+            ),
             ApiResponse.ok
         ),
     create: async (ctx, input) =>
         respond(
-            await ctx.periodPlanService.create(input.path.sid, input.body),
+            await ctx.periodPlanService.create(
+                await ctx.resolveLegacyUser(input.path.sid),
+                input.body
+            ),
             ApiResponse.created,
             problemInput.body
         ),
     patch: async (ctx, input) =>
         respond(
             await ctx.periodPlanService.patch(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 input.path.id,
                 input.body
             ),
@@ -48,7 +57,10 @@ export const periodPlanActions: Actions = {
         ),
     remove: async (ctx, input) =>
         respond(
-            await ctx.periodPlanService.remove(input.path.sid, input.path.id),
+            await ctx.periodPlanService.remove(
+                await ctx.resolveLegacyUser(input.path.sid),
+                input.path.id
+            ),
             () => ApiResponse.noContent()
         )
 };

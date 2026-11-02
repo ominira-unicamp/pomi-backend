@@ -21,7 +21,7 @@ const actions: EndpointActions<typeof contracts, AuthorizationPolicy, Context> =
             ApiResponse.ok(
                 buildArrayPaginationResponse(
                     await ctx.socialFriendshipService.listFriendships(
-                        input.path.sid,
+                        await ctx.resolveLegacyUser(input.path.sid),
                         input.query
                     ),
                     input.query,
@@ -32,7 +32,7 @@ const actions: EndpointActions<typeof contracts, AuthorizationPolicy, Context> =
         createFriendship: async (ctx, input) =>
             respond(
                 await ctx.socialFriendshipService.createFriendship(
-                    input.path.sid,
+                    await ctx.resolveLegacyUser(input.path.sid),
                     input.body.targetPublicId
                 ),
                 ApiResponse.created,
@@ -42,7 +42,7 @@ const actions: EndpointActions<typeof contracts, AuthorizationPolicy, Context> =
             respond(
                 (
                     await ctx.socialFriendshipService.acceptFriendship(
-                        input.path.sid,
+                        await ctx.resolveLegacyUser(input.path.sid),
                         input.path.id
                     )
                 ).mapErr(toAcceptFriendshipProblem),
@@ -51,7 +51,7 @@ const actions: EndpointActions<typeof contracts, AuthorizationPolicy, Context> =
         removeFriendship: async (ctx, input) =>
             respond(
                 await ctx.socialFriendshipService.removeFriendship(
-                    input.path.sid,
+                    await ctx.resolveLegacyUser(input.path.sid),
                     input.path.id
                 ),
                 () => ApiResponse.noContent()

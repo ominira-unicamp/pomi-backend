@@ -62,7 +62,8 @@ test("lists a student's feedback reports", async () => {
                         sourcePath: "/",
                         status: "OPEN",
                         adminMessage: null,
-                        reporterStudentId: 7,
+                        reporterUserId: 7,
+                        reporterUser: { studentId: 7, legacyStudentId: 7 },
                         createdAt: new Date("2026-09-01T12:00:00.000Z"),
                         updatedAt: new Date("2026-09-01T12:00:00.000Z")
                     }
@@ -104,7 +105,8 @@ test("updates a report status and administrative message", async () => {
                         sourcePath: "/",
                         status: "CLOSED",
                         adminMessage: "A solicitação foi encerrada.",
-                        reporterStudentId: 7,
+                        reporterUserId: 7,
+                        reporterUser: { studentId: 7, legacyStudentId: 7 },
                         createdAt: new Date("2026-09-01T12:00:00.000Z"),
                         updatedAt: new Date("2026-09-02T12:00:00.000Z")
                     };
@@ -141,7 +143,7 @@ test("stores an anonymous feedback report without a student", async () => {
                         description:
                             "A página inicial não carrega após entrar no POMI.",
                         sourcePath: "/",
-                        reporterStudentId: null
+                        reporterUserId: null
                     });
                     return { createdAt: new Date("2026-09-01T12:00:00.000Z") };
                 }

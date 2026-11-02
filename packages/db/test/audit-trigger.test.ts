@@ -27,7 +27,7 @@ test(
                     )
                 `;
                 const created = await transaction.unit.create({
-                    data: { code }
+                    data: { code, name: "Audit fixture" }
                 });
                 await transaction.unit.update({
                     where: { id: created.id },
@@ -80,7 +80,10 @@ test(
                         )
                     `;
                     await transaction.room.create({
-                        data: { code: `AUDIT-${randomUUID()}` }
+                        data: {
+                            code: `AUDIT-${randomUUID()}`,
+                            name: "Audit rollback fixture"
+                        }
                     });
                     throw new Error("rollback");
                 })

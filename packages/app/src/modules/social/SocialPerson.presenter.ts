@@ -21,23 +21,27 @@ export function decidePersonDisclosure(facts: {
 }
 
 export function buildPerson(
-    student: SelectedPerson,
+    user: SelectedPerson,
     disclosure: ReturnType<typeof decidePersonDisclosure>
 ): Person {
     return {
-        publicId: student.publicId,
-        displayName: student.publicDisplayName ?? student.name,
-        avatarMediaId: disclosure.showProfile ? student.avatarMediaId : null,
-        bio: disclosure.showProfile ? student.publicBio : null,
+        publicId: user.publicId,
+        displayName:
+            user.publicDisplayName ??
+            user.student?.name ??
+            user.name ??
+            "Usuário do POMI",
+        avatarMediaId: disclosure.showProfile ? user.avatarMediaId : null,
+        bio: disclosure.showProfile ? user.publicBio : null,
         interests: disclosure.showProfile
-            ? student.tagInterests
+            ? user.tagInterests
                   .map(({ tag }) => ({ id: tag.id, name: tag.name }))
                   .sort((left, right) =>
                       left.name.localeCompare(right.name, "pt-BR")
                   )
             : [],
         currentCourses: disclosure.showCurrentCourses
-            ? student.courseAttempts.map(({ course, class: classData }) => ({
+            ? user.courseAttempts.map(({ course, class: classData }) => ({
                   courseCode: course.code,
                   courseName: course.name,
                   classCode: classData?.code ?? null,
@@ -51,8 +55,14 @@ export function buildPerson(
                       })) ?? []
               }))
             : [],
-        program: disclosure.showProfile ? student.program : null,
-        specialization: disclosure.showProfile ? student.specialization : null,
-        entryYear: disclosure.showProfile ? student.entryYear : null
+        program: disclosure.showProfile
+            ? (user.student?.program ?? null)
+            : null,
+        specialization: disclosure.showProfile
+            ? (user.student?.specialization ?? null)
+            : null,
+        entryYear: disclosure.showProfile
+            ? (user.student?.entryYear ?? null)
+            : null
     };
 }

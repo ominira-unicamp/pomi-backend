@@ -1,3 +1,4 @@
+import { hasStudentAccess } from "#/modules/identity/Student.access.js";
 import type { Principal } from "#/Principal.js";
 import {
     forbiddenProblem,
@@ -116,10 +117,18 @@ export async function resolvePrincipal(
                 }
             });
             if (existing) return existing;
+            const existingAcademic =
+                options.provisionStudent !== false
+                    ? await tx.student.findUnique({
+                          where: { ra: studentIdentity.ra },
+                          select: { id: true }
+                      })
+                    : null;
             const created = await tx.authUser.create({
                 data: {
                     issuer: tokenIssuer,
                     subject,
+                    studentId: existingAcademic?.id ?? null,
                     email: studentIdentity.email,
                     displayName: studentIdentity.displayName,
                     roles: { create: { role: AuthRoles.STUDENT } }
@@ -287,16 +296,15 @@ class AuthRegistry {
         if (principal.studentId === studentId) return;
         if (!principal.roles.has(AuthRoles.BOT)) throw new ForbiddenError();
 
-        const grant = await req.prisma.botGrant.findFirst({
-            where: {
+        if (
+            !(await hasStudentAccess(
+                req.prisma,
+                principal,
                 studentId,
-                botAuthUserId: principal.authUserId,
-                capability: policy.capability,
-                revokedAt: null
-            },
-            select: { id: true }
-        });
-        if (!grant) throw new ForbiddenError();
+                policy.capability
+            ))
+        )
+            throw new ForbiddenError();
     }
 
     middleware() {

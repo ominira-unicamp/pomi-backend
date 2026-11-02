@@ -1,5 +1,5 @@
 import type { NotifierConfig } from "#/Config.js";
-import { setActiveTraceAttributes, withTrace } from "@pomi/api-core";
+import { withTrace } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import { ExchangeNoticeDeliveryStatus } from "@pomi/db";
 import { SignJWT } from "jose";
@@ -110,7 +110,15 @@ export class ExchangeNoticeNotifier {
                 processingAt: null
             }
         });
-        return result.count;
+        const recipients =
+            await this.prisma.exchangeNoticeDeliveryRecipient.updateMany({
+                where: {
+                    status: "PROCESSING",
+                    processingAt: { lt: processingBefore }
+                },
+                data: { status: "PENDING", processingAt: null }
+            });
+        return { deliveries: result.count, recipients: recipients.count };
     }
 
     private async createPendingDeliveries() {
@@ -144,7 +152,7 @@ export class ExchangeNoticeNotifier {
             if (matchingNoticeIds.length === 0) {
                 this.logger.debug(
                     {
-                        studentId: subscription.studentId,
+                        userId: subscription.userId,
                         selectedPlaceCount: placeIds.size
                     },
                     "Assinatura sem editais correspondentes."
@@ -153,7 +161,7 @@ export class ExchangeNoticeNotifier {
             }
             const result = await this.prisma.exchangeNoticeDelivery.createMany({
                 data: matchingNoticeIds.map((noticeId) => ({
-                    studentId: subscription.studentId,
+                    userId: subscription.userId,
                     noticeId
                 })),
                 skipDuplicates: true
@@ -161,7 +169,7 @@ export class ExchangeNoticeNotifier {
             createdDeliveries += result.count;
             this.logger.debug(
                 {
-                    studentId: subscription.studentId,
+                    userId: subscription.userId,
                     selectedPlaceCount: placeIds.size,
                     matchingNoticeCount: matchingNoticeIds.length,
                     createdDeliveryCount: result.count
@@ -188,272 +196,255 @@ export class ExchangeNoticeNotifier {
                         ]
                     },
                     nextAttemptAt: { lte: new Date() },
-                    attemptCount: { lt: this.config.maxAttempts }
+                    OR: [
+                        { recipients: { none: {} } },
+                        {
+                            recipients: {
+                                some: {
+                                    status: { in: ["PENDING", "FAILED"] },
+                                    nextAttemptAt: { lte: new Date() },
+                                    attemptCount: {
+                                        lt: this.config.maxAttempts
+                                    }
+                                }
+                            }
+                        }
+                    ]
                 },
-                select: { studentId: true },
-                distinct: ["studentId"]
+                select: { userId: true },
+                distinct: ["userId"]
             }
         );
         this.logger.info(
-            { cycleId, studentCount: dueDeliveries.length },
+            { cycleId, userCount: dueDeliveries.length },
             "Estudantes com digests vencidos encontrados."
         );
-        let attemptedStudentCount = 0;
-        for (const { studentId } of dueDeliveries) {
-            attemptedStudentCount += 1;
-            await this.sendStudentDigest(studentId, cycleId);
+        let attemptedUserCount = 0;
+        for (const { userId } of dueDeliveries) {
+            attemptedUserCount += 1;
+            await this.sendUserDigest(userId, cycleId);
         }
-        return { attemptedStudentCount };
+        return { attemptedUserCount };
     }
 
-    private async sendStudentDigest(studentId: number, cycleId: string) {
+    private async sendUserDigest(userId: number, cycleId: string) {
         return withTrace("notifier.digest", () =>
-            this.sendStudentDigestInternal(studentId, cycleId)
+            this.sendUserDigestInternal(userId, cycleId)
         )();
     }
 
-    private async sendStudentDigestInternal(
-        studentId: number,
-        cycleId: string
-    ) {
-        const startedAt = Date.now();
-        this.logger.debug(
-            { cycleId, studentId },
-            "Processamento de digest iniciado."
-        );
+    private async sendUserDigestInternal(userId: number, cycleId: string) {
         const now = new Date();
         const subscription =
             await this.prisma.exchangeNoticeSubscription.findUnique({
-                where: { studentId },
+                where: { userId },
                 include: {
                     places: { select: { placeId: true } },
-                    student: {
-                        include: {
-                            authUsers: {
-                                where: {
-                                    status: "ACTIVE",
-                                    email: { not: null }
-                                },
-                                orderBy: { updatedAt: "desc" },
-                                take: 1,
-                                select: { email: true }
-                            }
-                        }
-                    }
+                    user: { select: { emails: { select: { email: true } } } }
                 }
             });
-        const email = subscription?.student.authUsers[0]?.email;
-        if (!subscription) {
-            setActiveTraceAttributes({
-                "notifier.digest.outcome": "subscription_missing"
-            });
+        if (!subscription?.enabled) return;
+        const emails = [
+            ...new Set(
+                subscription.user.emails.map(({ email }) =>
+                    email.trim().toLowerCase()
+                )
+            )
+        ].filter(Boolean);
+        if (!emails.length) {
             this.logger.warn(
-                { cycleId, studentId },
-                "Digest ignorado: assinatura não encontrada."
+                { cycleId, userId },
+                "Digest sem endereço de contato disponível."
             );
             return;
         }
-        if (!subscription.enabled) {
-            setActiveTraceAttributes({
-                "notifier.digest.outcome": "subscription_disabled"
-            });
-            this.logger.info(
-                { cycleId, studentId },
-                "Digest ignorado: assinatura desabilitada."
-            );
-            return;
-        }
-        if (!email) {
-            setActiveTraceAttributes({
-                "notifier.digest.outcome": "recipient_unavailable"
-            });
-            this.logger.warn(
-                {
-                    cycleId,
-                    studentId,
-                    activeAuthUserCount: subscription.student.authUsers.length
-                },
-                "Digest ignorado: nenhum e-mail ativo encontrado."
-            );
-            return;
-        }
-
-        const placeIds = new Set(
-            subscription.places.map(({ placeId }) => placeId)
-        );
+        const placeIds = subscription.places.map(({ placeId }) => placeId);
         const deliveries = await this.prisma.exchangeNoticeDelivery.findMany({
             where: {
-                studentId,
-                status: {
-                    in: [
-                        ExchangeNoticeDeliveryStatus.PENDING,
-                        ExchangeNoticeDeliveryStatus.FAILED
-                    ]
-                },
+                userId,
+                status: { in: ["PENDING", "FAILED"] },
                 nextAttemptAt: { lte: now },
-                attemptCount: { lt: this.config.maxAttempts },
                 notice: {
                     registrationEnd: { gte: now },
-                    ...(placeIds.size === 0
-                        ? {}
-                        : { placeId: { in: [...placeIds] } })
+                    ...(placeIds.length ? { placeId: { in: placeIds } } : {})
                 }
             },
-            include: { notice: { include: { place: true } } }
+            include: { notice: { include: { place: true } }, recipients: true }
         });
-        if (deliveries.length === 0) {
-            setActiveTraceAttributes({
-                "notifier.digest.outcome": "no_deliveries"
-            });
-            this.logger.debug(
-                { cycleId, studentId, selectedPlaceCount: placeIds.size },
-                "Digest ignorado: nenhuma entrega vencida após aplicar filtros."
-            );
-            return;
+        for (const delivery of deliveries) {
+            if (!delivery.recipients.length)
+                await this.prisma.exchangeNoticeDeliveryRecipient.createMany({
+                    data: emails.map((email) => ({
+                        deliveryId: delivery.id,
+                        nextAttemptAt: now,
+                        email
+                    })),
+                    skipDuplicates: true
+                });
         }
-
-        const ids = deliveries.map(({ id }) => id);
-        setActiveTraceAttributes({
-            "notifier.digest.delivery_count": deliveries.length
-        });
-        const claimed = await this.prisma.exchangeNoticeDelivery.updateMany({
+        const due = await this.prisma.exchangeNoticeDeliveryRecipient.findMany({
             where: {
-                id: { in: ids },
-                status: {
-                    in: [
-                        ExchangeNoticeDeliveryStatus.PENDING,
-                        ExchangeNoticeDeliveryStatus.FAILED
-                    ]
-                },
-                nextAttemptAt: { lte: now }
+                deliveryId: { in: deliveries.map(({ id }) => id) },
+                status: { in: ["PENDING", "FAILED"] },
+                nextAttemptAt: { lte: now },
+                attemptCount: { lt: this.config.maxAttempts }
             },
-            data: {
-                status: ExchangeNoticeDeliveryStatus.PROCESSING,
-                processingAt: now,
-                attemptCount: { increment: 1 }
+            include: {
+                delivery: { include: { notice: { include: { place: true } } } }
             }
         });
-        if (claimed.count !== ids.length) {
-            setActiveTraceAttributes({
-                "notifier.digest.outcome": "claim_conflict"
-            });
-            this.logger.warn(
-                {
-                    cycleId,
-                    studentId,
-                    deliveryCount: ids.length,
-                    claimedDeliveryCount: claimed.count,
-                    deliveryIds: ids
-                },
-                "Digest ignorado: as entregas não puderam ser reivindicadas integralmente."
-            );
-            return;
+        const byAddress = new Map<string, typeof due>();
+        for (const recipient of due) {
+            const group = byAddress.get(recipient.email) ?? [];
+            group.push(recipient);
+            byAddress.set(recipient.email, group);
         }
-        this.logger.debug(
-            {
-                cycleId,
-                studentId,
-                deliveryCount: ids.length,
-                deliveryIds: ids,
-                smtpHost: this.config.smtpHost,
-                smtpPort: this.config.smtpPort
-            },
-            "Entregas reivindicadas; iniciando envio SMTP."
-        );
-
-        try {
-            const unsubscribeUrl = await this.unsubscribeUrl(studentId);
-            const preferencesUrl = new URL(
-                "/editais-de-intercambio",
-                this.config.frontendUrl
-            ).toString();
-            const message = await this.mailService.send(
-                email,
-                exchangeNoticeDigestEmailTemplate,
-                {
-                    notices: deliveries.map(
-                        ({ notice }): ExchangeNoticeDigest => notice
+        for (const [email, recipients] of byAddress) {
+            const ids = recipients.map(({ id }) => id);
+            const claimed = await this.prisma
+                .$transaction(async (tx) => {
+                    const result =
+                        await tx.exchangeNoticeDeliveryRecipient.updateMany({
+                            where: {
+                                id: { in: ids },
+                                status: { in: ["PENDING", "FAILED"] },
+                                nextAttemptAt: { lte: now },
+                                attemptCount: { lt: this.config.maxAttempts }
+                            },
+                            data: {
+                                status: "PROCESSING",
+                                processingAt: now,
+                                attemptCount: { increment: 1 }
+                            }
+                        });
+                    if (result.count !== ids.length)
+                        throw new RecipientClaimConflict();
+                    return result.count;
+                })
+                .catch((error) => {
+                    if (error instanceof RecipientClaimConflict) return 0;
+                    throw error;
+                });
+            if (!claimed) continue;
+            try {
+                const message = await this.mailService.send(
+                    email,
+                    exchangeNoticeDigestEmailTemplate,
+                    {
+                        notices: recipients.map(
+                            ({ delivery }): ExchangeNoticeDigest =>
+                                delivery.notice
+                        ),
+                        unsubscribeUrl: await this.unsubscribeUrl(userId),
+                        preferencesUrl: new URL(
+                            "/editais-de-intercambio",
+                            this.config.frontendUrl
+                        ).toString()
+                    }
+                );
+                if (
+                    !message.accepted.some(
+                        (address) => address.trim().toLowerCase() === email
+                    )
+                )
+                    throw new Error("SMTP did not accept recipient.");
+                await this.prisma.exchangeNoticeDeliveryRecipient.updateMany({
+                    where: { id: { in: ids }, status: "PROCESSING" },
+                    data: {
+                        status: "SENT",
+                        sentAt: new Date(),
+                        processingAt: null,
+                        lastError: null
+                    }
+                });
+                this.logger.info(
+                    {
+                        cycleId,
+                        userId,
+                        noticeCount: recipients.length,
+                        messageId: message.messageId
+                    },
+                    "Digest enviado para um endereço de contato."
+                );
+            } catch (error) {
+                for (const recipient of recipients) {
+                    const waitMs = Math.min(
+                        86400000,
+                        60000 * 2 ** (recipient.attemptCount + 1)
+                    );
+                    await this.prisma.exchangeNoticeDeliveryRecipient.updateMany(
+                        {
+                            where: { id: recipient.id, status: "PROCESSING" },
+                            data: {
+                                status: "FAILED",
+                                processingAt: null,
+                                nextAttemptAt: new Date(Date.now() + waitMs),
+                                lastError: "SMTP delivery failed"
+                            }
+                        }
+                    );
+                }
+                this.logger.error(
+                    {
+                        cycleId,
+                        userId,
+                        noticeCount: recipients.length,
+                        failureKind:
+                            error instanceof Error ? error.name : "UnknownError"
+                    },
+                    "Falha de envio para um endereço de contato."
+                );
+            }
+        }
+        for (const delivery of deliveries) {
+            const recipients =
+                await this.prisma.exchangeNoticeDeliveryRecipient.findMany({
+                    where: { deliveryId: delivery.id }
+                });
+            if (!recipients.length) continue;
+            const unfinished = recipients.filter(
+                ({ status }) => status !== "SENT"
+            );
+            const sent = unfinished.length === 0;
+            await this.prisma.exchangeNoticeDelivery.update({
+                where: { id: delivery.id },
+                data: {
+                    status: sent
+                        ? "SENT"
+                        : unfinished.some(({ status }) => status === "FAILED")
+                          ? "FAILED"
+                          : "PENDING",
+                    sentAt: sent ? new Date() : null,
+                    processingAt: null,
+                    attemptCount: Math.max(
+                        ...recipients.map(({ attemptCount }) => attemptCount)
                     ),
-                    unsubscribeUrl,
-                    preferencesUrl
-                }
-            );
-            const accepted = message.accepted.some(
-                (address) => address.toLowerCase() === email.toLowerCase()
-            );
-            if (!accepted) throw new Error(`SMTP did not accept ${email}`);
-            await this.prisma.exchangeNoticeDelivery.updateMany({
-                where: {
-                    id: { in: ids },
-                    status: ExchangeNoticeDeliveryStatus.PROCESSING
-                },
-                data: {
-                    status: ExchangeNoticeDeliveryStatus.SENT,
-                    sentAt: new Date(),
-                    processingAt: null,
-                    lastError: null
+                    nextAttemptAt: sent
+                        ? now
+                        : new Date(
+                              Math.min(
+                                  ...unfinished.map(({ nextAttemptAt }) =>
+                                      nextAttemptAt.getTime()
+                                  )
+                              )
+                          ),
+                    lastError: unfinished.some(
+                        ({ status }) => status === "FAILED"
+                    )
+                        ? "One or more recipients failed"
+                        : null
                 }
             });
-            setActiveTraceAttributes({ "notifier.digest.outcome": "sent" });
-            this.logger.info(
-                {
-                    cycleId,
-                    studentId,
-                    count: ids.length,
-                    deliveryIds: ids,
-                    acceptedCount: message.accepted.length,
-                    rejectedCount: message.rejected.length,
-                    messageId: message.messageId,
-                    durationMs: Date.now() - startedAt
-                },
-                "Digest de editais enviado."
-            );
-        } catch (error) {
-            setActiveTraceAttributes({ "notifier.digest.outcome": "failed" });
-            const attemptCount = deliveries[0]!.attemptCount + 1;
-            const waitMs = Math.min(
-                60 * 60 * 1000 * 24,
-                60_000 * 2 ** attemptCount
-            );
-            await this.prisma.exchangeNoticeDelivery.updateMany({
-                where: {
-                    id: { in: ids },
-                    status: ExchangeNoticeDeliveryStatus.PROCESSING
-                },
-                data: {
-                    status: ExchangeNoticeDeliveryStatus.FAILED,
-                    processingAt: null,
-                    nextAttemptAt: new Date(Date.now() + waitMs),
-                    lastError:
-                        error instanceof Error
-                            ? error.message
-                            : "SMTP delivery failed"
-                }
-            });
-            this.logger.error(
-                {
-                    err: error,
-                    cycleId,
-                    studentId,
-                    deliveryCount: ids.length,
-                    deliveryIds: ids,
-                    attemptCount,
-                    retryInMs: waitMs,
-                    smtpHost: this.config.smtpHost,
-                    smtpPort: this.config.smtpPort,
-                    durationMs: Date.now() - startedAt
-                },
-                "Falha ao enviar digest de editais."
-            );
         }
     }
 
-    private async unsubscribeUrl(studentId: number) {
+    private async unsubscribeUrl(userId: number) {
         const token = await new SignJWT({
-            action: "exchange-notice-unsubscribe"
+            action: "exchange-notice-unsubscribe",
+            identityVersion: 2
         })
             .setProtectedHeader({ alg: "HS256" })
-            .setSubject(`${studentId}`)
+            .setSubject(`${userId}`)
             .setIssuedAt()
             .setExpirationTime("180d")
             .sign(new TextEncoder().encode(this.config.unsubscribeSecret));
@@ -465,3 +456,5 @@ export class ExchangeNoticeNotifier {
         return url.toString();
     }
 }
+
+class RecipientClaimConflict extends Error {}

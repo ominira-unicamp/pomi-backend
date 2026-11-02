@@ -17,13 +17,13 @@ const groupSelection = {
 async function requireGroupPermission(
     prisma: PrismaClient,
     groupId: number,
-    studentId: number,
+    userId: number,
     permission: GroupPermission
 ) {
     const granted = await prisma.groupMembershipRole.findFirst({
         where: {
             groupId,
-            membership: { studentId, activeKey: "ACTIVE" },
+            membership: { userId, activeKey: "ACTIVE" },
             role: {
                 permissions: {
                     some: { permission }
@@ -97,7 +97,7 @@ export function createGroupService({ prisma }: { prisma: PrismaClient }) {
             return groups.map(serialize);
         },
         get: load,
-        async create(studentId: number, input: CreateInput) {
+        async create(userId: number, input: CreateInput) {
             await checkTagIds(prisma, input.tagIds ?? []);
             const group = await prisma.$transaction(async (tx) => {
                 const created = await tx.group.create({
@@ -114,7 +114,7 @@ export function createGroupService({ prisma }: { prisma: PrismaClient }) {
                     }
                 });
                 const member = await tx.groupMembership.create({
-                    data: { groupId: created.id, studentId }
+                    data: { groupId: created.id, userId }
                 });
                 const role = await tx.groupRole.create({
                     data: {
@@ -146,7 +146,7 @@ export function createGroupService({ prisma }: { prisma: PrismaClient }) {
             });
             return load(group.id);
         },
-        async patch(studentId: number, id: number, input: PatchInput) {
+        async patch(userId: number, id: number, input: PatchInput) {
             await load(id);
             if (
                 input.name !== undefined ||
@@ -155,17 +155,12 @@ export function createGroupService({ prisma }: { prisma: PrismaClient }) {
                 input.externalLinks ||
                 !input.tags
             )
-                await requireGroupPermission(
-                    prisma,
-                    id,
-                    studentId,
-                    "GROUP_EDIT"
-                );
+                await requireGroupPermission(prisma, id, userId, "GROUP_EDIT");
             if (input.tags)
                 await requireGroupPermission(
                     prisma,
                     id,
-                    studentId,
+                    userId,
                     "GROUP_TAG_MANAGE"
                 );
             const addedTags = input.tags?.add ?? [];
@@ -261,9 +256,9 @@ export function createGroupService({ prisma }: { prisma: PrismaClient }) {
             });
             return load(id);
         },
-        async archive(studentId: number, id: number) {
+        async archive(userId: number, id: number) {
             await load(id);
-            await requireGroupPermission(prisma, id, studentId, "GROUP_EDIT");
+            await requireGroupPermission(prisma, id, userId, "GROUP_EDIT");
             await prisma.group.update({
                 where: { id },
                 data: { status: "ARCHIVED" }

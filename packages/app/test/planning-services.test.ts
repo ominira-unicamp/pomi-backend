@@ -144,7 +144,8 @@ test("period plan creation does not use update-only manual course operations", a
                         id: 1,
                         name: "Planejamento",
                         studyPeriodId: 39,
-                        studentId: 1,
+                        userId: 1,
+                        user: { studentId: 1, legacyStudentId: 1 },
                         guideMode: "NONE",
                         curriculumSource: null,
                         visibility: "PRIVATE",
@@ -184,9 +185,10 @@ function curriculumEntityFixture(selection: {
 }) {
     return {
         id: 42,
-        studentId: 7,
+        userId: 7,
+        user: { studentId: 7, legacyStudentId: 7 },
         name: "Planejamento",
-        favoriteForStudent: null,
+        favoriteForUser: null,
         catalogProgramId: selection.catalogProgramId,
         catalogProgramVariant:
             selection.catalogProgramVariantId === null

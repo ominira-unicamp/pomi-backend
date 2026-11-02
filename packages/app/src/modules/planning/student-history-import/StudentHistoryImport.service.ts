@@ -14,10 +14,10 @@ export function createStudentHistoryImportService({
     operationTelemetry?: OperationTelemetry;
 }) {
     return {
-        import(studentId: number, input: ImportStudentHistoryInput) {
+        import(userId: number, input: ImportStudentHistoryInput) {
             return observeOperation(
                 "planning.history.import",
-                () => importStudentHistory({ prisma }, { studentId, input }),
+                () => importStudentHistory({ prisma }, { userId, input }),
                 operationTelemetry
             );
         }

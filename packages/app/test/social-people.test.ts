@@ -9,7 +9,7 @@ test("student social directory lists every active public profile without a query
     let where: unknown;
     const service = createSocialPeopleService({
         prisma: {
-            student: {
+            user: {
                 findMany: async (input: { where: unknown }) => {
                     where = input.where;
                     return [];
@@ -24,7 +24,9 @@ test("student social directory lists every active public profile without a query
     assert.deepEqual(where, {
         id: { not: 7 },
         publicProfileEnabled: true,
-        authUsers: { some: { status: "ACTIVE" } }
+        principal: {
+            identities: { some: { legacyAuthUser: { status: "ACTIVE" } } }
+        }
     });
     assert.deepEqual(result.items, []);
 });
@@ -65,7 +67,7 @@ test("student social current course visibility follows public and friendship acc
     let friendship: { id: number } | null = null;
     const service = createSocialPeopleService({
         prisma: {
-            student: { findFirst: async () => student },
+            user: { findFirst: async () => student },
             studentFriendship: {
                 findFirst: async () => friendship
             }

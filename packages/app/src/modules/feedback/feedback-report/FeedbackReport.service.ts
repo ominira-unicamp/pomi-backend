@@ -43,7 +43,11 @@ function buildReport(report: {
     sourcePath: string | null;
     status: FeedbackReportStatus;
     adminMessage: string | null;
-    reporterStudentId: number | null;
+    reporterUserId: number | null;
+    reporterUser: {
+        studentId: number | null;
+        legacyStudentId: number | null;
+    } | null;
     createdAt: Date;
     updatedAt: Date;
 }): Report {
@@ -118,7 +122,10 @@ function buildReport(report: {
         sourcePath: report.sourcePath,
         status: report.status,
         adminMessage: report.adminMessage,
-        reporterStudentId: report.reporterStudentId,
+        reporterStudentId:
+            report.reporterUser?.legacyStudentId ??
+            report.reporterUser?.studentId ??
+            null,
         createdAt: report.createdAt.toISOString(),
         updatedAt: report.updatedAt.toISOString()
     } as Report;
@@ -136,7 +143,8 @@ const reportSelection = {
     sourcePath: true,
     status: true,
     adminMessage: true,
-    reporterStudentId: true,
+    reporterUserId: true,
+    reporterUser: { select: { studentId: true, legacyStudentId: true } },
     createdAt: true,
     updatedAt: true
 } as const;
@@ -239,7 +247,7 @@ export type FeedbackReportService = {
         requestIp: string
     ): Promise<Result<Receipt, FeedbackReportProblem>>;
     createForStudent(
-        studentId: number,
+        userId: number,
         input: Input
     ): Promise<
         Result<
@@ -250,10 +258,7 @@ export type FeedbackReportService = {
             >
         >
     >;
-    listForStudent(
-        studentId: number,
-        query: StudentListQuery
-    ): Promise<Report[]>;
+    listForStudent(userId: number, query: StudentListQuery): Promise<Report[]>;
     listForAdmin(query: AdminListQuery): Promise<Report[]>;
     patchAdmin(
         id: number,
@@ -270,7 +275,7 @@ export function createFeedbackReportService({
     prisma: PrismaClient;
     feedbackRateLimiter: FeedbackRateLimiter;
 }): FeedbackReportService {
-    const create = async (input: Input, reporterStudentId?: number) => {
+    const create = async (input: Input, reporterUserId?: number) => {
         const invalidReference = await validateAcademicResource(prisma, input);
         if (invalidReference) return err(invalidReference);
         const report = await prisma.feedbackReport.create({
@@ -292,7 +297,7 @@ export function createFeedbackReportService({
                 title: input.title,
                 description: input.description,
                 sourcePath: input.sourcePath ?? null,
-                reporterStudentId: reporterStudentId ?? null
+                reporterUserId: reporterUserId ?? null
             },
             select: { createdAt: true }
         });
@@ -306,12 +311,12 @@ export function createFeedbackReportService({
                 return err(feedbackRateLimitProblem(limit.retryAfterSeconds));
             return create(input);
         },
-        async createForStudent(studentId, input) {
-            return create(input, studentId);
+        async createForStudent(userId, input) {
+            return create(input, userId);
         },
-        async listForStudent(studentId, query) {
+        async listForStudent(userId, query) {
             const reports = await prisma.feedbackReport.findMany({
-                where: { reporterStudentId: studentId },
+                where: { reporterUserId: userId },
                 select: reportSelection,
                 orderBy: compileSort(
                     resolveSort(query.sort, feedbackReportSort),

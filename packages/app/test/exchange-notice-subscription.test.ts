@@ -23,6 +23,12 @@ test("validates exchange notice subscription updates", () => {
 test("returns disabled defaults before a student configures notifications", async () => {
     const service = createExchangeNoticeSubscriptionService({
         prisma: {
+            user: {
+                findUniqueOrThrow: async () => ({
+                    studentId: 7,
+                    legacyStudentId: 7
+                })
+            },
             exchangeNoticeSubscription: {
                 findUnique: async () => null
             }
@@ -39,6 +45,12 @@ test("returns disabled defaults before a student configures notifications", asyn
 test("replaces the selected places when updating a subscription", async () => {
     const service = createExchangeNoticeSubscriptionService({
         prisma: {
+            user: {
+                findUniqueOrThrow: async () => ({
+                    studentId: 7,
+                    legacyStudentId: 7
+                })
+            },
             exchangePlace: {
                 count: async () => 2
             },
@@ -51,7 +63,7 @@ test("replaces the selected places when updating a subscription", async () => {
                     update: unknown;
                 }) => {
                     assert.deepEqual(create, {
-                        studentId: 7,
+                        userId: 7,
                         enabled: true,
                         places: {
                             create: [{ placeId: 2 }, { placeId: 3 }]

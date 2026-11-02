@@ -35,10 +35,16 @@ export function createGroupMembershipService({
                     activeKey: "ACTIVE",
                     group: { status: "ACTIVE" },
                     ...(publicId && {
-                        student: {
+                        user: {
                             publicId,
                             publicProfileEnabled: true,
-                            authUsers: { some: { status: "ACTIVE" } }
+                            principal: {
+                                identities: {
+                                    some: {
+                                        legacyAuthUser: { status: "ACTIVE" }
+                                    }
+                                }
+                            }
                         }
                     })
                 },
@@ -59,28 +65,28 @@ export function createGroupMembershipService({
                 throw new NotFoundError("Membro público não encontrado.");
             return publicMember(value);
         },
-        async listOwnMemberships(studentId: number, groupId?: number) {
+        async listOwnMemberships(userId: number, groupId?: number) {
             return (
                 await prisma.groupMembership.findMany({
-                    where: { studentId, groupId },
+                    where: { userId, groupId },
                     include: membershipInclude,
                     orderBy: { joinedAt: "desc" }
                 })
             ).map(ownMember);
         },
-        async getOwnMembership(studentId: number, id: number) {
+        async getOwnMembership(userId: number, id: number) {
             const value = await loadMember(prisma, id);
-            if (value.studentId !== studentId)
+            if (value.userId !== userId)
                 throw new NotFoundError("Vínculo não encontrado.");
             return ownMember(value);
         },
         async patchOwnMembership(
-            studentId: number,
+            userId: number,
             id: number,
             isPublic: boolean
         ) {
             const value = await loadMember(prisma, id);
-            if (value.studentId !== studentId)
+            if (value.userId !== userId)
                 throw new NotFoundError("Vínculo não encontrado.");
             requireGroupRule(
                 validateMembershipVisibility(value.activeKey, isPublic)
@@ -91,10 +97,10 @@ export function createGroupMembershipService({
             });
             return ownMember(await loadMember(prisma, id));
         },
-        async listManagedMemberships(studentId: number, groupId?: number) {
+        async listManagedMemberships(userId: number, groupId?: number) {
             if (!groupId)
                 throw new BadRequestError("filter[groupId] é obrigatório.");
-            await requirePermission(prisma, groupId, studentId, [
+            await requirePermission(prisma, groupId, userId, [
                 "MEMBER_MANAGE",
                 "ROLE_MANAGE"
             ]);
@@ -106,17 +112,13 @@ export function createGroupMembershipService({
                 })
             ).map(managedMember);
         },
-        patchManagedMembership(
-            studentId: number,
-            id: number,
-            input: MemberPatch
-        ) {
+        patchManagedMembership(userId: number, id: number, input: MemberPatch) {
             return observeOperation(
                 "group.membership.patch",
                 () =>
                     patchManagedGroupMembership(
                         { prisma, clock },
-                        { studentId, id, input }
+                        { userId, id, input }
                     ),
                 operationTelemetry
             );

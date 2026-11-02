@@ -1,3 +1,4 @@
+import type { MyPrisma } from "@pomi/db";
 export const personSelection = {
     id: true,
     publicId: true,
@@ -7,7 +8,14 @@ export const personSelection = {
     publicDisplayName: true,
     publicBio: true,
     currentCoursesVisibility: true,
-    entryYear: true,
+    student: {
+        select: {
+            name: true,
+            entryYear: true,
+            program: { select: { code: true, name: true } },
+            specialization: { select: { code: true, name: true } }
+        }
+    },
     tagInterests: {
         include: { tag: { select: { id: true, name: true } } }
     },
@@ -30,42 +38,15 @@ export const personSelection = {
                 }
             }
         }
-    },
-    program: { select: { code: true, name: true } },
-    specialization: { select: { code: true, name: true } }
+    }
 } as const;
 
-export type SelectedPerson = {
-    id: number;
-    publicId: string;
-    name: string;
-    avatarMediaId: string | null;
-    publicProfileEnabled: boolean;
-    publicDisplayName: string | null;
-    publicBio: string | null;
-    currentCoursesVisibility: "PRIVATE" | "FRIENDS" | "PUBLIC";
-    entryYear: number | null;
-    tagInterests: Array<{ tag: { id: number; name: string } }>;
-    courseAttempts: Array<{
-        course: { code: string; name: string };
-        class: {
-            code: string;
-            classSchedules: Array<{
-                id: number;
-                dayOfWeek:
-                    | "MONDAY"
-                    | "TUESDAY"
-                    | "WEDNESDAY"
-                    | "THURSDAY"
-                    | "FRIDAY"
-                    | "SATURDAY"
-                    | "SUNDAY";
-                start: string;
-                end: string;
-                room: { code: string };
-            }>;
-        } | null;
-    }>;
-    program: { code: number; name: string } | null;
-    specialization: { code: string; name: string } | null;
+export type SelectedPerson = MyPrisma.UserGetPayload<{
+    select: typeof personSelection;
+}>;
+
+export const activeLegacyIdentity = {
+    principal: {
+        identities: { some: { legacyAuthUser: { status: "ACTIVE" as const } } }
+    }
 };

@@ -36,12 +36,12 @@ function toTagEntity(tag: {
 }
 
 export type StudentTagInterestService = {
-    list(studentId: number, query: ListQuery): Promise<TagInterest[]>;
+    list(userId: number, query: ListQuery): Promise<TagInterest[]>;
     put(
-        studentId: number,
+        userId: number,
         tagId: number
     ): Promise<Result<void, TagInterestProblem>>;
-    remove(studentId: number, tagId: number): Promise<void>;
+    remove(userId: number, tagId: number): Promise<void>;
 };
 
 export function createStudentTagInterestService({
@@ -50,9 +50,9 @@ export function createStudentTagInterestService({
     prisma: DatabaseClient;
 }): StudentTagInterestService {
     return {
-        async list(studentId, query) {
+        async list(userId, query) {
             const interests = await prisma.studentTagInterest.findMany({
-                where: { studentId },
+                where: { userId },
                 include: { tag: true }
             });
             return interests
@@ -68,7 +68,7 @@ export function createStudentTagInterestService({
                     )
                 );
         },
-        async put(studentId, tagId) {
+        async put(userId, tagId) {
             const tag = await prisma.tag.findUnique({ where: { id: tagId } });
             if (!tag)
                 return err(
@@ -85,15 +85,15 @@ export function createStudentTagInterestService({
                 );
 
             await prisma.studentTagInterest.upsert({
-                where: { studentId_tagId: { studentId, tagId } },
-                create: { studentId, tagId },
+                where: { userId_tagId: { userId, tagId } },
+                create: { userId, tagId },
                 update: {}
             });
             return ok(undefined);
         },
-        async remove(studentId, tagId) {
+        async remove(userId, tagId) {
             await prisma.studentTagInterest.deleteMany({
-                where: { studentId, tagId }
+                where: { userId, tagId }
             });
         }
     };

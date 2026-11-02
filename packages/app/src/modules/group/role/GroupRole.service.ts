@@ -50,10 +50,10 @@ export function createGroupRoleService({
     operationTelemetry?: OperationTelemetry;
 }) {
     return {
-        async listRoles(studentId: number, groupId?: number) {
+        async listRoles(userId: number, groupId?: number) {
             if (!groupId)
                 throw new BadRequestError("filter[groupId] é obrigatório.");
-            await requirePermission(prisma, groupId, studentId, "ROLE_MANAGE");
+            await requirePermission(prisma, groupId, userId, "ROLE_MANAGE");
             return (
                 await prisma.groupRole.findMany({
                     where: { groupId },
@@ -63,12 +63,12 @@ export function createGroupRoleService({
             ).map(role);
         },
         async createRole(
-            studentId: number,
+            userId: number,
             groupId: number,
             name: string,
             permissions: Permission[]
         ) {
-            await requirePermission(prisma, groupId, studentId, "ROLE_MANAGE");
+            await requirePermission(prisma, groupId, userId, "ROLE_MANAGE");
             requireGroupRule(validateRolePermissions(permissions));
             return role(
                 await prisma.groupRole.create({
@@ -85,19 +85,19 @@ export function createGroupRoleService({
                 })
             );
         },
-        patchRole(studentId: number, id: number, input: RolePatch) {
+        patchRole(userId: number, id: number, input: RolePatch) {
             return observeOperation(
                 "group.role.patch",
-                () => patchGroupRole({ prisma }, { studentId, id, input }),
+                () => patchGroupRole({ prisma }, { userId, id, input }),
                 operationTelemetry
             );
         },
-        async deleteRole(studentId: number, id: number) {
+        async deleteRole(userId: number, id: number) {
             const value = await loadRole(prisma, id);
             await requirePermission(
                 prisma,
                 value.groupId,
-                studentId,
+                userId,
                 "ROLE_MANAGE"
             );
             if (

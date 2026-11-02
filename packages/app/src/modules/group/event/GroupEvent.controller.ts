@@ -1,11 +1,12 @@
 import { createAppEndpointRegistries } from "#/BuildHandler.js";
 import type { AuthorizationPolicy } from "#/auth.js";
+import { type LegacyStudentContext } from "#/modules/identity/LegacyStudentContext.js";
 import { ApiResponse, type EndpointActions } from "@pomi/api-core";
 import { groupId, page } from "../Group.http.js";
 import IO from "./GroupEvent.contract.js";
 import type { GroupEventService } from "./GroupEvent.service.js";
 
-type Context = { groupEventService: GroupEventService };
+type Context = { groupEventService: GroupEventService } & LegacyStudentContext;
 const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     listPublicEvents: async (ctx, input) =>
         page(
@@ -20,7 +21,7 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     listManagedEvents: async (ctx, input) =>
         page(
             await ctx.groupEventService.listManagedEvents(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 groupId(input.query)
             ),
             input.query,
@@ -29,7 +30,7 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     createEvent: async (ctx, input) =>
         ApiResponse.created(
             await ctx.groupEventService.createEvent(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 input.query.groupId,
                 input.body
             )
@@ -37,7 +38,7 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     patchEvent: async (ctx, input) =>
         ApiResponse.ok(
             await ctx.groupEventService.patchEvent(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 input.path.id,
                 input.body
             )
@@ -45,14 +46,14 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     publishEvent: async (ctx, input) =>
         ApiResponse.ok(
             await ctx.groupEventService.publishEvent(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 input.path.id
             )
         ),
     cancelEvent: async (ctx, input) =>
         ApiResponse.ok(
             await ctx.groupEventService.cancelEvent(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 input.path.id
             )
         )
@@ -61,6 +62,8 @@ const { router, registry, authRegistry } = createAppEndpointRegistries({
     contracts: IO,
     actions,
     createContext: (request) => ({
+        resolveLegacyUser: (studentId: number) =>
+            request.scope.cradle.resolveLegacyUser(studentId),
         groupEventService: request.scope.cradle.groupEventService
     })
 });

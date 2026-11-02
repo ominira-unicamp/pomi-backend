@@ -21,6 +21,7 @@ import {
     socialNotFoundProblem
 } from "../Social.problems.js";
 import type { friendship } from "../Social.schemas.js";
+import { activeLegacyIdentity } from "../SocialPerson.queries.js";
 import type { AcceptFriendshipFailure } from "./AcceptFriendship.use-case.js";
 import { acceptFriendship } from "./AcceptFriendship.use-case.js";
 import IO, { studentFriendshipSort } from "./SocialFriendship.contract.js";
@@ -41,15 +42,15 @@ const friendshipFilterWhere = {
 
 function directionWhere(
     expression: FilterExpression,
-    studentId: number
+    userId: number
 ): MyPrisma.StudentFriendshipWhereInput {
     const direction = String(expression.values[0]);
     return {
         AND: [
             { status: "PENDING" },
             direction === "INCOMING"
-                ? { requestedById: { not: studentId } }
-                : { requestedById: studentId }
+                ? { requestedByUserId: { not: userId } }
+                : { requestedByUserId: userId }
         ]
     };
 }
@@ -65,19 +66,19 @@ function isUniqueViolation(error: unknown) {
 
 export type SocialFriendshipService = {
     listFriendships(
-        studentId: number,
+        userId: number,
         input: FriendshipQuery
     ): Promise<Friendship[]>;
     createFriendship(
-        studentId: number,
+        userId: number,
         targetPublicId: string
     ): Promise<Result<Friendship, NotFoundProblem | ConflictProblem>>;
     acceptFriendship(
-        studentId: number,
+        userId: number,
         id: number
     ): Promise<Result<Friendship, AcceptFriendshipFailure>>;
     removeFriendship(
-        studentId: number,
+        userId: number,
         id: number
     ): Promise<Result<void, NotFoundProblem>>;
 };
@@ -92,28 +93,25 @@ export function createSocialFriendshipService({
     operationTelemetry?: OperationTelemetry;
 }): SocialFriendshipService {
     return {
-        async listFriendships(studentId, input) {
+        async listFriendships(userId, input) {
             const filter = input.filter ?? [];
             const filterWhere = compileFilterWhere(
                 filter.filter(
                     (expression) => expression.path.join(".") !== "direction"
                 ),
                 friendshipFilterWhere,
-                "student friendships"
+                "user friendships"
             );
             const directionFilters = filter
                 .filter(
                     (expression) => expression.path.join(".") === "direction"
                 )
-                .map((expression) => directionWhere(expression, studentId));
+                .map((expression) => directionWhere(expression, userId));
             const rows = await prisma.studentFriendship.findMany({
                 where: {
                     AND: [
                         {
-                            OR: [
-                                { studentAId: studentId },
-                                { studentBId: studentId }
-                            ]
+                            OR: [{ userAId: userId }, { userBId: userId }]
                         },
                         ...filterWhere,
                         ...directionFilters
@@ -129,14 +127,14 @@ export function createSocialFriendshipService({
                     }
                 )
             });
-            return rows.map((row) => buildFriendship(row, studentId));
+            return rows.map((row) => buildFriendship(row, userId));
         },
-        async createFriendship(studentId, targetPublicId) {
-            const target = await prisma.student.findFirst({
+        async createFriendship(userId, targetPublicId) {
+            const target = await prisma.user.findFirst({
                 where: {
                     publicId: targetPublicId,
                     publicProfileEnabled: true,
-                    authUsers: { some: { status: "ACTIVE" } }
+                    ...activeLegacyIdentity
                 },
                 select: { id: true }
             });
@@ -146,20 +144,20 @@ export function createSocialFriendshipService({
                         "O perfil público solicitado não foi encontrado."
                     )
                 );
-            if (target.id === studentId)
+            if (target.id === userId)
                 return err(
                     socialConflictProblem(
                         "Não é possível enviar uma solicitação de amizade para si mesmo."
                     )
                 );
-            const studentAId = Math.min(studentId, target.id);
-            const studentBId = Math.max(studentId, target.id);
+            const userAId = Math.min(userId, target.id);
+            const userBId = Math.max(userId, target.id);
             try {
                 const row = await prisma.studentFriendship.create({
-                    data: { studentAId, studentBId, requestedById: studentId },
+                    data: { userAId, userBId, requestedByUserId: userId },
                     ...friendshipSelection
                 });
-                return ok(buildFriendship(row, studentId));
+                return ok(buildFriendship(row, userId));
             } catch (error) {
                 if (isUniqueViolation(error))
                     return err(
@@ -170,22 +168,22 @@ export function createSocialFriendshipService({
                 throw error;
             }
         },
-        acceptFriendship(studentId, id) {
+        acceptFriendship(userId, id) {
             return observeOperation(
                 "social.friendship.accept",
                 () =>
                     acceptFriendship(
                         { prisma, clock },
-                        { studentId, friendshipId: id }
+                        { userId, friendshipId: id }
                     ),
                 operationTelemetry
             );
         },
-        async removeFriendship(studentId, id) {
+        async removeFriendship(userId, id) {
             const removed = await prisma.studentFriendship.deleteMany({
                 where: {
                     id,
-                    OR: [{ studentAId: studentId }, { studentBId: studentId }]
+                    OR: [{ userAId: userId }, { userBId: userId }]
                 }
             });
             return removed.count

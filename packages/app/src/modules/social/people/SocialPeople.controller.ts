@@ -16,7 +16,7 @@ const actions: EndpointActions<typeof contracts, AuthorizationPolicy, Context> =
     {
         listPeople: async (ctx, input) => {
             const result = await ctx.socialPeopleService.listPeople(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 input.query
             );
             return ApiResponse.ok(
@@ -37,7 +37,7 @@ const actions: EndpointActions<typeof contracts, AuthorizationPolicy, Context> =
         getPerson: async (ctx, input) =>
             respond(
                 await ctx.socialPeopleService.getPerson(
-                    input.path.sid,
+                    await ctx.resolveLegacyUser(input.path.sid),
                     input.path.publicId
                 ),
                 ApiResponse.ok

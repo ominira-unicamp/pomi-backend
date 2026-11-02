@@ -5,14 +5,14 @@ export function friendshipFixture() {
     const instant = new Date("2026-01-02T12:00:00.000Z");
     const row = {
         id: 3,
-        studentAId: 7,
-        studentBId: 8,
-        requestedById: 8,
+        userAId: 7,
+        userBId: 8,
+        requestedByUserId: 8,
         status: "PENDING" as "PENDING" | "ACCEPTED",
         acceptedAt: null as Date | null,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
-        studentA: socialPerson(7),
-        studentB: socialPerson(8)
+        userA: socialPerson(7),
+        userB: socialPerson(8)
     };
     const state: {
         existing: typeof row | null;
@@ -43,7 +43,7 @@ export function friendshipFixture() {
             async findFirst(input: {
                 where: {
                     id: number;
-                    OR: { studentAId?: number; studentBId?: number }[];
+                    OR: { userAId?: number; userBId?: number }[];
                 };
             }) {
                 calls.finds.push(input);
@@ -53,8 +53,8 @@ export function friendshipFixture() {
                     existing.id === input.where.id &&
                     input.where.OR.some(
                         (entry) =>
-                            entry.studentAId === existing.studentAId ||
-                            entry.studentBId === existing.studentBId
+                            entry.userAId === existing.userAId ||
+                            entry.userBId === existing.userBId
                     )
                     ? existing
                     : null;

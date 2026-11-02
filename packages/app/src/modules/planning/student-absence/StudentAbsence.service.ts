@@ -41,13 +41,13 @@ const absenceFilterWhere = {
 >;
 
 export type StudentAbsenceService = {
-    list(studentId: number, input: ListInput): Promise<Absence[]>;
+    list(userId: number, input: ListInput): Promise<Absence[]>;
     create(
-        studentId: number,
+        userId: number,
         input: CreateInput
     ): Promise<Result<Absence, CreateProblem>>;
     remove(
-        studentId: number,
+        userId: number,
         id: number
     ): Promise<Result<void, ReturnType<typeof studentAbsenceNotFoundProblem>>>;
 };
@@ -58,19 +58,16 @@ export function createStudentAbsenceService({
     prisma: PrismaClient;
 }): StudentAbsenceService {
     return {
-        async list(studentId, input) {
+        async list(userId, input) {
             const filterWhere = compileFilterWhere(
                 input.filter,
                 absenceFilterWhere,
-                "student absences"
+                "user absences"
             );
             const absences = await prisma.studentAbsence.findMany({
                 ...prismaStudentAbsenceSelection,
                 where: {
-                    AND: [
-                        { studentCourseAttempt: { studentId } },
-                        ...filterWhere
-                    ]
+                    AND: [{ studentCourseAttempt: { userId } }, ...filterWhere]
                 },
                 orderBy: compileSort(
                     resolveSort(input.sort, studentAbsenceSort),
@@ -94,10 +91,10 @@ export function createStudentAbsenceService({
             });
             return absences.map(absencePresenter.build);
         },
-        async create(studentId, input) {
+        async create(userId, input) {
             const [attempt, schedule] = await Promise.all([
                 prisma.studentCourseAttempt.findFirst({
-                    where: { id: input.courseAttemptId, studentId },
+                    where: { id: input.courseAttemptId, userId },
                     select: { id: true, classId: true }
                 }),
                 prisma.classSchedule.findUnique({
@@ -135,9 +132,9 @@ export function createStudentAbsenceService({
             });
             return ok(absencePresenter.build(absence));
         },
-        async remove(studentId, id) {
+        async remove(userId, id) {
             const absence = await prisma.studentAbsence.findFirst({
-                where: { id, studentCourseAttempt: { studentId } },
+                where: { id, studentCourseAttempt: { userId } },
                 select: { id: true }
             });
             if (!absence) return err(studentAbsenceNotFoundProblem());

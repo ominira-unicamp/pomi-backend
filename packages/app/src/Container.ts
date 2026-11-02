@@ -1,4 +1,5 @@
 import type { OperationTelemetry } from "#/application/OperationTelemetry.js";
+import { createLegacyUserResolver } from "#/modules/identity/LegacyStudentContext.js";
 import { requestLogger } from "@pomi/api-core";
 import { asFunction, asValue, createContainer, InjectionMode } from "awilix";
 import type { RequestHandler } from "express";
@@ -127,6 +128,7 @@ import type { DatabaseClient } from "@pomi/db";
 export type AppCradle = {
     config: AppConfig;
     prisma: DatabaseClient;
+    resolveLegacyUser(studentId: number): Promise<number>;
     clock: Clock;
     operationTelemetry: OperationTelemetry | undefined;
     principal: Principal | undefined;
@@ -171,6 +173,9 @@ export function createAppContainer(config: AppConfig, prisma: DatabaseClient) {
     }).register({
         config: asValue(config),
         prisma: asValue(prisma),
+        resolveLegacyUser: asFunction(({ prisma }: AppCradle) =>
+            createLegacyUserResolver(prisma)
+        ).scoped(),
         clock: asValue(systemClock),
         operationTelemetry: asValue(undefined),
         principal: asValue(undefined),

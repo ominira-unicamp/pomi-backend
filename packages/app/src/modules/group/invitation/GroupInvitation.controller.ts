@@ -1,16 +1,19 @@
 import { createAppEndpointRegistries } from "#/BuildHandler.js";
 import type { AuthorizationPolicy } from "#/auth.js";
+import { type LegacyStudentContext } from "#/modules/identity/LegacyStudentContext.js";
 import { ApiResponse, type EndpointActions } from "@pomi/api-core";
 import { groupId, page } from "../Group.http.js";
 import IO from "./GroupInvitation.contract.js";
 import type { GroupInvitationService } from "./GroupInvitation.service.js";
 
-type Context = { groupInvitationService: GroupInvitationService };
+type Context = {
+    groupInvitationService: GroupInvitationService;
+} & LegacyStudentContext;
 const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     listInvitations: async (ctx, input) =>
         page(
             await ctx.groupInvitationService.listInvitations(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 groupId(input.query)
             ),
             input.query,
@@ -19,7 +22,7 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     listManagedInvitations: async (ctx, input) =>
         page(
             await ctx.groupInvitationService.listManagedInvitations(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 groupId(input.query)
             ),
             input.query,
@@ -28,7 +31,7 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     createInvitation: async (ctx, input) =>
         ApiResponse.created(
             await ctx.groupInvitationService.createInvitation(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 input.query.groupId,
                 input.body.recipientPublicId
             )
@@ -36,13 +39,13 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     acceptInvitation: async (ctx, input) =>
         ApiResponse.ok(
             await ctx.groupInvitationService.acceptInvitation(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 input.path.id
             )
         ),
     declineInvitation: async (ctx, input) => {
         await ctx.groupInvitationService.declineInvitation(
-            input.path.sid,
+            await ctx.resolveLegacyUser(input.path.sid),
             input.path.id
         );
         return ApiResponse.noContent();
@@ -52,6 +55,8 @@ const { router, registry, authRegistry } = createAppEndpointRegistries({
     contracts: IO,
     actions,
     createContext: (request) => ({
+        resolveLegacyUser: (studentId: number) =>
+            request.scope.cradle.resolveLegacyUser(studentId),
         groupInvitationService: request.scope.cradle.groupInvitationService
     })
 });

@@ -28,6 +28,7 @@ import {
 import type { Request } from "express";
 
 export type Context = {
+    resolveLegacyUser(studentId: number): Promise<number>;
     principal?: Principal;
     studentCourseAttemptService: StudentCourseAttemptService;
     studentHistoryImportService: StudentHistoryImportService;
@@ -128,6 +129,7 @@ function registerAppEndpoints<
 
 function createLegacyContext(request: Request): Context {
     return {
+        resolveLegacyUser: request.scope.cradle.resolveLegacyUser,
         principal: request.scope.cradle.principal,
         studentCourseAttemptService:
             request.scope.cradle.studentCourseAttemptService,

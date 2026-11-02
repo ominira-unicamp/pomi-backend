@@ -101,7 +101,10 @@ export function mediaFixture(
                         id: 9,
                         kind: "HUMAN",
                         status: state.principalStatus,
-                        user: { id: 9, studentId: state.userStudentId },
+                        user: {
+                            id: state.userStudentId === 42 ? 9 : 10,
+                            studentId: state.userStudentId
+                        },
                         serviceAccount: null
                     }
                 },
@@ -114,8 +117,18 @@ export function mediaFixture(
         groupMembershipRole: {
             findFirst: async () => (state.canEditGroup ? { roleId: 1 } : null)
         },
-        student: {
-            findUnique: async () => ({ ...state.student }),
+        student: { findUnique: async () => ({ id: 42 }) },
+        user: {
+            findUniqueOrThrow: async () => ({
+                id: 9,
+                studentId: 42,
+                ...state.student
+            }),
+            findUnique: async () => ({
+                id: 9,
+                studentId: 42,
+                ...state.student
+            }),
             findMany: async ({
                 where
             }: {
@@ -125,7 +138,7 @@ export function mediaFixture(
                 where.avatarMediaId.in.includes(state.student.avatarMediaId)
                     ? [
                           {
-                              id: 42,
+                              id: 9,
                               avatarMediaId: state.student.avatarMediaId,
                               publicProfileEnabled: state.publicProfileEnabled
                           }

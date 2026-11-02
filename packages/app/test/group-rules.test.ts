@@ -135,7 +135,7 @@ test("group access retains alternative permission matching and archived resource
     await requirePermission(db, 7, 42, ["MEMBER_MANAGE", "ROLE_MANAGE"]);
     assert.deepEqual(where, {
         groupId: 7,
-        membership: { studentId: 42, activeKey: "ACTIVE" },
+        membership: { userId: 42, activeKey: "ACTIVE" },
         role: {
             permissions: {
                 some: { permission: { in: ["MEMBER_MANAGE", "ROLE_MANAGE"] } }

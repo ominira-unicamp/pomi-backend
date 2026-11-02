@@ -19,7 +19,7 @@ const actions: Actions = {
         ApiResponse.ok(
             buildArrayPaginationResponse(
                 await ctx.studentTagInterestService.list(
-                    input.path.sid,
+                    await ctx.resolveLegacyUser(input.path.sid),
                     input.query
                 ),
                 input.query,
@@ -30,14 +30,14 @@ const actions: Actions = {
     put: async (ctx, input) =>
         respond(
             await ctx.studentTagInterestService.put(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 input.path.tagId
             ),
             () => ApiResponse.noContent()
         ),
     remove: async (ctx, input) => {
         await ctx.studentTagInterestService.remove(
-            input.path.sid,
+            await ctx.resolveLegacyUser(input.path.sid),
             input.path.tagId
         );
         return ApiResponse.noContent();

@@ -1,5 +1,8 @@
 import { defineImageResource, imageProfiles } from "#/media/public.js";
-import { hasStudentAccess } from "#/modules/identity/Student.access.js";
+import {
+    hasStudentAccess,
+    hasUserAccess
+} from "#/modules/identity/Student.access.js";
 import { ForbiddenError, NotFoundError } from "@pomi/api-core";
 
 export type StudentAvatarTarget = { studentId: number };
@@ -23,8 +26,8 @@ export const studentAvatarResource = defineImageResource<
             throw new ForbiddenError("Acesso não permitido.");
     },
     async loadSlot({ db, target }) {
-        const student = await db.student.findUnique({
-            where: { id: target.studentId },
+        const student = await db.user.findUnique({
+            where: { studentId: target.studentId },
             select: { avatarMediaId: true, avatarRevision: true }
         });
         if (!student) throw new NotFoundError("Estudante não encontrado.");
@@ -34,9 +37,9 @@ export const studentAvatarResource = defineImageResource<
         };
     },
     async compareAndSetSlot({ tx, target, expected, nextMediaId }) {
-        const updated = await tx.student.updateMany({
+        const updated = await tx.user.updateMany({
             where: {
-                id: target.studentId,
+                studentId: target.studentId,
                 avatarMediaId: expected.mediaId,
                 avatarRevision: expected.revision
             },
@@ -48,7 +51,7 @@ export const studentAvatarResource = defineImageResource<
         return updated.count === 1;
     },
     async findReferences({ db, mediaIds }) {
-        const students = await db.student.findMany({
+        const students = await db.user.findMany({
             where: { avatarMediaId: { in: [...mediaIds] } },
             select: {
                 id: true,
@@ -65,7 +68,7 @@ export const studentAvatarResource = defineImageResource<
     async authorizeRead({ db, actor, owner }) {
         return (
             owner.publicProfileEnabled ||
-            hasStudentAccess(db, actor, owner.id, "STUDENT_PROFILE_READ")
+            hasUserAccess(db, actor, owner.id, "STUDENT_PROFILE_READ")
         );
     }
 });

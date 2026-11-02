@@ -42,34 +42,37 @@ test("public memberships expose profile links only for enabled active profiles",
         joinedAt: new Date("2026-10-01T00:00:00.000Z"),
         positions: [],
         roles: [],
-        student: {
+        user: {
             name: "Ana",
             publicId,
             publicProfileEnabled: true,
             publicDisplayName: "Ana do Coletivo",
             avatarMediaId: "8bf172b7-6e70-47e4-ad19-353292f77d34",
-            authUsers: [{ id: 1 }]
+            principal: { identities: [{ id: 1 }] },
+            studentId: 9,
+            legacyStudentId: 9,
+            student: { name: "Ana" }
         }
     };
     const prisma = {
         groupMembership: {
             findMany: async (query: { where: unknown }) => {
                 where = query.where;
-                if ((query.where as { student?: unknown }).student) return [];
+                if ((query.where as { user?: unknown }).user) return [];
                 return [
                     member,
                     {
                         ...member,
                         id: 4,
-                        student: {
-                            ...member.student,
+                        user: {
+                            ...member.user,
                             publicProfileEnabled: false
                         }
                     },
                     {
                         ...member,
                         id: 5,
-                        student: { ...member.student, authUsers: [] }
+                        user: { ...member.user, principal: { identities: [] } }
                     }
                 ];
             }
@@ -84,7 +87,7 @@ test("public memberships expose profile links only for enabled active profiles",
     );
     assert.deepEqual(
         values.map((value) => value.avatarMediaId),
-        [member.student.avatarMediaId, null, null]
+        [member.user.avatarMediaId, null, null]
     );
     assert.deepEqual(
         values.map((value) => value.displayName),
@@ -102,10 +105,12 @@ test("public memberships expose profile links only for enabled active profiles",
         isPublic: true,
         activeKey: "ACTIVE",
         group: { status: "ACTIVE" },
-        student: {
+        user: {
             publicId,
             publicProfileEnabled: true,
-            authUsers: { some: { status: "ACTIVE" } }
+            principal: {
+                identities: { some: { legacyAuthUser: { status: "ACTIVE" } } }
+            }
         }
     });
 });
@@ -116,7 +121,7 @@ test("own membership includes the union of role permissions", async () => {
                 {
                     id: 3,
                     groupId: 42,
-                    studentId: 9,
+                    userId: 9,
                     joinedAt: new Date("2026-10-01T00:00:00.000Z"),
                     leftAt: null,
                     isPublic: false,
@@ -139,7 +144,8 @@ test("own membership includes the union of role permissions", async () => {
                                 permissions: [{ permission: "EVENT_CREATE" }]
                             }
                         }
-                    ]
+                    ],
+                    user: { studentId: 9, legacyStudentId: 9 }
                 }
             ]
         }
@@ -155,18 +161,21 @@ test("group managers cannot discover private or inactive member avatars", async 
     const row = {
         id: 3,
         groupId: 42,
-        studentId: 9,
+        userId: 9,
         joinedAt: new Date(),
         leftAt: null,
         isPublic: true,
         positions: [],
         roles: [],
-        student: {
+        user: {
             name: "Ana",
             publicId: "8bf172b7-6e70-47e4-ad19-353292f77d34",
             publicProfileEnabled: true,
             avatarMediaId,
-            authUsers: [{ id: 1 }]
+            principal: { identities: [{ id: 1 }] },
+            studentId: 9,
+            legacyStudentId: 9,
+            student: { name: "Ana" }
         }
     };
     const prisma = {
@@ -179,13 +188,13 @@ test("group managers cannot discover private or inactive member avatars", async 
         (await service.listManagedMemberships(1, 42))[0]!.avatarMediaId,
         avatarMediaId
     );
-    row.student.publicProfileEnabled = false;
+    row.user.publicProfileEnabled = false;
     assert.equal(
         (await service.listManagedMemberships(1, 42))[0]!.avatarMediaId,
         null
     );
-    row.student.publicProfileEnabled = true;
-    row.student.authUsers = [];
+    row.user.publicProfileEnabled = true;
+    row.user.principal.identities = [];
     assert.equal(
         (await service.listManagedMemberships(1, 42))[0]!.avatarMediaId,
         null
@@ -224,7 +233,7 @@ test("invitations resolve the recipient by public id", async () => {
     const prisma = {
         group: { count: async () => 1 },
         groupMembershipRole: { findFirst: async () => ({ roleId: 2 }) },
-        student: {
+        user: {
             findUnique: async (query: { where: { publicId: string } }) => {
                 requestedPublicId = query.where.publicId;
                 return null;
@@ -267,20 +276,26 @@ test("managed invitations require group permission and expose recipients", async
                     {
                         id: 7,
                         groupId: 42,
-                        recipientStudentId: 9,
-                        inviterStudentId: 1,
+                        recipientUserId: 9,
+                        inviterUserId: 1,
                         status: "PENDING",
                         expiresAt: new Date("2099-10-20T00:00:00.000Z"),
                         createdAt: new Date("2026-10-01T00:00:00.000Z"),
                         respondedAt: null,
-                        recipient: {
+                        recipientUser: {
                             name: "Bia",
                             publicProfileEnabled,
-                            authUsers: active ? [{ id: 2 }] : [],
+                            principal: {
+                                identities: active ? [{ id: 2 }] : []
+                            },
                             avatarMediaId:
                                 "8bf172b7-6e70-47e4-ad19-353292f77d34",
-                            publicId: "4c7ba34f-dc7b-48d7-90cd-e76a315ab037"
-                        }
+                            publicId: "4c7ba34f-dc7b-48d7-90cd-e76a315ab037",
+                            studentId: 9,
+                            legacyStudentId: 9,
+                            student: { name: "Bia" }
+                        },
+                        inviterUser: { studentId: 1, legacyStudentId: 1 }
                     }
                 ];
             }
@@ -328,7 +343,7 @@ test("expired invitations cannot create memberships", async () => {
             findUnique: async () => ({
                 id: 7,
                 groupId: 42,
-                recipientStudentId: 9,
+                recipientUserId: 9,
                 status: "PENDING",
                 expiresAt: new Date(Date.now() - 1000)
             })
@@ -388,13 +403,15 @@ test("expired invitations have the public status and no persistence keys", async
                 {
                     id: 7,
                     groupId: 42,
-                    recipientStudentId: 9,
-                    inviterStudentId: 1,
+                    recipientUserId: 9,
+                    inviterUserId: 1,
                     status: "PENDING",
                     pendingKey: "PENDING",
                     expiresAt: new Date(Date.now() - 1000),
                     createdAt: new Date("2026-10-01T00:00:00.000Z"),
-                    respondedAt: null
+                    respondedAt: null,
+                    recipientUser: { studentId: 9, legacyStudentId: 9 },
+                    inviterUser: { studentId: 1, legacyStudentId: 1 }
                 }
             ]
         }
@@ -528,12 +545,14 @@ test("invitation representation uses the injected instant at the expiration boun
                     {
                         id: 1,
                         groupId: 7,
-                        recipientStudentId: 42,
-                        inviterStudentId: 9,
+                        recipientUserId: 42,
+                        inviterUserId: 9,
                         status: "PENDING",
                         expiresAt: new Date("2026-11-01T00:00:01Z"),
                         createdAt: now,
-                        respondedAt: null
+                        respondedAt: null,
+                        recipientUser: { studentId: 42, legacyStudentId: 42 },
+                        inviterUser: { studentId: 9, legacyStudentId: 9 }
                     }
                 ]
             }

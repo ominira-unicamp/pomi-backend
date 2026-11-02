@@ -18,11 +18,7 @@ export type PatchGroupRoleFailure =
     | { kind: "conflict" | "concurrent-change"; message: string };
 export async function patchGroupRole(
     { prisma }: { prisma: PrismaClient },
-    {
-        studentId,
-        id,
-        input
-    }: { studentId: number; id: number; input: RolePatch }
+    { userId, id, input }: { userId: number; id: number; input: RolePatch }
 ): Promise<Result<ReturnType<typeof role>, PatchGroupRoleFailure>> {
     try {
         return await runAtomic<ReturnType<typeof role>, PatchGroupRoleFailure>(
@@ -40,7 +36,7 @@ export async function patchGroupRole(
                 const access = await checkGroupPermission(
                     tx,
                     value.groupId,
-                    studentId,
+                    userId,
                     "ROLE_MANAGE"
                 );
                 if (access.isErr()) return err(access.error);

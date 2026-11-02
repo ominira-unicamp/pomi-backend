@@ -7,7 +7,7 @@ config({ path: resolve(import.meta.dirname, "../../.env") });
 export default defineConfig({
     schema: "prisma/schema.prisma",
     migrations: {
-        path: "prisma/migrations"
+        path: process.env.POMI_PRISMA_MIGRATIONS_PATH ?? "prisma/migrations"
     },
     datasource: {
         url: env("DATABASE_URL")

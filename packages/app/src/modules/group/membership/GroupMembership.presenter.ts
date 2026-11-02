@@ -1,17 +1,27 @@
+import { requireLegacyStudentId } from "#/modules/identity/LegacyStudentContext.js";
 import type { MyPrisma } from "@pomi/db";
 const date = (value: Date | null) => value?.toISOString() ?? null;
 export const membershipInclude = {
-    student: {
+    user: {
         select: {
             name: true,
+            studentId: true,
+            legacyStudentId: true,
+            student: { select: { name: true } },
             publicId: true,
             publicProfileEnabled: true,
             publicDisplayName: true,
             avatarMediaId: true,
-            authUsers: {
-                where: { status: "ACTIVE" as const },
-                select: { id: true },
-                take: 1
+            principal: {
+                select: {
+                    identities: {
+                        where: {
+                            legacyAuthUser: { status: "ACTIVE" as const }
+                        },
+                        take: 1,
+                        select: { id: true }
+                    }
+                }
             }
         }
     },
@@ -41,23 +51,31 @@ export function publicMember(value: Membership) {
     return {
         ...memberBase(value),
         displayName:
-            value.student.publicProfileEnabled && value.student.authUsers.length
-                ? (value.student.publicDisplayName ?? value.student.name)
-                : value.student.name,
+            value.user.publicProfileEnabled &&
+            value.user.principal.identities.length
+                ? (value.user.publicDisplayName ??
+                  value.user.student?.name ??
+                  value.user.name ??
+                  "Usuário do POMI")
+                : (value.user.student?.name ??
+                  value.user.name ??
+                  "Usuário do POMI"),
         profilePublicId:
-            value.student.publicProfileEnabled && value.student.authUsers.length
-                ? value.student.publicId
+            value.user.publicProfileEnabled &&
+            value.user.principal.identities.length
+                ? value.user.publicId
                 : null,
         avatarMediaId:
-            value.student.publicProfileEnabled && value.student.authUsers.length
-                ? value.student.avatarMediaId
+            value.user.publicProfileEnabled &&
+            value.user.principal.identities.length
+                ? value.user.avatarMediaId
                 : null
     };
 }
 export function ownMember(value: Membership) {
     return {
         ...memberBase(value),
-        studentId: value.studentId,
+        studentId: requireLegacyStudentId(value.user),
         isPublic: value.isPublic,
         leftAt: date(value.leftAt),
         roles: value.roles.map(({ role }) => ({
@@ -76,7 +94,8 @@ export function ownMember(value: Membership) {
 export function managedMember(value: Membership) {
     return {
         ...ownMember(value),
-        studentName: value.student.name,
+        studentName:
+            value.user.student?.name ?? value.user.name ?? "Usuário do POMI",
         avatarMediaId: publicMember(value).avatarMediaId
     };
 }

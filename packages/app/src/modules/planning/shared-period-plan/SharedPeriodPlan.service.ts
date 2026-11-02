@@ -34,7 +34,7 @@ const publicFilterWhere = {
     FilterWhereBuilder<MyPrisma.PeriodPlanningWhereInput>
 >;
 const studentFilterWhere = {
-    ownerPublicId: periodPlanningWhere.stringAt("student.publicId")
+    ownerPublicId: periodPlanningWhere.stringAt("user.publicId")
 } satisfies Record<
     string,
     FilterWhereBuilder<MyPrisma.PeriodPlanningWhereInput>
@@ -44,9 +44,11 @@ const selection = {
     ...prismaPeriodPlanningFieldSelection,
     include: {
         ...prismaPeriodPlanningFieldSelection.include,
-        student: {
+        user: {
             select: {
                 id: true,
+                studentId: true,
+                legacyStudentId: true,
                 publicId: true,
                 publicProfileEnabled: true,
                 publicDisplayName: true,
@@ -75,11 +77,11 @@ function buildShared(row: NonNullable<Selected>): SharedPeriodPlan {
         studyPeriodId: entity.studyPeriodId,
         studyPeriodYear: entity.studyPeriodYear,
         studyPeriodYearPeriod: entity.studyPeriodYearPeriod,
-        owner: row.student.publicProfileEnabled
+        owner: row.user.publicProfileEnabled
             ? {
-                  publicId: row.student.publicId,
-                  displayName: row.student.publicDisplayName ?? "Aluno do POMI",
-                  avatarMediaId: row.student.avatarMediaId
+                  publicId: row.user.publicId,
+                  displayName: row.user.publicDisplayName ?? "Aluno do POMI",
+                  avatarMediaId: row.user.avatarMediaId
               }
             : null,
         classes: entity.classes,
@@ -101,7 +103,7 @@ function publicWhere(query: PublicQuery): MyPrisma.PeriodPlanningWhereInput {
                           }
                       },
                       {
-                          student: {
+                          user: {
                               publicProfileEnabled: true,
                               publicDisplayName: {
                                   contains: query.query,
@@ -131,7 +133,7 @@ export type SharedPeriodPlanService = {
     }>;
     getPublic(shareId: string): Promise<Result<SharedPeriodPlan, NotFound>>;
     listForStudent(
-        studentId: number,
+        userId: number,
         input: StudentQuery
     ): Promise<{
         items: SharedPeriodPlan[];
@@ -139,7 +141,7 @@ export type SharedPeriodPlanService = {
         pagination: ResolvedPagination;
     }>;
     getForStudent(
-        studentId: number,
+        userId: number,
         shareId: string
     ): Promise<Result<SharedPeriodPlan, NotFound>>;
 };
@@ -151,12 +153,12 @@ export function createSharedPeriodPlanService({
 }): SharedPeriodPlanService {
     const findFriend = (viewerId: number) => ({
         OR: [
-            { studentAId: viewerId, status: "ACCEPTED" as const },
-            { studentBId: viewerId, status: "ACCEPTED" as const }
+            { userAId: viewerId, status: "ACCEPTED" as const },
+            { userBId: viewerId, status: "ACCEPTED" as const }
         ]
     });
     const sharedWhere = (
-        studentId: number,
+        userId: number,
         filter: StudentQuery["filter"]
     ): MyPrisma.PeriodPlanningWhereInput => {
         const visibility = {
@@ -164,18 +166,18 @@ export function createSharedPeriodPlanService({
                 { visibility: "PUBLIC" as const },
                 {
                     visibility: "FRIENDS" as const,
-                    student: { friendshipsAsA: { some: findFriend(studentId) } }
+                    user: { friendshipsAsA: { some: findFriend(userId) } }
                 },
                 {
                     visibility: "FRIENDS" as const,
-                    student: { friendshipsAsB: { some: findFriend(studentId) } }
+                    user: { friendshipsAsB: { some: findFriend(userId) } }
                 }
             ]
         };
         const filterWhere = compileFilterWhere(
             filter,
             studentFilterWhere,
-            "student shared period plannings"
+            "user shared period plannings"
         );
         return filterWhere.length
             ? { AND: [visibility, ...filterWhere] }
@@ -222,12 +224,12 @@ export function createSharedPeriodPlanService({
             });
             return row ? ok(buildShared(row)) : err(notFound());
         },
-        async listForStudent(studentId, input) {
+        async listForStudent(userId, input) {
             const pagination = resolvePagination(
                 input,
                 sharedPeriodPlanningPagination
             );
-            const where = sharedWhere(studentId, input.filter);
+            const where = sharedWhere(userId, input.filter);
             const [rows, total] = await Promise.all([
                 prisma.periodPlanning.findMany({
                     ...selection,
@@ -255,10 +257,10 @@ export function createSharedPeriodPlanService({
                 pagination
             };
         },
-        async getForStudent(studentId, shareId) {
+        async getForStudent(userId, shareId) {
             const row = await prisma.periodPlanning.findFirst({
                 ...selection,
-                where: { shareId, ...sharedWhere(studentId, undefined) }
+                where: { shareId, ...sharedWhere(userId, undefined) }
             });
             return row ? ok(buildShared(row)) : err(notFound());
         }

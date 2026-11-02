@@ -4,7 +4,7 @@ import type { PrismaClient } from "@pomi/db";
 import { requireGroupRule, requirePermission } from "../Group.problems.js";
 import { ownMember } from "../membership/GroupMembership.presenter.js";
 import { loadMember } from "../membership/GroupMembership.queries.js";
-import { invitation } from "./GroupInvitation.presenter.js";
+import { invitation, invitationInclude } from "./GroupInvitation.presenter.js";
 import { validateInvitationAcceptance } from "./GroupInvitation.rules.js";
 
 export function createGroupInvitationService({
@@ -15,77 +15,57 @@ export function createGroupInvitationService({
     clock?: Clock;
 }) {
     return {
-        async listInvitations(studentId: number, groupId?: number) {
+        async listInvitations(userId: number, groupId?: number) {
             return (
                 await prisma.groupInvitation.findMany({
-                    where: { recipientStudentId: studentId, groupId },
+                    where: { recipientUserId: userId, groupId },
+                    include: invitationInclude,
                     orderBy: { createdAt: "desc" }
                 })
             ).map((value) => invitation(value, clock.now()));
         },
-        async listManagedInvitations(studentId: number, groupId?: number) {
+        async listManagedInvitations(userId: number, groupId?: number) {
             if (!groupId)
                 throw new BadRequestError("filter[groupId] é obrigatório.");
-            await requirePermission(
-                prisma,
-                groupId,
-                studentId,
-                "MEMBER_MANAGE"
-            );
+            await requirePermission(prisma, groupId, userId, "MEMBER_MANAGE");
             return (
                 await prisma.groupInvitation.findMany({
                     where: { groupId },
-                    include: {
-                        recipient: {
-                            select: {
-                                name: true,
-                                publicId: true,
-                                publicProfileEnabled: true,
-                                avatarMediaId: true,
-                                authUsers: {
-                                    where: { status: "ACTIVE" },
-                                    select: { id: true },
-                                    take: 1
-                                }
-                            }
-                        }
-                    },
+                    include: invitationInclude,
                     orderBy: [{ createdAt: "desc" }, { id: "desc" }]
                 })
             ).map((value) => ({
                 ...invitation(value, clock.now()),
-                recipientName: value.recipient.name,
-                recipientPublicId: value.recipient.publicId,
+                recipientName:
+                    value.recipientUser.student?.name ??
+                    value.recipientUser.name ??
+                    "Usuário do POMI",
+                recipientPublicId: value.recipientUser.publicId,
                 recipientAvatarMediaId:
-                    value.recipient.publicProfileEnabled &&
-                    value.recipient.authUsers.length
-                        ? value.recipient.avatarMediaId
+                    value.recipientUser.publicProfileEnabled &&
+                    value.recipientUser.principal.identities.length
+                        ? value.recipientUser.avatarMediaId
                         : null
             }));
         },
         async createInvitation(
-            studentId: number,
+            userId: number,
             groupId: number,
             recipientPublicId: string
         ) {
-            await requirePermission(
-                prisma,
-                groupId,
-                studentId,
-                "MEMBER_MANAGE"
-            );
-            const recipient = await prisma.student.findUnique({
+            await requirePermission(prisma, groupId, userId, "MEMBER_MANAGE");
+            const recipient = await prisma.user.findUnique({
                 where: { publicId: recipientPublicId },
                 select: { id: true }
             });
             if (!recipient)
                 throw new NotFoundError("Estudante não encontrado.");
-            const recipientStudentId = recipient.id;
+            const recipientUserId = recipient.id;
             if (
                 await prisma.groupMembership.count({
                     where: {
                         groupId,
-                        studentId: recipientStudentId,
+                        userId: recipientUserId,
                         activeKey: "ACTIVE"
                     }
                 })
@@ -96,7 +76,7 @@ export function createGroupInvitationService({
                     await tx.groupInvitation.updateMany({
                         where: {
                             groupId,
-                            recipientStudentId,
+                            recipientUserId,
                             status: "PENDING",
                             expiresAt: { lte: clock.now() }
                         },
@@ -106,17 +86,18 @@ export function createGroupInvitationService({
                         await tx.groupInvitation.count({
                             where: {
                                 groupId,
-                                recipientStudentId,
+                                recipientUserId,
                                 pendingKey: "PENDING"
                             }
                         })
                     )
                         throw new ConflictError("Já existe convite pendente.");
                     return tx.groupInvitation.create({
+                        include: invitationInclude,
                         data: {
                             groupId,
-                            recipientStudentId,
-                            inviterStudentId: studentId,
+                            recipientUserId,
+                            inviterUserId: userId,
                             expiresAt: new Date(
                                 clock.now().getTime() + 14 * 24 * 60 * 60 * 1000
                             )
@@ -126,11 +107,11 @@ export function createGroupInvitationService({
                 clock.now()
             );
         },
-        async acceptInvitation(studentId: number, id: number) {
+        async acceptInvitation(userId: number, id: number) {
             const invite = await prisma.groupInvitation.findUnique({
                 where: { id }
             });
-            if (!invite || invite.recipientStudentId !== studentId)
+            if (!invite || invite.recipientUserId !== userId)
                 throw new NotFoundError("Convite não encontrado.");
             requireGroupRule(
                 validateInvitationAcceptance(
@@ -161,14 +142,14 @@ export function createGroupInvitationService({
                 if (updated.count !== 1)
                     throw new ConflictError("Convite não está válido.");
                 return tx.groupMembership.create({
-                    data: { groupId: invite.groupId, studentId }
+                    data: { groupId: invite.groupId, userId }
                 });
             });
             return ownMember(await loadMember(prisma, member.id));
         },
-        async declineInvitation(studentId: number, id: number) {
+        async declineInvitation(userId: number, id: number) {
             const updated = await prisma.groupInvitation.updateMany({
-                where: { id, recipientStudentId: studentId, status: "PENDING" },
+                where: { id, recipientUserId: userId, status: "PENDING" },
                 data: {
                     status: "DECLINED",
                     pendingKey: null,

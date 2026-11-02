@@ -51,7 +51,7 @@ function interceptTransactions(
 
 async function fixture(prisma: PrismaClient) {
     const suffix = randomUUID();
-    const students = await Promise.all(
+    const academicStudents = await Promise.all(
         [0, 1, 2].map((index) =>
             prisma.student.create({
                 data: {
@@ -61,6 +61,24 @@ async function fixture(prisma: PrismaClient) {
             })
         )
     );
+    const principals = await Promise.all(
+        academicStudents.map((student) =>
+            prisma.principal.create({
+                data: {
+                    kind: "HUMAN",
+                    user: {
+                        create: {
+                            name: student.name,
+                            studentId: student.id,
+                            legacyStudentId: student.id
+                        }
+                    }
+                },
+                include: { user: true }
+            })
+        )
+    );
+    const users = principals.map((principal) => principal.user!);
     const group = await prisma.group.create({
         data: { name: `Architecture ${suffix}` }
     });
@@ -81,9 +99,9 @@ async function fixture(prisma: PrismaClient) {
         )
     );
     const members = await Promise.all(
-        students.map((student) =>
+        users.map((student) =>
             prisma.groupMembership.create({
-                data: { groupId: group.id, studentId: student.id }
+                data: { groupId: group.id, userId: student.id }
             })
         )
     );
@@ -96,7 +114,7 @@ async function fixture(prisma: PrismaClient) {
     });
     return {
         group,
-        students,
+        users,
         roles,
         members,
         async cleanup() {
@@ -114,8 +132,14 @@ async function fixture(prisma: PrismaClient) {
             });
             await prisma.groupRole.deleteMany({ where: { groupId: group.id } });
             await prisma.group.delete({ where: { id: group.id } });
+            await prisma.user.deleteMany({
+                where: { id: { in: users.map(({ id }) => id) } }
+            });
+            await prisma.principal.deleteMany({
+                where: { id: { in: principals.map(({ id }) => id) } }
+            });
             await prisma.student.deleteMany({
-                where: { id: { in: students.map(({ id }) => id) } }
+                where: { id: { in: academicStudents.map(({ id }) => id) } }
             });
         }
     };
@@ -212,7 +236,7 @@ test(
                         const result = await patchManagedGroupMembership(
                             { prisma, clock },
                             {
-                                studentId: f.students[0]!.id,
+                                userId: f.users[0]!.id,
                                 id: f.members[0]!.id,
                                 input: { roles: { remove: [f.roles[0]!.id] } }
                             }
@@ -242,7 +266,7 @@ test(
                         const replaced = await patchManagedGroupMembership(
                             { prisma, clock },
                             {
-                                studentId: f.students[0]!.id,
+                                userId: f.users[0]!.id,
                                 id: f.members[0]!.id,
                                 input: {
                                     roles: {
@@ -260,7 +284,7 @@ test(
                         const rejected = await patchManagedGroupMembership(
                             { prisma, clock },
                             {
-                                studentId: f.students[0]!.id,
+                                userId: f.users[0]!.id,
                                 id: f.members[0]!.id,
                                 input: {
                                     leave: true,
@@ -283,7 +307,7 @@ test(
                         const roleRejected = await patchGroupRole(
                             { prisma },
                             {
-                                studentId: f.students[0]!.id,
+                                userId: f.users[0]!.id,
                                 id: f.roles[2]!.id,
                                 input: {
                                     name: "Rejected",
@@ -317,7 +341,7 @@ test(
                         const result = await patchManagedGroupMembership(
                             { prisma, clock },
                             {
-                                studentId: f.students[0]!.id,
+                                userId: f.users[0]!.id,
                                 id: f.members[0]!.id,
                                 input: { leave: true }
                             }
@@ -386,7 +410,7 @@ test(
                                 patchManagedGroupMembership(
                                     { prisma: concurrent, clock },
                                     {
-                                        studentId: f.students[index]!.id,
+                                        userId: f.users[index]!.id,
                                         id: f.members[index]!.id,
                                         input: { leave: true }
                                     }
@@ -449,7 +473,7 @@ test(
                         const removed = await patchGroupRole(
                             { prisma },
                             {
-                                studentId: f.students[0]!.id,
+                                userId: f.users[0]!.id,
                                 id: f.roles[0]!.id,
                                 input: {
                                     permissions: { remove: ["ROLE_MANAGE"] }
@@ -497,7 +521,7 @@ test(
                         const result = await patchGroupRole(
                             { prisma: missingResponse },
                             {
-                                studentId: f.students[0]!.id,
+                                userId: f.users[0]!.id,
                                 id: f.roles[2]!.id,
                                 input: { name: "Must roll back" }
                             }
@@ -535,7 +559,7 @@ test(
                         const invalidDate = await patchManagedGroupMembership(
                             { prisma, clock },
                             {
-                                studentId: f.students[0]!.id,
+                                userId: f.users[0]!.id,
                                 id: f.members[0]!.id,
                                 input: {
                                     positions: {
@@ -558,7 +582,7 @@ test(
                             await patchManagedGroupMembership(
                                 { prisma, clock },
                                 {
-                                    studentId: f.students[0]!.id,
+                                    userId: f.users[0]!.id,
                                     id: f.members[1]!.id,
                                     input: {
                                         positions: { remove: [position.id] }
@@ -582,7 +606,7 @@ test(
                         const archived = await patchGroupRole(
                             { prisma },
                             {
-                                studentId: f.students[0]!.id,
+                                userId: f.users[0]!.id,
                                 id: f.roles[0]!.id,
                                 input: { name: "Denied" }
                             }
@@ -642,7 +666,7 @@ test(
                                 patchGroupRole(
                                     { prisma: concurrent },
                                     {
-                                        studentId: f.students[index]!.id,
+                                        userId: f.users[index]!.id,
                                         id: f.roles[index]!.id,
                                         input: {
                                             permissions: {
@@ -731,7 +755,7 @@ test(
                             patchManagedGroupMembership(
                                 { prisma: concurrent, clock },
                                 {
-                                    studentId: f.students[0]!.id,
+                                    userId: f.users[0]!.id,
                                     id: f.members[0]!.id,
                                     input: {
                                         positions: {
@@ -743,7 +767,7 @@ test(
                             patchManagedGroupMembership(
                                 { prisma: concurrent, clock },
                                 {
-                                    studentId: f.students[1]!.id,
+                                    userId: f.users[1]!.id,
                                     id: f.members[0]!.id,
                                     input: {
                                         roles: { remove: [f.roles[0]!.id] }
@@ -781,7 +805,7 @@ test(
                         await patchManagedGroupMembership(
                             { prisma, clock },
                             {
-                                studentId: f.students[1]!.id,
+                                userId: f.users[1]!.id,
                                 id: f.members[0]!.id,
                                 input: { roles: { remove: [f.roles[0]!.id] } }
                             }
@@ -789,7 +813,7 @@ test(
                         const denied = await patchManagedGroupMembership(
                             { prisma, clock },
                             {
-                                studentId: f.students[0]!.id,
+                                userId: f.users[0]!.id,
                                 id: f.members[0]!.id,
                                 input: {
                                     positions: { add: [{ title: "Denied" }] }

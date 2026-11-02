@@ -8,14 +8,14 @@ function fixture() {
     const friend = socialPerson(8);
     const row = {
         id: 3,
-        studentAId: 7,
-        studentBId: 8,
-        requestedById: 8,
+        userAId: 7,
+        userBId: 8,
+        requestedByUserId: 8,
         status: "PENDING" as "PENDING" | "ACCEPTED",
         acceptedAt: null as Date | null,
         createdAt: new Date("2026-01-01"),
-        studentA: own,
-        studentB: friend
+        userA: own,
+        userB: friend
     };
     return { own, friend, row };
 }
@@ -53,15 +53,15 @@ test("friendship acceptance preserves atomic conditions, conflicts and removal o
     assert.deepEqual((update as { where: unknown }).where, {
         id: 3,
         status: "PENDING",
-        requestedById: { not: 7 },
-        OR: [{ studentAId: 7 }, { studentBId: 7 }]
+        requestedByUserId: { not: 7 },
+        OR: [{ userAId: 7 }, { userBId: 7 }]
     });
     updatedCount = 0;
     assert.equal((await service.acceptFriendship(7, 3)).isErr(), true);
     assert.equal((await service.acceptFriendship(8, 3)).isErr(), true);
     assert.equal((await service.removeFriendship(7, 3)).isOk(), true);
     assert.deepEqual(deletion, {
-        where: { id: 3, OR: [{ studentAId: 7 }, { studentBId: 7 }] }
+        where: { id: 3, OR: [{ userAId: 7 }, { userBId: 7 }] }
     });
 });
 
@@ -73,7 +73,7 @@ test("friendship creation orders the pair and translates duplicate requests", as
     const service = createSocialFriendshipService({
         clock: { now: () => new Date("2026-01-02") },
         prisma: {
-            student: { findFirst: async () => ({ id: targetId }) },
+            user: { findFirst: async () => ({ id: targetId }) },
             studentFriendship: {
                 create: async (input: { data: unknown }) => {
                     data = input.data;
@@ -84,25 +84,25 @@ test("friendship creation orders the pair and translates duplicate requests", as
         }
     } as never);
     assert.equal(
-        (await service.createFriendship(7, row.studentB.publicId)).isOk(),
+        (await service.createFriendship(7, row.userB.publicId)).isOk(),
         true
     );
-    assert.deepEqual(data, { studentAId: 7, studentBId: 8, requestedById: 7 });
+    assert.deepEqual(data, { userAId: 7, userBId: 8, requestedByUserId: 7 });
     duplicate = true;
     assert.equal(
-        (await service.createFriendship(7, row.studentB.publicId)).isErr(),
+        (await service.createFriendship(7, row.userB.publicId)).isErr(),
         true
     );
     targetId = 7;
     assert.equal(
-        (await service.createFriendship(7, row.studentB.publicId)).isErr(),
+        (await service.createFriendship(7, row.userB.publicId)).isErr(),
         true
     );
 });
 
 test("friendship lists preserve filters and hide private profile details", async () => {
     const { row } = fixture();
-    row.studentB.publicProfileEnabled = false;
+    row.userB.publicProfileEnabled = false;
     let where: unknown;
     const service = createSocialFriendshipService({
         clock: { now: () => new Date("2026-01-02") },
@@ -120,8 +120,8 @@ test("friendship lists preserve filters and hide private profile details", async
     });
     assert.deepEqual(where, {
         AND: [
-            { OR: [{ studentAId: 7 }, { studentBId: 7 }] },
-            { AND: [{ status: "PENDING" }, { requestedById: { not: 7 } }] }
+            { OR: [{ userAId: 7 }, { userBId: 7 }] },
+            { AND: [{ status: "PENDING" }, { requestedByUserId: { not: 7 } }] }
         ]
     });
     assert.equal(result[0].direction, "INCOMING");

@@ -23,6 +23,19 @@ test(
         const student = await prisma.student.create({
             data: { ra: "987654", name: `History ${suffix}` }
         });
+        const principal = await prisma.principal.create({
+            data: {
+                kind: "HUMAN",
+                user: {
+                    create: {
+                        studentId: student.id,
+                        legacyStudentId: student.id
+                    }
+                }
+            },
+            include: { user: true }
+        });
+        const user = principal.user!;
         const catalog = await prisma.catalog.create({ data: { year: 8791 } });
         const period = await prisma.studyPeriod.create({
             data: {
@@ -141,20 +154,20 @@ test(
             await assert.rejects(
                 importStudentHistory(
                     { prisma: failing },
-                    { studentId: student.id, input }
+                    { userId: user.id, input }
                 ),
                 (error) => error === failure
             );
             assert.equal(
                 await prisma.studentCourseAttempt.count({
-                    where: { studentId: student.id }
+                    where: { userId: user.id }
                 }),
                 0
             );
             const created = (
                 await importStudentHistory(
                     { prisma },
-                    { studentId: student.id, input }
+                    { userId: user.id, input }
                 )
             )._unsafeUnwrap();
             assert.equal(created.created, 2);
@@ -164,7 +177,7 @@ test(
             const repeated = (
                 await importStudentHistory(
                     { prisma },
-                    { studentId: student.id, input }
+                    { userId: user.id, input }
                 )
             )._unsafeUnwrap();
             assert.equal(repeated.created, 0);
@@ -172,7 +185,7 @@ test(
             assert.deepEqual(repeated.warnings, created.warnings);
             assert.equal(
                 await prisma.studentCourseAttempt.count({
-                    where: { studentId: student.id }
+                    where: { userId: user.id }
                 }),
                 2
             );
@@ -181,7 +194,7 @@ test(
                     await importStudentHistory(
                         { prisma },
                         {
-                            studentId: student.id,
+                            userId: user.id,
                             input: { ...input, student: { ra: "123456" } }
                         }
                     )
@@ -190,8 +203,10 @@ test(
             );
         } finally {
             await prisma.studentCourseAttempt.deleteMany({
-                where: { studentId: student.id }
+                where: { userId: user.id }
             });
+            await prisma.user.delete({ where: { id: user.id } });
+            await prisma.principal.delete({ where: { id: principal.id } });
             await prisma.student.delete({ where: { id: student.id } });
             await prisma.catalogCourse.deleteMany({
                 where: { catalogId: catalog.id }

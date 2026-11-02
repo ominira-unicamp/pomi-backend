@@ -27,8 +27,18 @@ export function createExchangeNoticeUnsubscribeService({
                 !/^[1-9][0-9]*$/.test(payload.sub)
             )
                 throw new Error("Invalid unsubscribe token");
+            const userId =
+                payload.identityVersion === 2
+                    ? Number(payload.sub)
+                    : (
+                          await prisma.user.findUnique({
+                              where: { legacyStudentId: Number(payload.sub) },
+                              select: { id: true }
+                          })
+                      )?.id;
+            if (userId === undefined) return;
             await prisma.exchangeNoticeSubscription.updateMany({
-                where: { studentId: Number(payload.sub) },
+                where: { userId },
                 data: { enabled: false }
             });
         }

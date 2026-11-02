@@ -51,7 +51,7 @@ test("public shared period plan query only selects public plans", async () => {
                 OR: [
                     { name: { contains: "plano", mode: "insensitive" } },
                     {
-                        student: {
+                        user: {
                             publicProfileEnabled: true,
                             publicDisplayName: {
                                 contains: "plano",
@@ -84,7 +84,9 @@ test("shared plan author avatar disappears when the profile becomes private", as
         manualCourses: [],
         classes: [],
         studyPeriod: { id: 1, year: 2026, yearPeriod: "FIRST_SEMESTER" },
-        student: {
+        user: {
+            studentId: 7,
+            legacyStudentId: 7,
             id: 7,
             publicId: "8bf172b7-6e70-47e4-ad19-353292f77d34",
             publicProfileEnabled: true,
@@ -103,9 +105,9 @@ test("shared plan author avatar disappears when the profile becomes private", as
     const visible = await service.listPublic({ page: 1, pageSize: 20 });
     assert.equal(
         visible.items[0]!.owner?.avatarMediaId,
-        row.student.avatarMediaId
+        row.user.avatarMediaId
     );
-    row.student.publicProfileEnabled = false;
+    row.user.publicProfileEnabled = false;
     const hidden = await service.listPublic({ page: 1, pageSize: 20 });
     assert.equal(hidden.items[0]!.owner, null);
 });
@@ -131,12 +133,12 @@ test("student shared query grants access only to public and accepted-friend plan
     assert.deepEqual(where.OR[0], { visibility: "PUBLIC" });
     assert.deepEqual(where.OR[1], {
         visibility: "FRIENDS",
-        student: {
+        user: {
             friendshipsAsA: {
                 some: {
                     OR: [
-                        { studentAId: 7, status: "ACCEPTED" },
-                        { studentBId: 7, status: "ACCEPTED" }
+                        { userAId: 7, status: "ACCEPTED" },
+                        { userBId: 7, status: "ACCEPTED" }
                     ]
                 }
             }
@@ -144,12 +146,12 @@ test("student shared query grants access only to public and accepted-friend plan
     });
     assert.deepEqual(where.OR[2], {
         visibility: "FRIENDS",
-        student: {
+        user: {
             friendshipsAsB: {
                 some: {
                     OR: [
-                        { studentAId: 7, status: "ACCEPTED" },
-                        { studentBId: 7, status: "ACCEPTED" }
+                        { userAId: 7, status: "ACCEPTED" },
+                        { userBId: 7, status: "ACCEPTED" }
                     ]
                 }
             }
@@ -190,12 +192,12 @@ test("student shared query can be scoped to a public profile owner", async () =>
                     { visibility: "PUBLIC" },
                     {
                         visibility: "FRIENDS",
-                        student: {
+                        user: {
                             friendshipsAsA: {
                                 some: {
                                     OR: [
-                                        { studentAId: 7, status: "ACCEPTED" },
-                                        { studentBId: 7, status: "ACCEPTED" }
+                                        { userAId: 7, status: "ACCEPTED" },
+                                        { userBId: 7, status: "ACCEPTED" }
                                     ]
                                 }
                             }
@@ -203,12 +205,12 @@ test("student shared query can be scoped to a public profile owner", async () =>
                     },
                     {
                         visibility: "FRIENDS",
-                        student: {
+                        user: {
                             friendshipsAsB: {
                                 some: {
                                     OR: [
-                                        { studentAId: 7, status: "ACCEPTED" },
-                                        { studentBId: 7, status: "ACCEPTED" }
+                                        { userAId: 7, status: "ACCEPTED" },
+                                        { userBId: 7, status: "ACCEPTED" }
                                     ]
                                 }
                             }
@@ -217,7 +219,7 @@ test("student shared query can be scoped to a public profile owner", async () =>
                 ]
             },
             {
-                student: {
+                user: {
                     publicId: {
                         equals: "a375fdb0-45d9-4a79-8415-89fcb64157b6"
                     }

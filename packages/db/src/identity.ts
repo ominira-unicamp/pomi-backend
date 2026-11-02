@@ -61,6 +61,7 @@ export async function createCanonicalIdentity(
         issuer: string;
         subject: string;
         displayName: string | null;
+        email?: string | null;
         studentId: number | null;
         roles: readonly { role: string }[];
     },
@@ -70,6 +71,46 @@ export async function createCanonicalIdentity(
         throw new IdentityConsistencyError(
             "A service identity cannot own a student profile."
         );
+    if (kind === "HUMAN" && authUser.studentId !== null) {
+        const academicUser = await tx.user.findUnique({
+            where: { studentId: authUser.studentId },
+            include: {
+                principal: {
+                    include: { identities: true, serviceAccount: true }
+                }
+            }
+        });
+        if (academicUser) {
+            if (
+                academicUser.principal.kind !== "HUMAN" ||
+                academicUser.principal.status !== "ACTIVE" ||
+                academicUser.principal.serviceAccount ||
+                academicUser.principal.identities.length
+            )
+                throw new IdentityConsistencyError(
+                    "Academic user is already claimed or unavailable."
+                );
+            await tx.authIdentity.create({
+                data: {
+                    principalId: academicUser.principalId,
+                    issuer: authUser.issuer,
+                    subject: authUser.subject,
+                    legacyAuthUserId: authUser.id
+                }
+            });
+            if (authUser.email?.trim()) {
+                const email = authUser.email.trim().toLowerCase();
+                await tx.userEmail.upsert({
+                    where: { userId_email: { userId: academicUser.id, email } },
+                    create: { userId: academicUser.id, email },
+                    update: {}
+                });
+            }
+            return tx.principal.findUniqueOrThrow({
+                where: { id: academicUser.principalId }
+            });
+        }
+    }
     return tx.principal.create({
         data: {
             kind,
@@ -78,7 +119,17 @@ export async function createCanonicalIdentity(
                       user: {
                           create: {
                               name: authUser.displayName,
-                              studentId: authUser.studentId
+                              studentId: authUser.studentId,
+                              legacyStudentId: authUser.studentId,
+                              emails: authUser.email?.trim()
+                                  ? {
+                                        create: {
+                                            email: authUser.email
+                                                .trim()
+                                                .toLowerCase()
+                                        }
+                                    }
+                                  : undefined
                           }
                       }
                   }
@@ -116,7 +167,7 @@ export async function linkCanonicalStudent(
         );
     await tx.user.update({
         where: { id: principal.user.id },
-        data: { studentId }
+        data: { studentId, legacyStudentId: studentId }
     });
 }
 

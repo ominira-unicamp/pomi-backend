@@ -19,7 +19,10 @@ const actions: Actions = {
     list: async (ctx, input) =>
         ApiResponse.ok(
             buildArrayPaginationResponse(
-                await ctx.curriculumService.list(input.path.sid, input.query),
+                await ctx.curriculumService.list(
+                    await ctx.resolveLegacyUser(input.path.sid),
+                    input.query
+                ),
                 input.query,
                 unpaginatedByDefault,
                 `/student/${input.path.sid}/curricula`
@@ -27,19 +30,25 @@ const actions: Actions = {
         ),
     get: async (ctx, input) =>
         respond(
-            await ctx.curriculumService.getById(input.path.sid, input.path.id),
+            await ctx.curriculumService.getById(
+                await ctx.resolveLegacyUser(input.path.sid),
+                input.path.id
+            ),
             ApiResponse.ok
         ),
     create: async (ctx, input) =>
         respond(
-            await ctx.curriculumService.create(input.path.sid, input.body),
+            await ctx.curriculumService.create(
+                await ctx.resolveLegacyUser(input.path.sid),
+                input.body
+            ),
             ApiResponse.created,
             problemInput.body
         ),
     patch: async (ctx, input) =>
         respond(
             await ctx.curriculumService.patch(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 input.path.id,
                 input.body
             ),
@@ -48,7 +57,10 @@ const actions: Actions = {
         ),
     remove: async (ctx, input) =>
         respond(
-            await ctx.curriculumService.remove(input.path.sid, input.path.id),
+            await ctx.curriculumService.remove(
+                await ctx.resolveLegacyUser(input.path.sid),
+                input.path.id
+            ),
             () => ApiResponse.noContent()
         )
 };

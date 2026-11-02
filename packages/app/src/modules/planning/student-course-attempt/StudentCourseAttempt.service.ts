@@ -74,15 +74,15 @@ const attemptFilterWhere = {
 >;
 
 export type StudentCourseAttemptService = {
-    list(studentId: number, input: ListInput): Promise<Attempt[]>;
+    list(userId: number, input: ListInput): Promise<Attempt[]>;
     getById(
-        studentId: number,
+        userId: number,
         id: number
     ): Promise<
         Result<Attempt, ReturnType<typeof studentCourseAttemptNotFoundProblem>>
     >;
     create(
-        studentId: number,
+        userId: number,
         input: CreateInput
     ): Promise<
         Result<
@@ -94,12 +94,12 @@ export type StudentCourseAttemptService = {
         >
     >;
     patch(
-        studentId: number,
+        userId: number,
         id: number,
         input: PatchInput
     ): Promise<Result<Attempt, StudentCourseAttemptProblem>>;
     remove(
-        studentId: number,
+        userId: number,
         id: number
     ): Promise<
         Result<void, ReturnType<typeof studentCourseAttemptNotFoundProblem>>
@@ -173,15 +173,15 @@ export function createStudentCourseAttemptService({
     prisma: PrismaClient;
 }): StudentCourseAttemptService {
     return {
-        async list(studentId, input) {
+        async list(userId, input) {
             const filterWhere = compileFilterWhere(
                 input.filter,
                 attemptFilterWhere,
-                "student course attempts"
+                "user course attempts"
             );
             const attempts = await prisma.studentCourseAttempt.findMany({
                 ...prismaStudentCourseFieldSelection,
-                where: { AND: [{ studentId }, ...filterWhere] },
+                where: { AND: [{ userId }, ...filterWhere] },
                 orderBy: compileSort(
                     resolveSort(input.sort, studentCourseAttemptSort),
                     {
@@ -198,16 +198,16 @@ export function createStudentCourseAttemptService({
             });
             return attempts.map(attemptPresenter.build);
         },
-        async getById(studentId, id) {
+        async getById(userId, id) {
             const attempt = await prisma.studentCourseAttempt.findFirst({
                 ...prismaStudentCourseFieldSelection,
-                where: { id, studentId }
+                where: { id, userId }
             });
             return attempt
                 ? ok(attemptPresenter.build(attempt))
                 : err(studentCourseAttemptNotFoundProblem());
         },
-        async create(studentId, input) {
+        async create(userId, input) {
             const validation = await validateAttempt(prisma, input);
             if (validation.kind === "reference")
                 return err(
@@ -220,7 +220,7 @@ export function createStudentCourseAttemptService({
             if (input.status === "ENROLLED") {
                 const active = await prisma.studentCourseAttempt.findFirst({
                     where: {
-                        studentId,
+                        userId,
                         courseId: input.courseId,
                         status: "ENROLLED"
                     },
@@ -231,7 +231,7 @@ export function createStudentCourseAttemptService({
             const attempt = await prisma.studentCourseAttempt.create({
                 ...prismaStudentCourseFieldSelection,
                 data: {
-                    studentId,
+                    userId,
                     courseId: input.courseId,
                     classId: input.classId ?? null,
                     studyPeriodId: validation.studyPeriodId,
@@ -242,9 +242,9 @@ export function createStudentCourseAttemptService({
             });
             return ok(attemptPresenter.build(attempt));
         },
-        async patch(studentId, id, input) {
+        async patch(userId, id, input) {
             const existing = await prisma.studentCourseAttempt.findFirst({
-                where: { id, studentId }
+                where: { id, userId }
             });
             if (!existing) return err(studentCourseAttemptNotFoundProblem());
             const next: AttemptInput = {
@@ -273,7 +273,7 @@ export function createStudentCourseAttemptService({
             if (next.status === "ENROLLED") {
                 const active = await prisma.studentCourseAttempt.findFirst({
                     where: {
-                        studentId,
+                        userId,
                         courseId: next.courseId,
                         status: "ENROLLED",
                         id: { not: id }
@@ -295,9 +295,9 @@ export function createStudentCourseAttemptService({
             });
             return ok(attemptPresenter.build(attempt));
         },
-        async remove(studentId, id) {
+        async remove(userId, id) {
             const existing = await prisma.studentCourseAttempt.findFirst({
-                where: { id, studentId },
+                where: { id, userId },
                 select: { id: true }
             });
             if (!existing) return err(studentCourseAttemptNotFoundProblem());

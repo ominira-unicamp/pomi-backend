@@ -1,4 +1,5 @@
 import IO from "#/modules/exchange/exchange-notice-subscription/ExchangeNoticeSubscription.contract.js";
+import { requireLegacyStudentId } from "#/modules/identity/LegacyStudentContext.js";
 import { err, ok, ReferenceNotFoundProblem, type Result } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import z from "zod";
@@ -23,9 +24,9 @@ function build(
 }
 
 export type ExchangeNoticeSubscriptionService = {
-    get(studentId: number): Promise<Subscription>;
+    get(userId: number): Promise<Subscription>;
     patch(
-        studentId: number,
+        userId: number,
         input: PatchInput
     ): Promise<Result<Subscription, SubscriptionProblem>>;
 };
@@ -36,15 +37,23 @@ export function createExchangeNoticeSubscriptionService({
     prisma: PrismaClient;
 }): ExchangeNoticeSubscriptionService {
     return {
-        async get(studentId) {
+        async get(userId) {
             const subscription =
                 await prisma.exchangeNoticeSubscription.findUnique({
-                    where: { studentId },
+                    where: { userId },
                     include: { places: { orderBy: { placeId: "asc" } } }
                 });
-            return build(studentId, subscription);
+            return build(
+                requireLegacyStudentId(
+                    await prisma.user.findUniqueOrThrow({
+                        where: { id: userId },
+                        select: { studentId: true, legacyStudentId: true }
+                    })
+                ),
+                subscription
+            );
         },
-        async patch(studentId, input) {
+        async patch(userId, input) {
             if (input.placeIds) {
                 const found = await prisma.exchangePlace.count({
                     where: { id: { in: input.placeIds } }
@@ -66,9 +75,9 @@ export function createExchangeNoticeSubscriptionService({
             }
             const subscription = await prisma.exchangeNoticeSubscription.upsert(
                 {
-                    where: { studentId },
+                    where: { userId },
                     create: {
-                        studentId,
+                        userId,
                         enabled: input.enabled ?? false,
                         places: input.placeIds
                             ? {
@@ -96,7 +105,17 @@ export function createExchangeNoticeSubscriptionService({
                     include: { places: { orderBy: { placeId: "asc" } } }
                 }
             );
-            return ok(build(studentId, subscription));
+            return ok(
+                build(
+                    requireLegacyStudentId(
+                        await prisma.user.findUniqueOrThrow({
+                            where: { id: userId },
+                            select: { studentId: true, legacyStudentId: true }
+                        })
+                    ),
+                    subscription
+                )
+            );
         }
     };
 }

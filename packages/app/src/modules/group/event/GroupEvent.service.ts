@@ -68,10 +68,10 @@ export function createGroupEventService({ prisma }: { prisma: PrismaClient }) {
                 throw new NotFoundError("Evento público não encontrado.");
             return publicEvent(value);
         },
-        async listManagedEvents(studentId: number, groupId?: number) {
+        async listManagedEvents(userId: number, groupId?: number) {
             if (!groupId)
                 throw new BadRequestError("filter[groupId] é obrigatório.");
-            await requirePermission(prisma, groupId, studentId, [
+            await requirePermission(prisma, groupId, userId, [
                 "EVENT_CREATE",
                 "EVENT_EDIT",
                 "EVENT_PUBLISH"
@@ -84,12 +84,8 @@ export function createGroupEventService({ prisma }: { prisma: PrismaClient }) {
                 })
             ).map(managedEvent);
         },
-        async createEvent(
-            studentId: number,
-            groupId: number,
-            input: EventInput
-        ) {
-            await requirePermission(prisma, groupId, studentId, "EVENT_CREATE");
+        async createEvent(userId: number, groupId: number, input: EventInput) {
+            await requirePermission(prisma, groupId, userId, "EVENT_CREATE");
             await requireTags(prisma, input.tagIds ?? []);
             requireGroupRule(validateEventDates(input.startsAt, input.endsAt));
             const { tagIds, ...fields } = input;
@@ -103,12 +99,12 @@ export function createGroupEventService({ prisma }: { prisma: PrismaClient }) {
             });
             return managedEvent(value);
         },
-        async patchEvent(studentId: number, id: number, input: EventPatch) {
+        async patchEvent(userId: number, id: number, input: EventPatch) {
             const value = await loadEvent(prisma, id);
             await requirePermission(
                 prisma,
                 value.groupId,
-                studentId,
+                userId,
                 "EVENT_EDIT"
             );
             requireGroupRule(validateEventEditable(value.status));
@@ -132,12 +128,12 @@ export function createGroupEventService({ prisma }: { prisma: PrismaClient }) {
             });
             return managedEvent(await loadEvent(prisma, id));
         },
-        async publishEvent(studentId: number, id: number) {
+        async publishEvent(userId: number, id: number) {
             const value = await loadEvent(prisma, id);
             await requirePermission(
                 prisma,
                 value.groupId,
-                studentId,
+                userId,
                 "EVENT_PUBLISH"
             );
             requireGroupRule(validateEventPublication(value));
@@ -147,12 +143,12 @@ export function createGroupEventService({ prisma }: { prisma: PrismaClient }) {
             });
             return managedEvent(await loadEvent(prisma, id));
         },
-        async cancelEvent(studentId: number, id: number) {
+        async cancelEvent(userId: number, id: number) {
             const value = await loadEvent(prisma, id);
             await requirePermission(
                 prisma,
                 value.groupId,
-                studentId,
+                userId,
                 "EVENT_PUBLISH"
             );
             requireGroupRule(validateEventCancellation(value.status));

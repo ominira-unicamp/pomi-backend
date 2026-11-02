@@ -11,6 +11,7 @@ const courseSelection = {
 
 export const prismaCurriculumFieldSelection = {
     include: {
+        user: { select: { studentId: true, legacyStudentId: true } },
         courses: {
             include: { course: courseSelection }
         },
@@ -18,7 +19,7 @@ export const prismaCurriculumFieldSelection = {
             select: { id: true, position: true },
             orderBy: { position: "asc" }
         },
-        favoriteForStudent: { select: { id: true } },
+        favoriteForUser: { select: { id: true } },
         catalogProgramVariant: { select: { id: true } },
         catalogLanguage: { select: { languageId: true } }
     }
@@ -27,12 +28,13 @@ export const prismaCurriculumFieldSelection = {
 export const prismaCurriculumSummaryFieldSelection = {
     select: {
         id: true,
-        studentId: true,
+        userId: true,
+        user: { select: { studentId: true, legacyStudentId: true } },
         name: true,
         catalogProgramId: true,
         catalogProgramVariant: { select: { id: true } },
         catalogLanguage: { select: { languageId: true } },
-        favoriteForStudent: { select: { id: true } },
+        favoriteForUser: { select: { id: true } },
         createdAt: true,
         updatedAt: true
     }

@@ -6,29 +6,48 @@ import {
     type StudentCapability
 } from "@pomi/db";
 
-export async function hasStudentAccess(
-    db: Pick<MyPrisma.TransactionClient, "authUser" | "botGrant">,
+type AccessDatabase = Pick<
+    MyPrisma.TransactionClient,
+    "authUser" | "botGrant" | "user"
+>;
+
+export async function hasUserAccess(
+    db: AccessDatabase,
     actor: Principal | undefined,
-    studentId: number,
+    userId: number,
     capability: StudentCapability
 ) {
     if (!actor) return false;
-    const user = await db.authUser.findUnique({
+    const credential = await db.authUser.findUnique({
         where: { id: actor.authUserId },
         include: { ...canonicalIdentityInclude, roles: true }
     });
-    if (!user || user.status !== "ACTIVE") return false;
-    if (canonicalIdentity(user).principal.status !== "ACTIVE") return false;
-    if (user.roles.some(({ role }) => role === "ADMIN")) return true;
-    if (user.studentId === studentId) return true;
-    if (!user.roles.some(({ role }) => role === "BOT")) return false;
+    if (!credential || credential.status !== "ACTIVE") return false;
+    const canonical = canonicalIdentity(credential);
+    if (canonical.principal.status !== "ACTIVE") return false;
+    if (credential.roles.some(({ role }) => role === "ADMIN")) return true;
+    if (canonical.principal.user?.id === userId) return true;
+    if (!credential.roles.some(({ role }) => role === "BOT")) return false;
     return !!(await db.botGrant.findFirst({
         where: {
-            studentId,
+            userId,
             botAuthUserId: actor.authUserId,
             capability,
             revokedAt: null
         },
         select: { id: true }
     }));
+}
+
+export async function hasStudentAccess(
+    db: AccessDatabase,
+    actor: Principal | undefined,
+    studentId: number,
+    capability: StudentCapability
+) {
+    const owner = await db.user.findUnique({
+        where: { studentId },
+        select: { id: true }
+    });
+    return !!owner && hasUserAccess(db, actor, owner.id, capability);
 }

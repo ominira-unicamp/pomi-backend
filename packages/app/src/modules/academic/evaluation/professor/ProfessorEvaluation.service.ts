@@ -25,7 +25,7 @@ type Evaluation = z.infer<typeof IO.schema>;
 type EvaluationBody = z.infer<typeof IO.put.request>["body"];
 type PendingInput = z.infer<typeof IO.listPending.request>["query"];
 type Eligibility = { eligible: boolean; evaluation: Evaluation | null };
-type Context = { studentId: number; classId: number; professorId: number };
+type Context = { userId: number; classId: number; professorId: number };
 type PendingEvaluation = {
     attemptId: number;
     class: { id: number; code: string };
@@ -51,7 +51,7 @@ export type ProfessorEvaluationService = {
         body: EvaluationBody
     ): Promise<Result<Evaluation, ProfessorEvaluationProblem>>;
     listPending(
-        studentId: number,
+        userId: number,
         input: PendingInput
     ): Promise<PendingEvaluation[]>;
 };
@@ -73,7 +73,7 @@ async function validateContext(prisma: PrismaClient, context: Context) {
             select: { id: true }
         }),
         prisma.studentCourseAttempt.findFirst({
-            where: { studentId: context.studentId, classId: context.classId },
+            where: { userId: context.userId, classId: context.classId },
             select: { status: true }
         })
     ]);
@@ -106,7 +106,10 @@ export function createProfessorEvaluationService({
             if (validation.isErr()) return validation;
             const evaluation = await prisma.professorEvaluation.findUnique({
                 where: {
-                    studentId_classId_professorId: context
+                    userId_classId_professorId: context
+                },
+                include: {
+                    user: { select: { studentId: true, legacyStudentId: true } }
                 }
             });
             return ok({
@@ -132,14 +135,17 @@ export function createProfessorEvaluationService({
                 );
             const evaluation = await prisma.professorEvaluation.upsert({
                 where: {
-                    studentId_classId_professorId: context
+                    userId_classId_professorId: context
+                },
+                include: {
+                    user: { select: { studentId: true, legacyStudentId: true } }
                 },
                 create: { ...context, ...body },
                 update: body
             });
             return ok(buildProfessorEvaluation(evaluation));
         },
-        async listPending(studentId, input) {
+        async listPending(userId, input) {
             const filterWhere = compileFilterWhere(
                 input.filter,
                 pendingFilterWhere,
@@ -149,7 +155,7 @@ export function createProfessorEvaluationService({
                 where: {
                     AND: [
                         {
-                            studentId,
+                            userId,
                             status: {
                                 in: [
                                     "DROPPED",
@@ -183,7 +189,7 @@ export function createProfessorEvaluationService({
             });
             const evaluated = await prisma.professorEvaluation.findMany({
                 where: {
-                    studentId,
+                    userId,
                     classId: {
                         in: attempts.flatMap((attempt) =>
                             attempt.class ? [attempt.class.id] : []

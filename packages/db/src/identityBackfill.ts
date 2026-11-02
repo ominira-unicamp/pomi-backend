@@ -189,7 +189,26 @@ export async function backfillIdentities(
                                       user: {
                                           create: {
                                               name: group.canonical.displayName,
-                                              studentId: group.studentId
+                                              studentId: group.studentId,
+                                              legacyStudentId: group.studentId,
+                                              emails: {
+                                                  create: [
+                                                      ...new Set(
+                                                          group.accounts
+                                                              .map((account) =>
+                                                                  account.email
+                                                                      ?.trim()
+                                                                      .toLowerCase()
+                                                              )
+                                                              .filter(
+                                                                  (
+                                                                      email
+                                                                  ): email is string =>
+                                                                      !!email
+                                                              )
+                                                      )
+                                                  ].map((email) => ({ email }))
+                                              }
                                           }
                                       }
                                   }

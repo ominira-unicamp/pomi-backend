@@ -19,7 +19,10 @@ const respond = createResultResponder(studentAbsenceProblemResponses);
 const list: Actions["list"] = async (ctx, input) =>
     ApiResponse.ok(
         buildArrayPaginationResponse(
-            await ctx.studentAbsenceService.list(input.path.sid, input.query),
+            await ctx.studentAbsenceService.list(
+                await ctx.resolveLegacyUser(input.path.sid),
+                input.query
+            ),
             input.query,
             unpaginatedByDefault,
             `/student/${input.path.sid}/absences`
@@ -28,14 +31,20 @@ const list: Actions["list"] = async (ctx, input) =>
 
 const create: Actions["create"] = async (ctx, input) =>
     respond(
-        await ctx.studentAbsenceService.create(input.path.sid, input.body),
+        await ctx.studentAbsenceService.create(
+            await ctx.resolveLegacyUser(input.path.sid),
+            input.body
+        ),
         ApiResponse.created,
         problemInput.body
     );
 
 const remove: Actions["remove"] = async (ctx, input) =>
     respond(
-        await ctx.studentAbsenceService.remove(input.path.sid, input.path.id),
+        await ctx.studentAbsenceService.remove(
+            await ctx.resolveLegacyUser(input.path.sid),
+            input.path.id
+        ),
         () => ApiResponse.noContent()
     );
 

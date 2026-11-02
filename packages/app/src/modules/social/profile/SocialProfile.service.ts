@@ -11,18 +11,22 @@ type NotFoundProblem = ReturnType<typeof socialNotFoundProblem>;
 type Profile = z.infer<typeof ownProfile>;
 type ProfileBody = z.infer<typeof IO.updateProfile.request>["body"];
 
-function buildProfile(student: SelectedPerson): Profile {
+function buildProfile(user: SelectedPerson): Profile {
     return {
-        publicId: student.publicId,
-        displayName: student.publicDisplayName ?? student.name,
-        avatarMediaId: student.avatarMediaId,
-        bio: student.publicBio,
-        interests: student.tagInterests
+        publicId: user.publicId,
+        displayName:
+            user.publicDisplayName ??
+            user.student?.name ??
+            user.name ??
+            "Usuário do POMI",
+        avatarMediaId: user.avatarMediaId,
+        bio: user.publicBio,
+        interests: user.tagInterests
             .map(({ tag }) => ({ id: tag.id, name: tag.name }))
             .sort((left, right) =>
                 left.name.localeCompare(right.name, "pt-BR")
             ),
-        currentCourses: student.courseAttempts.map(
+        currentCourses: user.courseAttempts.map(
             ({ course, class: classData }) => ({
                 courseCode: course.code,
                 courseName: course.name,
@@ -37,18 +41,18 @@ function buildProfile(student: SelectedPerson): Profile {
                     })) ?? []
             })
         ),
-        program: student.program,
-        specialization: student.specialization,
-        entryYear: student.entryYear,
-        enabled: student.publicProfileEnabled,
-        currentCoursesVisibility: student.currentCoursesVisibility
+        program: user.student?.program ?? null,
+        specialization: user.student?.specialization ?? null,
+        entryYear: user.student?.entryYear ?? null,
+        enabled: user.publicProfileEnabled,
+        currentCoursesVisibility: user.currentCoursesVisibility
     };
 }
 
 export type SocialProfileService = {
-    getProfile(studentId: number): Promise<Result<Profile, NotFoundProblem>>;
+    getProfile(userId: number): Promise<Result<Profile, NotFoundProblem>>;
     updateProfile(
-        studentId: number,
+        userId: number,
         input: ProfileBody
     ): Promise<Result<Profile, NotFoundProblem>>;
 };
@@ -59,22 +63,22 @@ export function createSocialProfileService({
     prisma: PrismaClient;
 }): SocialProfileService {
     return {
-        async getProfile(studentId) {
-            const student = await prisma.student.findUnique({
-                where: { id: studentId },
+        async getProfile(userId) {
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
                 select: personSelection
             });
-            return student
-                ? ok(buildProfile(student))
+            return user
+                ? ok(buildProfile(user))
                 : err(
                       socialNotFoundProblem(
                           "O aluno solicitado não foi encontrado."
                       )
                   );
         },
-        async updateProfile(studentId, input) {
-            const existing = await prisma.student.findUnique({
-                where: { id: studentId },
+        async updateProfile(userId, input) {
+            const existing = await prisma.user.findUnique({
+                where: { id: userId },
                 select: { id: true }
             });
             if (!existing)
@@ -83,8 +87,8 @@ export function createSocialProfileService({
                         "O aluno solicitado não foi encontrado."
                     )
                 );
-            const student = await prisma.student.update({
-                where: { id: studentId },
+            const user = await prisma.user.update({
+                where: { id: userId },
                 data: {
                     publicProfileEnabled: input.enabled,
                     publicDisplayName: input.displayName,
@@ -93,7 +97,7 @@ export function createSocialProfileService({
                 },
                 select: personSelection
             });
-            return ok(buildProfile(student));
+            return ok(buildProfile(user));
         }
     };
 }

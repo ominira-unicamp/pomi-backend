@@ -9,28 +9,28 @@ import type { SelectedPerson } from "../SocialPerson.queries.js";
 type Friendship = z.infer<typeof friendship>;
 type SelectedFriendship = {
     id: number;
-    studentAId: number;
-    studentBId: number;
-    requestedById: number;
+    userAId: number;
+    userBId: number;
+    requestedByUserId: number;
     status: "PENDING" | "ACCEPTED";
     acceptedAt: Date | null;
     createdAt: Date;
-    studentA: SelectedPerson;
-    studentB: SelectedPerson;
+    userA: SelectedPerson;
+    userB: SelectedPerson;
 };
 
 export function buildFriendship(
     row: SelectedFriendship,
-    studentId: number
+    userId: number
 ): Friendship {
-    const friend = row.studentAId === studentId ? row.studentB : row.studentA;
+    const friend = row.userAId === userId ? row.userB : row.userA;
     return {
         id: row.id,
         status: row.status,
         direction:
             row.status === "ACCEPTED"
                 ? "NONE"
-                : row.requestedById === studentId
+                : row.requestedByUserId === userId
                   ? "OUTGOING"
                   : "INCOMING",
         friend: buildPerson(
@@ -38,7 +38,7 @@ export function buildFriendship(
             decidePersonDisclosure({
                 profileEnabled: friend.publicProfileEnabled,
                 forceMinimal: !friend.publicProfileEnabled,
-                isOwner: friend.id === studentId,
+                isOwner: friend.id === userId,
                 currentCoursesVisibility: friend.currentCoursesVisibility,
                 acceptedFriend: row.status === "ACCEPTED"
             })

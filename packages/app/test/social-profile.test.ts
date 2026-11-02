@@ -8,7 +8,7 @@ test("social profile reads and updates the own profile without losing absent fie
     let update: unknown;
     const service = createSocialProfileService({
         prisma: {
-            student: {
+            user: {
                 findUnique: async () => student,
                 update: async (input: { data: unknown }) => {
                     update = input.data;
@@ -34,7 +34,7 @@ test("social profile reads and updates the own profile without losing absent fie
 
 test("social profile returns not found before updating an unknown student", async () => {
     const service = createSocialProfileService({
-        prisma: { student: { findUnique: async () => null } }
+        prisma: { user: { findUnique: async () => null } }
     } as never);
     assert.equal((await service.getProfile(8)).isErr(), true);
     assert.equal(

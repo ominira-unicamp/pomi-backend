@@ -1,3 +1,4 @@
+import { requireLegacyStudentId } from "#/modules/identity/LegacyStudentContext.js";
 import type IO from "#/modules/planning/student-course-attempt/StudentCourseAttempt.contract.js";
 import type z from "zod";
 import { type PrismaStudentCoursePayload } from "./StudentCourseAttempt.queries.js";
@@ -7,6 +8,8 @@ function buildStudentCourseAttempt(
 ): z.infer<typeof IO.schema> {
     const {
         course,
+        user,
+        userId: _userId,
         studyPeriod: storedStudyPeriod,
         class: classData,
         studyPeriodId: _storedStudyPeriodId,
@@ -18,6 +21,7 @@ function buildStudentCourseAttempt(
     const resolvedStudyPeriod = classData?.studyPeriod ?? storedStudyPeriod;
     return {
         ...rest,
+        studentId: requireLegacyStudentId(user),
         studyPeriodId: resolvedStudyPeriod?.id ?? null,
         grade: grade === null ? null : Number(grade),
         createdAt: createdAt.toISOString(),

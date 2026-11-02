@@ -1,3 +1,4 @@
+import { requireLegacyStudentId } from "#/modules/identity/LegacyStudentContext.js";
 import type IO from "#/modules/planning/period-plan/PeriodPlan.contract.js";
 import type { guideSchema } from "#/modules/planning/period-plan/PeriodPlan.contract.js";
 import { InconsistentResourceStateError } from "@pomi/api-core";
@@ -103,6 +104,8 @@ function buildPeriodPlanning(
 ): z.infer<typeof IO.schema> {
     const {
         studyPeriod,
+        user,
+        userId: _userId,
         curriculum,
         curriculumSuggestion: _curriculumSuggestion,
         catalogProgram: _catalogProgram,
@@ -114,6 +117,7 @@ function buildPeriodPlanning(
     } = periodPlanning;
     return {
         ...rest,
+        studentId: requireLegacyStudentId(user),
         createdAt: periodPlanning.createdAt.toISOString(),
         updatedAt: periodPlanning.updatedAt.toISOString(),
         studyPeriodId: studyPeriod.id,

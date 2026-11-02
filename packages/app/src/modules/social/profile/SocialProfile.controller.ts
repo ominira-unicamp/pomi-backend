@@ -14,13 +14,15 @@ const actions: EndpointActions<typeof contracts, AuthorizationPolicy, Context> =
     {
         getProfile: async (ctx, input) =>
             respond(
-                await ctx.socialProfileService.getProfile(input.path.sid),
+                await ctx.socialProfileService.getProfile(
+                    await ctx.resolveLegacyUser(input.path.sid)
+                ),
                 ApiResponse.ok
             ),
         updateProfile: async (ctx, input) =>
             respond(
                 await ctx.socialProfileService.updateProfile(
-                    input.path.sid,
+                    await ctx.resolveLegacyUser(input.path.sid),
                     input.body
                 ),
                 ApiResponse.ok,

@@ -12,26 +12,26 @@ export type AcceptFriendshipFailure =
 
 export async function acceptFriendship(
     { prisma, clock }: { prisma: PrismaClient; clock: Clock },
-    { studentId, friendshipId }: { studentId: number; friendshipId: number }
+    { userId, friendshipId }: { userId: number; friendshipId: number }
 ): Promise<Result<z.infer<typeof friendship>, AcceptFriendshipFailure>> {
     const existing = await prisma.studentFriendship.findFirst({
         where: {
             id: friendshipId,
-            OR: [{ studentAId: studentId }, { studentBId: studentId }]
+            OR: [{ userAId: userId }, { userBId: userId }]
         },
-        select: { status: true, requestedById: true }
+        select: { status: true, requestedByUserId: true }
     });
     if (!existing) return err({ kind: "not-found" });
 
-    if (existing.status !== "PENDING" || existing.requestedById === studentId)
+    if (existing.status !== "PENDING" || existing.requestedByUserId === userId)
         return err({ kind: "cannot-accept" });
 
     const updated = await prisma.studentFriendship.updateMany({
         where: {
             id: friendshipId,
             status: "PENDING",
-            requestedById: { not: studentId },
-            OR: [{ studentAId: studentId }, { studentBId: studentId }]
+            requestedByUserId: { not: userId },
+            OR: [{ userAId: userId }, { userBId: userId }]
         },
         data: { status: "ACCEPTED", acceptedAt: clock.now() }
     });
@@ -41,7 +41,5 @@ export async function acceptFriendship(
         where: { id: friendshipId },
         ...friendshipSelection
     });
-    return row
-        ? ok(buildFriendship(row, studentId))
-        : err({ kind: "not-found" });
+    return row ? ok(buildFriendship(row, userId)) : err({ kind: "not-found" });
 }

@@ -119,7 +119,7 @@ test("rejects a professor that does not belong to the class", async () => {
     });
 
     const result = await service.put(
-        { studentId: 1, classId: 2, professorId: 3 },
+        { userId: 1, classId: 2, professorId: 3 },
         body
     );
 
@@ -149,14 +149,14 @@ test("upserts an evaluation for an eligible student", async () => {
                     update
                 }: Record<string, unknown>) => {
                     assert.deepEqual(where, {
-                        studentId_classId_professorId: {
-                            studentId: 1,
+                        userId_classId_professorId: {
+                            userId: 1,
                             classId: 2,
                             professorId: 3
                         }
                     });
                     assert.deepEqual(create, {
-                        studentId: 1,
+                        userId: 1,
                         classId: 2,
                         professorId: 3,
                         ...body
@@ -164,7 +164,8 @@ test("upserts an evaluation for an eligible student", async () => {
                     assert.deepEqual(update, body);
                     return {
                         id: 4,
-                        studentId: 1,
+                        userId: 1,
+                        user: { studentId: 1, legacyStudentId: 1 },
                         classId: 2,
                         professorId: 3,
                         ...body,
@@ -177,7 +178,7 @@ test("upserts an evaluation for an eligible student", async () => {
     });
 
     const result = await service.put(
-        { studentId: 1, classId: 2, professorId: 3 },
+        { userId: 1, classId: 2, professorId: 3 },
         body
     );
 

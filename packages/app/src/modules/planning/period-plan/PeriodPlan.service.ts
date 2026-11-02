@@ -38,15 +38,15 @@ export type CreatePeriodPlanInput = z.infer<typeof createBody>;
 export type PatchPeriodPlanInput = z.infer<typeof patchBody>;
 
 export type PeriodPlanService = {
-    list(studentId: number, query: ListQuery): Promise<PeriodPlan[]>;
+    list(userId: number, query: ListQuery): Promise<PeriodPlan[]>;
     getById(
-        studentId: number,
+        userId: number,
         id: number
     ): Promise<
         Result<PeriodPlan, ReturnType<typeof periodPlanNotFoundProblem>>
     >;
     create(
-        studentId: number,
+        userId: number,
         input: CreatePeriodPlanInput
     ): Promise<
         Result<
@@ -58,12 +58,12 @@ export type PeriodPlanService = {
         >
     >;
     patch(
-        studentId: number,
+        userId: number,
         id: number,
         input: PatchPeriodPlanInput
     ): Promise<Result<PeriodPlan, PeriodPlanProblem>>;
     remove(
-        studentId: number,
+        userId: number,
         id: number
     ): Promise<Result<void, ReturnType<typeof periodPlanNotFoundProblem>>>;
 };
@@ -71,13 +71,13 @@ export type PeriodPlanService = {
 async function guideFields(
     prisma: PrismaClient,
     guide: GuideInput,
-    studentId: number
+    userId: number
 ): Promise<ProblemField[]> {
     const fields: ProblemField[] = [];
     if (guide.mode === "CURRICULUM" && guide.curriculum.source === "SAVED") {
         const curriculumId = guide.curriculum.saved.curriculumId;
         const curriculum = await prisma.curriculum.findFirst({
-            where: { id: curriculumId, studentId },
+            where: { id: curriculumId, userId },
             select: { id: true }
         });
         fields.push(...planningIssues(validateSavedGuide(!!curriculum)));
@@ -251,10 +251,10 @@ function guideCreateData(guide: GuideInput) {
     };
 }
 
-function load(prisma: PrismaClient, studentId: number, id: number) {
+function load(prisma: PrismaClient, userId: number, id: number) {
     return prisma.periodPlanning.findUnique({
         ...prismaPeriodPlanningFieldSelection,
-        where: { studentId, id }
+        where: { userId, id }
     });
 }
 
@@ -264,11 +264,11 @@ export function createPeriodPlanService({
     prisma: PrismaClient;
 }): PeriodPlanService {
     return {
-        async list(studentId, query) {
+        async list(userId, query) {
             return (
                 await prisma.periodPlanning.findMany({
                     ...prismaPeriodPlanningFieldSelection,
-                    where: { studentId },
+                    where: { userId },
                     orderBy: compileSort(
                         resolveSort(query.sort, periodPlanningSort),
                         {
@@ -291,13 +291,13 @@ export function createPeriodPlanService({
                 })
             ).map(periodPlanningPresenter.build);
         },
-        async getById(studentId, id) {
-            const periodPlan = await load(prisma, studentId, id);
+        async getById(userId, id) {
+            const periodPlan = await load(prisma, userId, id);
             return periodPlan
                 ? ok(periodPlanningPresenter.build(periodPlan))
                 : err(periodPlanNotFoundProblem());
         },
-        async create(studentId, input) {
+        async create(userId, input) {
             const guide = input.guide ?? {
                 mode: "NONE" as const,
                 manualCourseIds: []
@@ -322,13 +322,13 @@ export function createPeriodPlanService({
                     input.studyPeriodId,
                     ["classes"]
                 )),
-                ...(await guideFields(prisma, guide, studentId))
+                ...(await guideFields(prisma, guide, userId))
             );
             if (fields.length) return err(periodPlanInputProblem(fields));
             const periodPlan = await prisma.periodPlanning.create({
                 ...prismaPeriodPlanningFieldSelection,
                 data: {
-                    student: { connect: { id: studentId } },
+                    user: { connect: { id: userId } },
                     studyPeriod: { connect: { id: input.studyPeriodId } },
                     name:
                         input.name ??
@@ -348,12 +348,12 @@ export function createPeriodPlanService({
             });
             return ok(periodPlanningPresenter.build(periodPlan));
         },
-        async patch(studentId, id, input) {
-            const existing = await load(prisma, studentId, id);
+        async patch(userId, id, input) {
+            const existing = await load(prisma, userId, id);
             if (!existing) return err(periodPlanNotFoundProblem());
             const guide = input.guide;
             const fields = guide
-                ? await guideFields(prisma, guide, studentId)
+                ? await guideFields(prisma, guide, userId)
                 : [];
             if (input.classes) {
                 const ids = resolvePeriodPlanClasses(
@@ -384,9 +384,9 @@ export function createPeriodPlanService({
             });
             return ok(periodPlanningPresenter.build(periodPlan));
         },
-        async remove(studentId, id) {
+        async remove(userId, id) {
             const existing = await prisma.periodPlanning.findUnique({
-                where: { studentId, id },
+                where: { userId, id },
                 select: { id: true }
             });
             if (!existing) return err(periodPlanNotFoundProblem());

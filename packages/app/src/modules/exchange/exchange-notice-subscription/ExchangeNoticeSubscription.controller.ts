@@ -19,12 +19,14 @@ const respond = createResultResponder(
 const actions: Actions = {
     get: async (ctx, input) =>
         ApiResponse.ok(
-            await ctx.exchangeNoticeSubscriptionService.get(input.path.sid)
+            await ctx.exchangeNoticeSubscriptionService.get(
+                await ctx.resolveLegacyUser(input.path.sid)
+            )
         ),
     patch: async (ctx, input) =>
         respond(
             await ctx.exchangeNoticeSubscriptionService.patch(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 input.body
             ),
             ApiResponse.ok,

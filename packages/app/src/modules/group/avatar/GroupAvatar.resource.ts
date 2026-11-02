@@ -21,11 +21,15 @@ export const groupAvatarResource = defineImageResource<
             ))
         )
             throw new ForbiddenError("Acesso não permitido.");
+        const user = await db.user.findUniqueOrThrow({
+            where: { studentId: target.studentId },
+            select: { id: true }
+        });
         const granted = await db.groupMembershipRole.findFirst({
             where: {
                 groupId: target.groupId,
                 membership: {
-                    studentId: target.studentId,
+                    userId: user.id,
                     activeKey: "ACTIVE"
                 },
                 role: { permissions: { some: { permission: "GROUP_EDIT" } } }

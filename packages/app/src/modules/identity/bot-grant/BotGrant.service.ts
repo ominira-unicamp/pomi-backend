@@ -43,9 +43,10 @@ export function createBotGrantService({
                 })
             }),
         async list(principal, query) {
-            if (principal.studentId === null) return [];
-            return await prisma.botGrant.findMany({
-                where: { studentId: principal.studentId },
+            if (principal.studentId === null || principal.userId === null)
+                return [];
+            const grants = await prisma.botGrant.findMany({
+                where: { userId: principal.userId },
                 include: {
                     botAuthUser: { select: { id: true, displayName: true } }
                 },
@@ -58,9 +59,14 @@ export function createBotGrantService({
                     id: (direction) => ({ id: direction })
                 })
             });
+            return grants.map(({ userId: _userId, ...grant }) => ({
+                ...grant,
+                studentId: principal.studentId!
+            }));
         },
         async replace(principal, botAuthUserId, requested) {
-            if (principal.studentId === null) return err(botNotFoundProblem());
+            if (principal.studentId === null || principal.userId === null)
+                return err(botNotFoundProblem());
             const bot = await prisma.authUser.findFirst({
                 where: {
                     id: botAuthUserId,
@@ -74,7 +80,7 @@ export function createBotGrantService({
             await prisma.$transaction(async (tx) => {
                 await tx.botGrant.updateMany({
                     where: {
-                        studentId: principal.studentId!,
+                        userId: principal.userId!,
                         botAuthUserId: bot.id,
                         revokedAt: null,
                         ...(capabilities.length
@@ -90,7 +96,7 @@ export function createBotGrantService({
                     (
                         await tx.botGrant.findMany({
                             where: {
-                                studentId: principal.studentId!,
+                                userId: principal.userId!,
                                 botAuthUserId: bot.id,
                                 revokedAt: null
                             },
@@ -104,7 +110,7 @@ export function createBotGrantService({
                 if (missing.length)
                     await tx.botGrant.createMany({
                         data: missing.map((capability) => ({
-                            studentId: principal.studentId!,
+                            userId: principal.userId!,
                             botAuthUserId: bot.id,
                             capability,
                             grantedByAuthUserId: principal.authUserId

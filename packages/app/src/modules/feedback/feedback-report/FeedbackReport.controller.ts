@@ -29,7 +29,7 @@ const createAnonymous: Actions["createAnonymous"] = async (ctx, input) =>
 const createForStudent: Actions["createForStudent"] = async (ctx, input) =>
     respond(
         await ctx.feedbackReportService.createForStudent(
-            input.path.sid,
+            await ctx.resolveLegacyUser(input.path.sid),
             input.body
         ),
         ApiResponse.created,
@@ -40,7 +40,7 @@ const listStudent: Actions["listStudent"] = async (ctx, input) =>
     ApiResponse.ok(
         buildArrayPaginationResponse(
             await ctx.feedbackReportService.listForStudent(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 input.query
             ),
             input.query,

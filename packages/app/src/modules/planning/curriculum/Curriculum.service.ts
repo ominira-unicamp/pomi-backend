@@ -50,15 +50,15 @@ class CurriculumOperationError extends Error {
 }
 
 export type CurriculumService = {
-    list(studentId: number, query: ListQuery): Promise<CurriculumSummary[]>;
+    list(userId: number, query: ListQuery): Promise<CurriculumSummary[]>;
     getById(
-        studentId: number,
+        userId: number,
         id: number
     ): Promise<
         Result<Curriculum, ReturnType<typeof curriculumNotFoundProblem>>
     >;
     create(
-        studentId: number,
+        userId: number,
         input: CreateCurriculumInput
     ): Promise<
         Result<
@@ -70,12 +70,12 @@ export type CurriculumService = {
         >
     >;
     patch(
-        studentId: number,
+        userId: number,
         id: number,
         input: PatchCurriculumInput
     ): Promise<Result<Curriculum, CurriculumProblem>>;
     remove(
-        studentId: number,
+        userId: number,
         id: number
     ): Promise<Result<void, ReturnType<typeof curriculumNotFoundProblem>>>;
 };
@@ -170,10 +170,10 @@ async function courseFields(
     return missingCourseIssues(ids, found, path);
 }
 
-async function load(prisma: PrismaClient, studentId: number, id: number) {
+async function load(prisma: PrismaClient, userId: number, id: number) {
     return prisma.curriculum.findUnique({
         ...prismaCurriculumFieldSelection,
-        where: { studentId, id }
+        where: { userId, id }
     });
 }
 
@@ -264,11 +264,11 @@ export function createCurriculumService({
     prisma: PrismaClient;
 }): CurriculumService {
     return {
-        async list(studentId, query) {
+        async list(userId, query) {
             return (
                 await prisma.curriculum.findMany({
                     ...prismaCurriculumSummaryFieldSelection,
-                    where: { studentId },
+                    where: { userId },
                     orderBy: { updatedAt: "desc" }
                 })
             )
@@ -285,13 +285,13 @@ export function createCurriculumService({
                     })
                 );
         },
-        async getById(studentId, id) {
-            const curriculum = await load(prisma, studentId, id);
+        async getById(userId, id) {
+            const curriculum = await load(prisma, userId, id);
             return curriculum
                 ? ok(curriculumPresenter.build(curriculum))
                 : err(curriculumNotFoundProblem());
         },
-        async create(studentId, input) {
+        async create(userId, input) {
             const requestedSelection = selectionData(input.selection);
             const selection = await resolveSelection(
                 prisma,
@@ -313,7 +313,7 @@ export function createCurriculumService({
             const curriculum = await prisma.$transaction(async (tx) => {
                 const created = await tx.curriculum.create({
                     data: {
-                        studentId,
+                        userId,
                         name: input.name ?? "Novo planejamento",
                         ...selection,
                         ...planningStartData(input.planningStart),
@@ -334,9 +334,9 @@ export function createCurriculumService({
             });
             return ok(curriculumPresenter.build(curriculum));
         },
-        async patch(studentId, id, input) {
+        async patch(userId, id, input) {
             const existing = await prisma.curriculum.findUnique({
-                where: { studentId, id },
+                where: { userId, id },
                 select: {
                     catalogProgramId: true,
                     catalogProgramVariantId: true,
@@ -416,18 +416,18 @@ export function createCurriculumService({
                         }
                     });
                     if (input.isFavorite !== undefined) {
-                        const student = await tx.student.findUniqueOrThrow({
-                            where: { id: studentId },
+                        const user = await tx.user.findUniqueOrThrow({
+                            where: { id: userId },
                             select: { favoriteCurriculumId: true }
                         });
-                        await tx.student.update({
-                            where: { id: studentId },
+                        await tx.user.update({
+                            where: { id: userId },
                             data: {
                                 favoriteCurriculumId: input.isFavorite
                                     ? id
-                                    : student.favoriteCurriculumId === id
+                                    : user.favoriteCurriculumId === id
                                       ? null
-                                      : student.favoriteCurriculumId
+                                      : user.favoriteCurriculumId
                             }
                         });
                     }
@@ -438,12 +438,12 @@ export function createCurriculumService({
                 throw error;
             }
             return ok(
-                curriculumPresenter.build((await load(prisma, studentId, id))!)
+                curriculumPresenter.build((await load(prisma, userId, id))!)
             );
         },
-        async remove(studentId, id) {
+        async remove(userId, id) {
             const existing = await prisma.curriculum.findUnique({
-                where: { studentId, id },
+                where: { userId, id },
                 select: { id: true }
             });
             if (!existing) return err(curriculumNotFoundProblem());

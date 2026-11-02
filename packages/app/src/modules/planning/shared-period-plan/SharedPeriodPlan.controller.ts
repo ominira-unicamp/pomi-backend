@@ -43,7 +43,7 @@ const actions: Actions = {
         ),
     listForStudent: async (ctx, input) => {
         const result = await ctx.sharedPeriodPlanService.listForStudent(
-            input.path.sid,
+            await ctx.resolveLegacyUser(input.path.sid),
             input.query
         );
         return ApiResponse.ok(
@@ -63,7 +63,7 @@ const actions: Actions = {
     getForStudent: async (ctx, input) =>
         respond(
             await ctx.sharedPeriodPlanService.getForStudent(
-                input.path.sid,
+                await ctx.resolveLegacyUser(input.path.sid),
                 input.path.shareId
             ),
             ApiResponse.ok

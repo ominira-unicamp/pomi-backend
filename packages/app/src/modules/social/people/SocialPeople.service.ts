@@ -16,7 +16,10 @@ import {
     buildPerson,
     decidePersonDisclosure
 } from "../SocialPerson.presenter.js";
-import { personSelection } from "../SocialPerson.queries.js";
+import {
+    activeLegacyIdentity,
+    personSelection
+} from "../SocialPerson.queries.js";
 import IO, {
     studentPeoplePagination,
     studentPeopleSort
@@ -27,7 +30,7 @@ type Person = z.infer<typeof person>;
 type PeopleQuery = z.infer<typeof IO.listPeople.request>["query"];
 export type SocialPeopleService = {
     listPeople(
-        studentId: number,
+        userId: number,
         input: PeopleQuery
     ): Promise<{
         items: Person[];
@@ -35,7 +38,7 @@ export type SocialPeopleService = {
         pagination: ResolvedPagination;
     }>;
     getPerson(
-        studentId: number,
+        userId: number,
         publicId: string
     ): Promise<Result<Person, NotFoundProblem>>;
 };
@@ -46,7 +49,7 @@ export function createSocialPeopleService({
     prisma: PrismaClient;
 }): SocialPeopleService {
     return {
-        async listPeople(studentId, input) {
+        async listPeople(userId, input) {
             const pagination = resolvePagination(
                 input,
                 studentPeoplePagination
@@ -69,9 +72,9 @@ export function createSocialPeopleService({
                 ]
             };
             const where = {
-                id: { not: studentId },
+                id: { not: userId },
                 publicProfileEnabled: true,
-                authUsers: { some: { status: "ACTIVE" as const } },
+                ...activeLegacyIdentity,
                 ...(input.query === undefined
                     ? {}
                     : z.string().uuid().safeParse(input.query).success
@@ -79,7 +82,7 @@ export function createSocialPeopleService({
                       : visibleName)
             };
             const [students, total] = await Promise.all([
-                prisma.student.findMany({
+                prisma.user.findMany({
                     where,
                     select: personSelection,
                     orderBy: compileSort(
@@ -94,42 +97,39 @@ export function createSocialPeopleService({
                     ).flat(),
                     ...prismaPaginationParams(pagination)
                 }),
-                prisma.student.count({ where })
+                prisma.user.count({ where })
             ]);
             const acceptedFriendIds = new Set<number>();
             if (
                 students.some(
-                    (student) => student.currentCoursesVisibility === "FRIENDS"
+                    (user) => user.currentCoursesVisibility === "FRIENDS"
                 )
             ) {
                 const friendships = await prisma.studentFriendship.findMany({
                     where: {
                         status: "ACCEPTED",
-                        OR: [
-                            { studentAId: studentId },
-                            { studentBId: studentId }
-                        ]
+                        OR: [{ userAId: userId }, { userBId: userId }]
                     },
-                    select: { studentAId: true, studentBId: true }
+                    select: { userAId: true, userBId: true }
                 });
                 for (const friendship of friendships)
                     acceptedFriendIds.add(
-                        friendship.studentAId === studentId
-                            ? friendship.studentBId
-                            : friendship.studentAId
+                        friendship.userAId === userId
+                            ? friendship.userBId
+                            : friendship.userAId
                     );
             }
             return {
-                items: students.map((student) =>
+                items: students.map((user) =>
                     buildPerson(
-                        student,
+                        user,
                         decidePersonDisclosure({
-                            profileEnabled: student.publicProfileEnabled,
+                            profileEnabled: user.publicProfileEnabled,
                             forceMinimal: false,
-                            isOwner: student.id === studentId,
+                            isOwner: user.id === userId,
                             currentCoursesVisibility:
-                                student.currentCoursesVisibility,
-                            acceptedFriend: acceptedFriendIds.has(student.id)
+                                user.currentCoursesVisibility,
+                            acceptedFriend: acceptedFriendIds.has(user.id)
                         })
                     )
                 ),
@@ -137,46 +137,45 @@ export function createSocialPeopleService({
                 pagination
             };
         },
-        async getPerson(studentId, publicId) {
-            const student = await prisma.student.findFirst({
+        async getPerson(userId, publicId) {
+            const user = await prisma.user.findFirst({
                 where: {
                     publicId,
-                    id: { not: studentId },
+                    id: { not: userId },
                     publicProfileEnabled: true,
-                    authUsers: { some: { status: "ACTIVE" } }
+                    ...activeLegacyIdentity
                 },
                 select: personSelection
             });
-            if (!student)
+            if (!user)
                 return err(
                     socialNotFoundProblem(
                         "O perfil público solicitado não foi encontrado."
                     )
                 );
             const acceptedFriendIds = new Set<number>();
-            if (student.currentCoursesVisibility === "FRIENDS") {
+            if (user.currentCoursesVisibility === "FRIENDS") {
                 const friendship = await prisma.studentFriendship.findFirst({
                     where: {
                         status: "ACCEPTED",
                         OR: [
-                            { studentAId: studentId, studentBId: student.id },
-                            { studentAId: student.id, studentBId: studentId }
+                            { userAId: userId, userBId: user.id },
+                            { userAId: user.id, userBId: userId }
                         ]
                     },
                     select: { id: true }
                 });
-                if (friendship) acceptedFriendIds.add(student.id);
+                if (friendship) acceptedFriendIds.add(user.id);
             }
             return ok(
                 buildPerson(
-                    student,
+                    user,
                     decidePersonDisclosure({
-                        profileEnabled: student.publicProfileEnabled,
+                        profileEnabled: user.publicProfileEnabled,
                         forceMinimal: false,
-                        isOwner: student.id === studentId,
-                        currentCoursesVisibility:
-                            student.currentCoursesVisibility,
-                        acceptedFriend: acceptedFriendIds.has(student.id)
+                        isOwner: user.id === userId,
+                        currentCoursesVisibility: user.currentCoursesVisibility,
+                        acceptedFriend: acceptedFriendIds.has(user.id)
                     })
                 )
             );

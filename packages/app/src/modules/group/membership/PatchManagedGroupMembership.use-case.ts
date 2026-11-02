@@ -28,11 +28,7 @@ export type PatchManagedGroupMembershipFailure =
     | { kind: "conflict" | "concurrent-change"; message: string };
 export async function patchManagedGroupMembership(
     { prisma, clock }: { prisma: PrismaClient; clock: Clock },
-    {
-        studentId,
-        id,
-        input
-    }: { studentId: number; id: number; input: MemberPatch }
+    { userId, id, input }: { userId: number; id: number; input: MemberPatch }
 ): Promise<
     Result<ReturnType<typeof managedMember>, PatchManagedGroupMembershipFailure>
 > {
@@ -60,7 +56,7 @@ export async function patchManagedGroupMembership(
                     const access = await checkGroupPermission(
                         tx,
                         value.groupId,
-                        studentId,
+                        userId,
                         "MEMBER_MANAGE"
                     );
                     if (access.isErr()) return err(access.error);
@@ -69,7 +65,7 @@ export async function patchManagedGroupMembership(
                     const access = await checkGroupPermission(
                         tx,
                         value.groupId,
-                        studentId,
+                        userId,
                         "ROLE_MANAGE"
                     );
                     if (access.isErr()) return err(access.error);

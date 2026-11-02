@@ -3,7 +3,7 @@ import type { GroupPermission, MyPrisma } from "@pomi/db";
 export async function checkGroupPermission(
     prisma: Pick<MyPrisma.TransactionClient, "group" | "groupMembershipRole">,
     groupId: number,
-    studentId: number,
+    userId: number,
     permission: GroupPermission | GroupPermission[]
 ) {
     if (
@@ -18,7 +18,7 @@ export async function checkGroupPermission(
     const found = await prisma.groupMembershipRole.findFirst({
         where: {
             groupId,
-            membership: { studentId, activeKey: "ACTIVE" },
+            membership: { userId, activeKey: "ACTIVE" },
             role: {
                 permissions: {
                     some: {

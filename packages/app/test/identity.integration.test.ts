@@ -1,3 +1,4 @@
+import { createStudentService } from "#/modules/student/Student.service.js";
 import {
     backfillIdentities,
     canonicalIdentity,
@@ -133,7 +134,14 @@ test(
                     }
                 })
             );
-            await prisma.student.delete({ where: { id: student.id } });
+            assert.ok(
+                (
+                    await createStudentService({ prisma }).remove(
+                        student.id,
+                        student.ra
+                    )
+                ).isOk()
+            );
             assert.equal(
                 canonicalIdentity(await read(current.id)).principal.user
                     ?.studentId,

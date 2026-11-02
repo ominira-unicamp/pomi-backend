@@ -366,14 +366,41 @@ model AuthIdentity {
 }
 
 model User {
-  id          Int       @id @default(autoincrement())
-  principalId Int       @unique
-  name        String?
-  studentId   Int?      @unique
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  principal   Principal @relation(fields: [principalId], references: [id], onDelete: Restrict)
-  student     Student?  @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  legacyStudentId Int? @unique
+  id                         Int                             @id @default(autoincrement())
+  principalId                Int                             @unique
+  name                       String?
+  studentId                  Int?                            @unique
+  createdAt                  DateTime                        @default(now())
+  updatedAt                  DateTime                        @updatedAt
+  principal                  Principal                       @relation(fields: [principalId], references: [id], onDelete: Restrict)
+  student                    Student?                        @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  publicId                   String                          @unique @default(dbgenerated("gen_random_uuid()"))
+  publicProfileEnabled       Boolean                         @default(false)
+  publicDisplayName          String?                         @db.VarChar(80)
+  publicBio                  String?                         @db.VarChar(280)
+  currentCoursesVisibility   StudentCurrentCoursesVisibility @default(PRIVATE)
+  avatarMediaId              String?                         @unique @db.Uuid
+  avatarRevision             Int                             @default(0)
+  avatarMedia                MediaAsset?                     @relation("UserAvatarMedia", fields: [avatarMediaId], references: [id], onDelete: Restrict)
+  favoriteCurriculumId       Int?                            @unique
+  favoriteCurriculum         Curriculum?                     @relation("UserFavoriteCurriculum", fields: [favoriteCurriculumId], references: [id], onDelete: SetNull)
+  courseAttempts             StudentCourseAttempt[]
+  professorEvaluations       ProfessorEvaluation[]
+  periodPlannings            PeriodPlanning[]
+  curriculums                Curriculum[]
+  botGrants                  BotGrant[]
+  friendshipsAsA             StudentFriendship[]             @relation("UserFriendshipsAsA")
+  friendshipsAsB             StudentFriendship[]             @relation("UserFriendshipsAsB")
+  friendshipRequests         StudentFriendship[]             @relation("UserFriendshipRequester")
+  feedbackReports            FeedbackReport[]
+  exchangeNoticeSubscription ExchangeNoticeSubscription?
+  exchangeNoticeDeliveries   ExchangeNoticeDelivery[]
+  tagInterests               StudentTagInterest[]
+  groupMemberships           GroupMembership[]
+  groupInvitationsReceived   GroupInvitation[]               @relation("UserGroupInvitationRecipient")
+  groupInvitationsSent       GroupInvitation[]               @relation("UserGroupInvitationInviter")
+  emails                     UserEmail[]
 
   @@schema("app")
 }
@@ -402,7 +429,6 @@ model AuthUser {
   authIdentity  AuthIdentity?
   roles         AuthUserRole[]
   capabilities  AuthUserCapability[]
-  student       Student?             @relation("AuthUserStudent", fields: [studentId], references: [id], onDelete: SetNull)
   studentId     Int?
   botGrants     BotGrant[]           @relation("BotGrantBot")
   grantsGiven   BotGrant[]           @relation("BotGrantGrantedBy")
@@ -609,15 +635,14 @@ model CourseTag {
 }
 
 model StudentTagInterest {
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId Int
-
   tag   Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
   tagId Int
 
   createdAt DateTime @default(now())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@id([studentId, tagId])
+  @@id([userId, tagId])
   @@index([tagId])
   @@schema("app")
 }
@@ -1324,93 +1349,65 @@ enum StudentCurrentCoursesVisibility {
 }
 
 model Student {
-  id                       Int                             @id @default(autoincrement())
-  ra                       String                          @unique
-  name                     String
-  user                     User?
-  authUsers                AuthUser[]                      @relation("AuthUserStudent")
-  program                  Program?                        @relation(fields: [programId], references: [id])
-  programId                Int?
-  specialization           Specialization?                 @relation(fields: [specializationId], references: [id])
-  specializationId         Int?
-  catalog                  Catalog?                        @relation(fields: [catalogId], references: [id])
-  catalogId                Int?
-  entryYear                Int?
-  language                 Language?                       @relation(fields: [languageId], references: [id])
-  languageId               Int?
-  publicId                 String                          @unique @default(dbgenerated("gen_random_uuid()"))
-  publicProfileEnabled     Boolean                         @default(false)
-  publicDisplayName        String?                         @db.VarChar(80)
-  publicBio                String?                         @db.VarChar(280)
-  currentCoursesVisibility StudentCurrentCoursesVisibility @default(PRIVATE)
-  avatarMedia              MediaAsset?                     @relation("StudentAvatarMedia", fields: [avatarMediaId], references: [id], onDelete: Restrict)
-  avatarMediaId            String?                         @unique @db.Uuid
-  avatarRevision           Int                             @default(0)
-
-  courseAttempts             StudentCourseAttempt[]
-  professorEvaluations       ProfessorEvaluation[]
-  periodPlannings            PeriodPlanning[]
-  curriculums                Curriculum[]
-  favoriteCurriculum         Curriculum?                 @relation("StudentFavoriteCurriculum", fields: [favoriteCurriculumId], references: [id], onDelete: SetNull)
-  favoriteCurriculumId       Int?                        @unique
-  botGrants                  BotGrant[]
-  friendshipsAsA             StudentFriendship[]         @relation("StudentFriendshipsAsA")
-  friendshipsAsB             StudentFriendship[]         @relation("StudentFriendshipsAsB")
-  friendshipRequests         StudentFriendship[]         @relation("StudentFriendshipRequester")
-  feedbackReports            FeedbackReport[]
-  exchangeNoticeSubscription ExchangeNoticeSubscription?
-  exchangeNoticeDeliveries   ExchangeNoticeDelivery[]
-  tagInterests               StudentTagInterest[]
-  groupMemberships           GroupMembership[]
-  groupInvitationsReceived   GroupInvitation[] @relation("GroupInvitationRecipient")
-  groupInvitationsSent       GroupInvitation[] @relation("GroupInvitationInviter")
+  id               Int             @id @default(autoincrement())
+  ra               String          @unique
+  name             String
+  user             User?
+  program          Program?        @relation(fields: [programId], references: [id])
+  programId        Int?
+  specialization   Specialization? @relation(fields: [specializationId], references: [id])
+  specializationId Int?
+  catalog          Catalog?        @relation(fields: [catalogId], references: [id])
+  catalogId        Int?
+  entryYear        Int?
+  language         Language?       @relation(fields: [languageId], references: [id])
+  languageId       Int?
 
   @@schema("app")
 }
 
 model ExchangeNoticeSubscription {
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId Int     @id
-
   enabled Boolean @default(false)
 
-  places    ExchangeNoticeSubscriptionPlace[]
-  createdAt DateTime                          @default(now())
-  updatedAt DateTime                          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    Int      @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  places ExchangeNoticeSubscriptionPlace[] @relation("UserSubscriptionPlaces")
 
   @@schema("app")
 }
 
 model ExchangeNoticeSubscriptionPlace {
-  subscription          ExchangeNoticeSubscription @relation(fields: [subscriptionStudentId], references: [studentId], onDelete: Cascade)
-  subscriptionStudentId Int
+  place              ExchangePlace              @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  placeId            Int
+  subscriptionUserId Int
+  subscription       ExchangeNoticeSubscription @relation("UserSubscriptionPlaces", fields: [subscriptionUserId], references: [userId], onDelete: Cascade, onUpdate: Restrict)
 
-  place   ExchangePlace @relation(fields: [placeId], references: [id], onDelete: Cascade)
-  placeId Int
-
-  @@id([subscriptionStudentId, placeId])
+  @@id([subscriptionUserId, placeId])
   @@schema("app")
 }
 
 model ExchangeNoticeDelivery {
   id Int @id @default(autoincrement())
 
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId Int
-
   notice   ExchangeNotice @relation(fields: [noticeId], references: [id], onDelete: Cascade)
   noticeId Int
 
-  status        ExchangeNoticeDeliveryStatus @default(PENDING)
-  attemptCount  Int                          @default(0)
-  nextAttemptAt DateTime                     @default(now())
+  status        ExchangeNoticeDeliveryStatus      @default(PENDING)
+  attemptCount  Int                               @default(0)
+  nextAttemptAt DateTime                          @default(now())
   processingAt  DateTime?
   sentAt        DateTime?
   lastError     String?
-  createdAt     DateTime                     @default(now())
-  updatedAt     DateTime                     @updatedAt
+  createdAt     DateTime                          @default(now())
+  updatedAt     DateTime                          @updatedAt
+  userId        Int
+  user          User                              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipients    ExchangeNoticeDeliveryRecipient[]
 
-  @@unique([studentId, noticeId])
+  @@unique([userId, noticeId])
   @@index([status, nextAttemptAt])
   @@schema("app")
 }
@@ -1431,43 +1428,42 @@ model FeedbackReport {
   status       FeedbackReportStatus @default(OPEN)
   adminMessage String?              @db.Text
 
-  reporterStudent   Student? @relation(fields: [reporterStudentId], references: [id], onDelete: SetNull)
-  reporterStudentId Int?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+  reporterUserId Int?
+  reporterUser   User?    @relation(fields: [reporterUserId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@index([status, createdAt])
-  @@index([reporterStudentId])
   @@index([academicResourceType, academicResourceId])
+  @@index([reporterUserId])
   @@schema("app")
 }
 
 model StudentFriendship {
-  id            Int                     @id @default(autoincrement())
-  studentA      Student                 @relation("StudentFriendshipsAsA", fields: [studentAId], references: [id], onDelete: Cascade)
-  studentAId    Int
-  studentB      Student                 @relation("StudentFriendshipsAsB", fields: [studentBId], references: [id], onDelete: Cascade)
-  studentBId    Int
-  requestedBy   Student                 @relation("StudentFriendshipRequester", fields: [requestedById], references: [id], onDelete: Cascade)
-  requestedById Int
-  status        StudentFriendshipStatus @default(PENDING)
-  acceptedAt    DateTime?
-  createdAt     DateTime                @default(now())
-  updatedAt     DateTime                @updatedAt
+  id         Int                     @id @default(autoincrement())
+  status     StudentFriendshipStatus @default(PENDING)
+  acceptedAt DateTime?
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+  userAId    Int
+  userA      User                    @relation("UserFriendshipsAsA", fields: [userAId], references: [id], onDelete: Cascade)
 
-  @@unique([studentAId, studentBId])
-  @@index([studentAId, status])
-  @@index([studentBId, status])
-  @@index([requestedById, status])
+  userBId Int
+  userB   User @relation("UserFriendshipsAsB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  requestedByUserId Int
+  requestedByUser   User @relation("UserFriendshipRequester", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userAId, status])
+  @@index([userBId, status])
+  @@index([requestedByUserId, status])
   @@schema("app")
 }
 
 model BotGrant {
   id                  Int               @id @default(autoincrement())
-  student             Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId           Int
   botAuthUser         AuthUser          @relation("BotGrantBot", fields: [botAuthUserId], references: [id], onDelete: Cascade)
   botAuthUserId       Int
   capability          StudentCapability
@@ -1477,15 +1473,16 @@ model BotGrant {
   revokedAt           DateTime?
   revokedByAuthUser   AuthUser?         @relation("BotGrantRevokedBy", fields: [revokedByAuthUserId], references: [id])
   revokedByAuthUserId Int?
+  userId              Int
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([studentId, botAuthUserId, capability, revokedAt])
+  @@index([userId])
   @@schema("app")
+  @@index([userId, botAuthUserId, capability, revokedAt])
 }
 
 model StudentCourseAttempt {
   id             Int                        @id @default(autoincrement())
-  student        Student                    @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId      Int
   course         Course                     @relation(fields: [courseId], references: [id])
   courseId       Int
   studyPeriod    StudyPeriod?               @relation(fields: [studyPeriodId], references: [id])
@@ -1499,19 +1496,19 @@ model StudentCourseAttempt {
   updatedAt      DateTime                   @updatedAt
 
   absences StudentAbsence[]
+  userId   Int
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([studentId, courseId, studyPeriodId])
-  @@index([studentId, studyPeriodId])
-  @@index([studentId, courseId])
-  @@index([studentId, status])
+  @@unique([userId, courseId, studyPeriodId])
   @@index([classId])
+  @@index([userId])
   @@schema("app")
+  @@index([userId, studyPeriodId])
+  @@index([userId, status])
 }
 
 model ProfessorEvaluation {
   id          Int       @id @default(autoincrement())
-  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId   Int
   class       Class     @relation(fields: [classId], references: [id])
   classId     Int
   professor   Professor @relation(fields: [professorId], references: [id])
@@ -1524,8 +1521,10 @@ model ProfessorEvaluation {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([studentId, classId, professorId])
+  @@unique([userId, classId, professorId])
   @@index([classId, professorId])
   @@index([professorId])
   @@schema("app")
@@ -1553,8 +1552,6 @@ model StudentAbsence {
 
 model Curriculum {
   id                      Int                    @id @default(autoincrement())
-  student                 Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId               Int
   name                    String                 @default("Novo planejamento")
   catalogProgram          CatalogProgram?        @relation(fields: [catalogProgramId], references: [id])
   catalogProgramId        Int?
@@ -1570,12 +1567,16 @@ model Curriculum {
   periods                 CurriculumPeriod[]
   courses                 CurriculumCourse[]
   periodPlannings         PeriodPlanning[]
-  favoriteForStudent      Student?               @relation("StudentFavoriteCurriculum")
   createdAt               DateTime               @default(now())
   updatedAt               DateTime               @updatedAt
+  userId                  Int
+  user                    User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([studentId, updatedAt])
+  favoriteForUser User? @relation("UserFavoriteCurriculum")
+
+  @@index([userId])
   @@schema("app")
+  @@index([userId, updatedAt])
 }
 
 model CurriculumCourse {
@@ -1610,8 +1611,6 @@ model PeriodPlanning {
   name                    String                          @default("Novo planejamento de semestre")
   studyPeriod             StudyPeriod                     @relation(fields: [studyPeriodId], references: [id])
   studyPeriodId           Int
-  student                 Student                         @relation(fields: [studentId], references: [id])
-  studentId               Int
   curriculum              Curriculum?                     @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
   curriculumId            Int?
   guideMode               PeriodPlanningGuideMode         @default(NONE)
@@ -1631,15 +1630,18 @@ model PeriodPlanning {
 
   classes       Class[]
   manualCourses PeriodPlanningManualCourse[]
+  userId        Int
+  user          User                         @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  @@index([studentId, updatedAt])
   @@index([curriculumId])
   @@index([curriculumSuggestionId])
   @@index([catalogProgramId])
   @@index([catalogProgramVariantId])
   @@index([languageId])
   @@index([visibility, studyPeriodId, updatedAt])
+  @@index([userId])
   @@schema("app")
+  @@index([userId, updatedAt])
 }
 
 model PeriodPlanningManualCourse {
@@ -1674,12 +1676,12 @@ model CalendarTag {
 }
 
 model Group {
-  id          Int         @id @default(autoincrement())
-  name        String      @db.VarChar(160)
-  description String?     @db.Text
-  status      GroupStatus @default(ACTIVE)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id             Int         @id @default(autoincrement())
+  name           String      @db.VarChar(160)
+  description    String?     @db.Text
+  status         GroupStatus @default(ACTIVE)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
   avatarMedia    MediaAsset? @relation("GroupAvatarMedia", fields: [avatarMediaId], references: [id], onDelete: Restrict)
   avatarMediaId  String?     @unique @db.Uuid
   avatarRevision Int         @default(0)
@@ -1710,20 +1712,20 @@ model MediaAsset {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
-  studentAvatar Student? @relation("StudentAvatarMedia")
-  groupAvatar   Group?   @relation("GroupAvatarMedia")
+  groupAvatar Group? @relation("GroupAvatarMedia")
+  userAvatar  User?  @relation("UserAvatarMedia")
 
   @@index([status, nextDeleteAt])
   @@schema("app")
 }
 
 model GroupContact {
-  id        Int    @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   groupId   Int
-  type      String @db.VarChar(40)
+  type      String  @db.VarChar(40)
   label     String? @db.VarChar(80)
-  value     String @db.VarChar(320)
-  sortOrder Int    @default(0)
+  value     String  @db.VarChar(320)
+  sortOrder Int     @default(0)
 
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
@@ -1757,45 +1759,47 @@ model GroupTag {
 }
 
 model GroupInvitation {
-  id                 Int                   @id @default(autoincrement())
-  groupId            Int
-  recipientStudentId Int
-  inviterStudentId   Int
-  status             GroupInvitationStatus @default(PENDING)
-  pendingKey         GroupPendingKey?       @default(PENDING)
-  expiresAt          DateTime
-  respondedAt        DateTime?
-  createdAt          DateTime              @default(now())
+  id          Int                   @id @default(autoincrement())
+  groupId     Int
+  status      GroupInvitationStatus @default(PENDING)
+  pendingKey  GroupPendingKey?      @default(PENDING)
+  expiresAt   DateTime
+  respondedAt DateTime?
+  createdAt   DateTime              @default(now())
 
-  group     Group   @relation(fields: [groupId], references: [id], onDelete: Restrict)
-  recipient Student @relation("GroupInvitationRecipient", fields: [recipientStudentId], references: [id], onDelete: Restrict)
-  inviter   Student @relation("GroupInvitationInviter", fields: [inviterStudentId], references: [id], onDelete: Restrict)
+  group           Group @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  recipientUserId Int
+  recipientUser   User  @relation("UserGroupInvitationRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
 
-  @@index([recipientStudentId, status, expiresAt])
+  inviterUserId Int
+  inviterUser   User @relation("UserGroupInvitationInviter", fields: [inviterUserId], references: [id], onDelete: Restrict)
+
+  @@unique([groupId, recipientUserId, pendingKey])
   @@index([groupId, status])
-  @@unique([groupId, recipientStudentId, pendingKey])
+  @@index([recipientUserId, status, expiresAt])
   @@schema("app")
 }
 
 model GroupMembership {
-  id         Int      @id @default(autoincrement())
-  groupId    Int
-  studentId  Int
-  joinedAt   DateTime @default(now())
-  leftAt     DateTime?
-  activeKey  GroupActiveKey? @default(ACTIVE)
-  isPublic   Boolean  @default(false)
+  id        Int             @id @default(autoincrement())
+  groupId   Int
+  joinedAt  DateTime        @default(now())
+  leftAt    DateTime?
+  activeKey GroupActiveKey? @default(ACTIVE)
+  isPublic  Boolean         @default(false)
 
   group     Group                 @relation(fields: [groupId], references: [id], onDelete: Restrict)
-  student   Student               @relation(fields: [studentId], references: [id], onDelete: Restrict)
   positions GroupPosition[]
   roles     GroupMembershipRole[]
+  userId    Int
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  @@unique([groupId, studentId, activeKey])
   @@unique([id, groupId])
-  @@index([studentId, leftAt])
+  @@unique([groupId, userId, activeKey])
   @@index([groupId, isPublic, leftAt])
+  @@index([userId])
   @@schema("app")
+  @@index([userId, leftAt])
 }
 
 model GroupPosition {
@@ -1817,7 +1821,7 @@ model GroupRole {
   groupId Int
   name    String @db.VarChar(80)
 
-  group       Group                     @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  group       Group                 @relation(fields: [groupId], references: [id], onDelete: Restrict)
   permissions GroupRolePermission[]
   members     GroupMembershipRole[]
 
@@ -1879,5 +1883,37 @@ model GroupEventTag {
 
   @@id([eventId, tagId])
   @@index([tagId])
+  @@schema("app")
+}
+
+model UserEmail {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  email      String    @db.VarChar(320)
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, email])
+  @@schema("app")
+}
+
+model ExchangeNoticeDeliveryRecipient {
+  id            Int                          @id @default(autoincrement())
+  deliveryId    Int
+  email         String                       @db.VarChar(320)
+  status        ExchangeNoticeDeliveryStatus @default(PENDING)
+  attemptCount  Int                          @default(0)
+  nextAttemptAt DateTime                     @default(now())
+  processingAt  DateTime?
+  sentAt        DateTime?
+  lastError     String?
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+  delivery      ExchangeNoticeDelivery       @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@unique([deliveryId, email])
+  @@index([status, nextAttemptAt])
   @@schema("app")
 }

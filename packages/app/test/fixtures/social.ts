@@ -8,10 +8,13 @@ export function socialPerson(id = 8) {
         publicDisplayName: null,
         publicBio: null,
         currentCoursesVisibility: "FRIENDS" as "PRIVATE" | "FRIENDS" | "PUBLIC",
-        entryYear: 2026,
+        student: {
+            name: "Ada Lovelace",
+            entryYear: 2026,
+            program: null,
+            specialization: null
+        },
         tagInterests: [],
-        courseAttempts: [],
-        program: null,
-        specialization: null
+        courseAttempts: []
     };
 }

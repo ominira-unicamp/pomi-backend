@@ -15,6 +15,7 @@ test("friendship acceptance preserves the HTTP success and problem contract", as
     app.use((request, _response, next) => {
         request.scope = {
             cradle: {
+                resolveLegacyUser: async (studentId: number) => studentId,
                 socialFriendshipService: createSocialFriendshipService(fixture)
             }
         } as never;
@@ -43,7 +44,7 @@ test("friendship acceptance preserves the HTTP success and problem contract", as
                     status: "ACCEPTED",
                     direction: "NONE",
                     friend: {
-                        publicId: fixture.row.studentB.publicId,
+                        publicId: fixture.row.userB.publicId,
                         displayName: "Ada Lovelace",
                         avatarMediaId: null,
                         bio: null,

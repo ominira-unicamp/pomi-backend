@@ -67,8 +67,8 @@ test("upserts existing tags and rejects unknown tags", async () => {
 
     assert.equal((await service.put(7, 8)).isOk(), true);
     assert.deepEqual(upsertInput, {
-        where: { studentId_tagId: { studentId: 7, tagId: 8 } },
-        create: { studentId: 7, tagId: 8 },
+        where: { userId_tagId: { userId: 7, tagId: 8 } },
+        create: { userId: 7, tagId: 8 },
         update: {}
     });
     assert.equal((await service.put(7, 99)).isErr(), true);

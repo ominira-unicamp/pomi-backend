@@ -10,20 +10,17 @@ export type ImportStudentHistoryFailure =
 
 export async function importStudentHistory(
     { prisma }: { prisma: DatabaseClient },
-    {
-        studentId,
-        input
-    }: { studentId: number; input: ImportStudentHistoryInput }
+    { userId, input }: { userId: number; input: ImportStudentHistoryInput }
 ) {
-    const student = await prisma.student.findUnique({
-        where: { id: studentId },
-        select: { ra: true }
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { student: { select: { ra: true } } }
     });
-    if (!student)
+    if (!user?.student)
         return err<never, ImportStudentHistoryFailure>({
             kind: "student-not-found"
         });
-    if (student.ra !== input.student.ra)
+    if (user.student.ra !== input.student.ra)
         return err<never, ImportStudentHistoryFailure>({ kind: "ra-mismatch" });
 
     const periodKeys = input.semesters.map((item) => ({
@@ -86,7 +83,7 @@ export async function importStudentHistory(
         for (const row of rows) {
             const existing = await tx.studentCourseAttempt.findFirst({
                 where: {
-                    studentId,
+                    userId,
                     courseId: row.courseId,
                     OR: [
                         { studyPeriodId: row.studyPeriodId },
@@ -124,7 +121,7 @@ export async function importStudentHistory(
             } else {
                 await tx.studentCourseAttempt.create({
                     data: {
-                        studentId,
+                        userId,
                         courseId: row.courseId,
                         studyPeriodId:
                             row.classId == null ? row.studyPeriodId : null,

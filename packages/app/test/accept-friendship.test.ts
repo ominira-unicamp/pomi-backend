@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { friendshipFixture } from "./fixtures/friendship.js";
 
-const input = { studentId: 7, friendshipId: 3 };
+const input = { userId: 7, friendshipId: 3 };
 
 test("friendship acceptance rejects invalid requests before writing or reading the clock", async (t) => {
     const scenarios: {
         name: string;
         setup(fixture: ReturnType<typeof friendshipFixture>): void;
-        studentId: number;
+        userId: number;
         kind: "not-found" | "cannot-accept";
     }[] = [
         {
@@ -17,19 +17,19 @@ test("friendship acceptance rejects invalid requests before writing or reading t
             setup: (fixture) => {
                 fixture.state.existing = null;
             },
-            studentId: 7,
+            userId: 7,
             kind: "not-found"
         },
         {
             name: "nonparticipant",
             setup: () => {},
-            studentId: 9,
+            userId: 9,
             kind: "not-found"
         },
         {
             name: "requester",
             setup: () => {},
-            studentId: 8,
+            userId: 8,
             kind: "cannot-accept"
         },
         {
@@ -37,7 +37,7 @@ test("friendship acceptance rejects invalid requests before writing or reading t
             setup: (fixture) => {
                 fixture.row.status = "ACCEPTED";
             },
-            studentId: 8,
+            userId: 8,
             kind: "cannot-accept"
         },
         {
@@ -45,7 +45,7 @@ test("friendship acceptance rejects invalid requests before writing or reading t
             setup: (fixture) => {
                 fixture.row.status = "ACCEPTED";
             },
-            studentId: 7,
+            userId: 7,
             kind: "cannot-accept"
         }
     ];
@@ -55,7 +55,7 @@ test("friendship acceptance rejects invalid requests before writing or reading t
             scenario.setup(fixture);
             const result = await acceptFriendship(fixture, {
                 ...input,
-                studentId: scenario.studentId
+                userId: scenario.userId
             });
             assert.deepEqual(result._unsafeUnwrapErr(), {
                 kind: scenario.kind
@@ -71,8 +71,8 @@ test("friendship acceptance retains participant checks and uses the injected ins
     const result = await acceptFriendship(fixture, input);
     assert.deepEqual(fixture.calls.finds, [
         {
-            where: { id: 3, OR: [{ studentAId: 7 }, { studentBId: 7 }] },
-            select: { status: true, requestedById: true }
+            where: { id: 3, OR: [{ userAId: 7 }, { userBId: 7 }] },
+            select: { status: true, requestedByUserId: true }
         }
     ]);
     assert.deepEqual(fixture.calls.writes, [
@@ -80,8 +80,8 @@ test("friendship acceptance retains participant checks and uses the injected ins
             where: {
                 id: 3,
                 status: "PENDING",
-                requestedById: { not: 7 },
-                OR: [{ studentAId: 7 }, { studentBId: 7 }]
+                requestedByUserId: { not: 7 },
+                OR: [{ userAId: 7 }, { userBId: 7 }]
             },
             data: { status: "ACCEPTED", acceptedAt: fixture.instant }
         }

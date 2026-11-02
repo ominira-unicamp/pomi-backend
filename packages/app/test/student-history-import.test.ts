@@ -49,8 +49,8 @@ test("imports an enrolled course attempt", async () => {
     };
     const service = createStudentHistoryImportService({
         prisma: {
-            student: {
-                findUnique: async () => ({ ra: "123456" })
+            user: {
+                findUnique: async () => ({ student: { ra: "123456" } })
             },
             studyPeriod: {
                 findMany: async () => [
@@ -95,7 +95,7 @@ test("imports an enrolled course attempt", async () => {
             warnings: []
         });
     assert.deepEqual(createdData, {
-        studentId: 1,
+        userId: 1,
         courseId: 20,
         studyPeriodId: null,
         classId: 30,
@@ -113,7 +113,7 @@ test("history failures remain local and translate to the existing public problem
         [{ ra: "654321" }, "ra-mismatch", "invalid-student-history-import"]
     ] as const) {
         const service = createStudentHistoryImportService({
-            prisma: { student: { findUnique: async () => student } } as never
+            prisma: { user: { findUnique: async () => ({ student }) } } as never
         });
         const failure = (
             await service.import(1, enrolledHistory)

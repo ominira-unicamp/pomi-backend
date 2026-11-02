@@ -43,7 +43,7 @@ const controllers = [
 ] as const;
 
 for (const [dependency, path, controller, method] of controllers) {
-    test(`${dependency} controller resolves only its local service`, async () => {
+    test(`${dependency} controller resolves its local service and the required legacy user mapping`, async () => {
         const application = express();
         let called = false;
         application.use((request, _response, next) => {
@@ -52,9 +52,16 @@ for (const [dependency, path, controller, method] of controllers) {
                     {},
                     {
                         get(_target, key) {
+                            if (key === "resolveLegacyUser")
+                                return async (studentId: number) => {
+                                    assert.equal(studentId, 42);
+                                    return 1042;
+                                };
                             assert.equal(key, dependency);
                             return {
-                                [method]: async () => {
+                                [method]: async (...args: unknown[]) => {
+                                    if (path.startsWith("/student/"))
+                                        assert.equal(args[0], 1042);
                                     called = true;
                                     return [];
                                 }
@@ -114,6 +121,7 @@ test("group mutation controllers preserve public failure status, type and detail
             application.use((request, _response, next) => {
                 request.scope = {
                     cradle: {
+                        resolveLegacyUser: async () => 1042,
                         [dependency]: {
                             [method]: async () =>
                                 err({ kind, message: "Mensagem preservada." })

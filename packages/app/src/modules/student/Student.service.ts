@@ -166,6 +166,47 @@ export type StudentService = {
     >;
 };
 
+const legacyStudentInclude = {
+    user: {
+        select: {
+            publicId: true,
+            publicProfileEnabled: true,
+            publicDisplayName: true,
+            publicBio: true,
+            currentCoursesVisibility: true,
+            avatarMediaId: true,
+            avatarRevision: true,
+            favoriteCurriculumId: true
+        }
+    }
+} as const;
+
+function legacyStudent(value: {
+    id: number;
+    ra: string;
+    name: string;
+    programId: number | null;
+    specializationId: number | null;
+    catalogId: number | null;
+    entryYear: number | null;
+    languageId: number | null;
+    user: {
+        publicId: string;
+        publicProfileEnabled: boolean;
+        publicDisplayName: string | null;
+        publicBio: string | null;
+        currentCoursesVisibility: string;
+        avatarMediaId: string | null;
+        avatarRevision: number;
+        favoriteCurriculumId: number | null;
+    } | null;
+}) {
+    const { user, ...academic } = value;
+    if (!user)
+        throw new Error("Academic complement is missing its canonical user.");
+    return { ...academic, ...user };
+}
+
 export function createStudentService({
     prisma
 }: {
@@ -173,18 +214,26 @@ export function createStudentService({
 }): StudentService {
     return {
         async list(query) {
-            return prisma.student.findMany({
-                orderBy: compileSort(resolveSort(query.sort, studentSort), {
-                    id: (direction) => ({ id: direction }),
-                    ra: (direction) => ({ ra: direction }),
-                    name: (direction) => ({ name: direction }),
-                    entryYear: (direction) => ({ entryYear: direction })
+            return (
+                await prisma.student.findMany({
+                    include: legacyStudentInclude,
+                    orderBy: compileSort(resolveSort(query.sort, studentSort), {
+                        id: (direction) => ({ id: direction }),
+                        ra: (direction) => ({ ra: direction }),
+                        name: (direction) => ({ name: direction }),
+                        entryYear: (direction) => ({ entryYear: direction })
+                    })
                 })
-            });
+            ).map(legacyStudent);
         },
         async getById(id) {
-            const student = await prisma.student.findUnique({ where: { id } });
-            return student ? ok(student) : err(studentNotFoundProblem());
+            const student = await prisma.student.findUnique({
+                where: { id },
+                include: legacyStudentInclude
+            });
+            return student
+                ? ok(legacyStudent(student))
+                : err(studentNotFoundProblem());
         },
         async create(principal, input) {
             const ra = raFromDacEmail(principal?.email ?? null);
@@ -194,7 +243,10 @@ export function createStudentService({
                         "A identidade autenticada não possui um RA institucional verificável."
                     )
                 );
-            const existing = await prisma.student.findUnique({ where: { ra } });
+            const existing = await prisma.student.findUnique({
+                where: { ra },
+                include: legacyStudentInclude
+            });
             if (principal.studentId !== null)
                 return err(
                     studentIdentityConflictProblem(
@@ -214,7 +266,12 @@ export function createStudentService({
                     });
                 });
                 return ok({
-                    student: existing,
+                    student: legacyStudent(
+                        await prisma.student.findUniqueOrThrow({
+                            where: { id: existing.id },
+                            include: legacyStudentInclude
+                        })
+                    ),
                     linked: true
                 });
             }
@@ -249,9 +306,12 @@ export function createStudentService({
                     where: { id: principal.authUserId },
                     data: { studentId: student.id }
                 });
-                return student;
+                return tx.student.findUniqueOrThrow({
+                    where: { id: student.id },
+                    include: legacyStudentInclude
+                });
             });
-            return ok({ student: student, linked: false });
+            return ok({ student: legacyStudent(student), linked: false });
         },
         async patch(id, input) {
             const existing = await prisma.student.findUnique({ where: { id } });
@@ -279,7 +339,13 @@ export function createStudentService({
             if (validation)
                 return err(invalidStudentProfileProblem(validation.fields));
             return ok(
-                await prisma.student.update({ where: { id }, data: input })
+                legacyStudent(
+                    await prisma.student.update({
+                        where: { id },
+                        data: input,
+                        include: legacyStudentInclude
+                    })
+                )
             );
         },
         async remove(id, confirmationRa) {
@@ -300,15 +366,16 @@ export function createStudentService({
                     ])
                 );
             await prisma.$transaction(async (tx) => {
+                const owner = await tx.user.findUniqueOrThrow({
+                    where: { studentId: id },
+                    select: { id: true }
+                });
                 await tx.studentCourseAttempt.deleteMany({
-                    where: { studentId: id }
+                    where: { userId: owner.id }
                 });
-                await tx.curriculumCourse.deleteMany({
-                    where: { curriculum: { studentId: id } }
-                });
-                await tx.curriculum.deleteMany({ where: { studentId: id } });
-                await tx.periodPlanning.deleteMany({
-                    where: { studentId: id }
+                await tx.authUser.updateMany({
+                    where: { studentId: id },
+                    data: { studentId: null }
                 });
                 await tx.student.delete({ where: { id } });
             });

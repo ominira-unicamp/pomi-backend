@@ -146,7 +146,7 @@ test("retires old unlinked assets without touching linked avatars or recent uplo
     let input: unknown;
     let selection: unknown;
     const prisma = {
-        student: {
+        user: {
             findMany: async () => [
                 {
                     avatarMediaId: "private",
