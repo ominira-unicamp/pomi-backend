@@ -322,6 +322,73 @@ enum DataSnapshotComponentStatus {
   @@schema("app")
 }
 
+enum PrincipalKind {
+  HUMAN
+  SERVICE
+
+  @@schema("app")
+}
+
+enum PrincipalStatus {
+  ACTIVE
+  DISABLED
+
+  @@schema("app")
+}
+
+model Principal {
+  id             Int             @id @default(autoincrement())
+  kind           PrincipalKind
+  status         PrincipalStatus @default(ACTIVE)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  identities     AuthIdentity[]
+  user           User?
+  serviceAccount ServiceAccount?
+
+  @@schema("app")
+}
+
+model AuthIdentity {
+  id               Int       @id @default(autoincrement())
+  principalId      Int
+  issuer           String
+  subject          String
+  legacyAuthUserId Int       @unique
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  principal        Principal @relation(fields: [principalId], references: [id], onDelete: Restrict)
+  legacyAuthUser   AuthUser  @relation(fields: [legacyAuthUserId], references: [id], onDelete: Restrict)
+
+  @@unique([issuer, subject])
+  @@index([principalId])
+  @@schema("app")
+}
+
+model User {
+  id          Int       @id @default(autoincrement())
+  principalId Int       @unique
+  name        String?
+  studentId   Int?      @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  principal   Principal @relation(fields: [principalId], references: [id], onDelete: Restrict)
+  student     Student?  @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@schema("app")
+}
+
+model ServiceAccount {
+  id          Int       @id @default(autoincrement())
+  principalId Int       @unique
+  name        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  principal   Principal @relation(fields: [principalId], references: [id], onDelete: Restrict)
+
+  @@schema("app")
+}
+
 model AuthUser {
   id          Int            @id @default(autoincrement())
   issuer      String
@@ -332,6 +399,7 @@ model AuthUser {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
+  authIdentity  AuthIdentity?
   roles         AuthUserRole[]
   capabilities  AuthUserCapability[]
   student       Student?             @relation("AuthUserStudent", fields: [studentId], references: [id], onDelete: SetNull)
@@ -1259,6 +1327,7 @@ model Student {
   id                       Int                             @id @default(autoincrement())
   ra                       String                          @unique
   name                     String
+  user                     User?
   authUsers                AuthUser[]                      @relation("AuthUserStudent")
   program                  Program?                        @relation(fields: [programId], references: [id])
   programId                Int?

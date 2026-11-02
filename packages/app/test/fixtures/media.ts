@@ -13,6 +13,10 @@ import type { PrismaClient } from "@pomi/db";
 import { Readable } from "node:stream";
 
 export const principal: Principal = {
+    principalId: 9,
+    authIdentityId: 9,
+    userId: 9,
+    serviceAccountId: null,
     authUserId: 9,
     issuer: "test",
     subject: "student",
@@ -53,6 +57,7 @@ export function mediaFixture(
 ) {
     let state = {
         userStatus: "ACTIVE",
+        principalStatus: "ACTIVE",
         userStudentId: 42,
         userRoles: ["STUDENT"],
         grant: false,
@@ -84,6 +89,22 @@ export function mediaFixture(
     const database = {
         authUser: {
             findUnique: async () => ({
+                id: 9,
+                issuer: "test",
+                subject: "student",
+                authIdentity: {
+                    id: 9,
+                    legacyAuthUserId: 9,
+                    issuer: "test",
+                    subject: "student",
+                    principal: {
+                        id: 9,
+                        kind: "HUMAN",
+                        status: state.principalStatus,
+                        user: { id: 9, studentId: state.userStudentId },
+                        serviceAccount: null
+                    }
+                },
                 status: state.userStatus,
                 studentId: state.userStudentId,
                 roles: state.userRoles.map((role) => ({ role }))

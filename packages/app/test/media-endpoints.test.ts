@@ -37,6 +37,10 @@ const actions = createImageActions(groupAvatarEndpoints, {
     actor: (context: Context) => context.principal
 });
 const actor: Principal = {
+    principalId: 1,
+    authIdentityId: 1,
+    userId: 1,
+    serviceAccountId: null,
     authUserId: 1,
     issuer: "test",
     subject: "test",

@@ -65,6 +65,19 @@ function authUser(overrides: Record<string, unknown> = {}) {
         createdAt: new Date(),
         updatedAt: new Date(),
         studentId: null,
+        authIdentity: {
+            id: 80,
+            legacyAuthUserId: 8,
+            issuer,
+            subject: "keycloak-user",
+            principal: {
+                id: 800,
+                kind: "HUMAN",
+                status: "ACTIVE",
+                user: { id: 8000, studentId: overrides.studentId ?? null },
+                serviceAccount: null
+            }
+        },
         roles: [{ authUserId: 8, role: "STUDENT" }],
         capabilities: [],
         ...overrides
@@ -178,6 +191,7 @@ test("rejects a token without a subject", async () => {
 test("creates and links a student for an existing unlinked student identity", async () => {
     const upserts: unknown[] = [];
     const transactionClient = {
+        user: { update: async () => ({}) },
         student: {
             upsert: async (input: unknown) => {
                 upserts.push(input);
@@ -185,6 +199,7 @@ test("creates and links a student for an existing unlinked student identity", as
             }
         },
         authUser: {
+            findUniqueOrThrow: async () => authUser(),
             updateMany: async () => ({ count: 1 }),
             findUnique: async () => ({ studentId: 12 })
         }
@@ -266,6 +281,7 @@ test("leaves explicit student registration to the registration endpoint", async 
 
 test("preserves a link written by a concurrent request", async () => {
     const transactionClient = {
+        user: { update: async () => ({}) },
         student: { upsert: async () => ({ id: 12 }) },
         authUser: {
             updateMany: async () => ({ count: 0 }),
@@ -294,6 +310,7 @@ test("preserves a link written by a concurrent request", async () => {
 test("uses the username when the token has no display name", async () => {
     let createdName: string | undefined;
     const transactionClient = {
+        user: { update: async () => ({}) },
         student: {
             upsert: async (input: { create: { name: string } }) => {
                 createdName = input.create.name;
@@ -301,6 +318,7 @@ test("uses the username when the token has no display name", async () => {
             }
         },
         authUser: {
+            findUniqueOrThrow: async () => authUser(),
             updateMany: async () => ({ count: 1 }),
             findUnique: async () => ({ studentId: 12 })
         }
@@ -348,4 +366,51 @@ test("does not provision a disabled identity", async () => {
         /Forbidden/
     );
     assert.equal(transactionStarted, false);
+});
+
+test("fails closed when an existing legacy account has no canonical identity", async () => {
+    await assert.rejects(
+        resolvePrincipal(
+            { iss: issuer, sub: "keycloak-user" },
+            requestWithPrisma({
+                authUser: {
+                    findUnique: async () => authUser({ authIdentity: null })
+                }
+            })
+        ),
+        /Canonical identity/
+    );
+});
+
+test("rejects a disabled canonical principal even when the legacy account is active", async () => {
+    const account = authUser();
+    account.authIdentity.principal.status = "DISABLED";
+    await assert.rejects(
+        resolvePrincipal(
+            { iss: issuer, sub: "keycloak-user" },
+            requestWithPrisma({
+                authUser: { findUnique: async () => account }
+            })
+        ),
+        /Forbidden/
+    );
+});
+
+test("keeps the public current-user representation unchanged", async () => {
+    const { createCurrentUserService } =
+        await import("#/modules/identity/current-user/CurrentUser.service.js");
+    const principal = await resolvePrincipal(
+        { iss: issuer, sub: "keycloak-user" },
+        requestWithPrisma({
+            authUser: { findUnique: async () => authUser({ studentId: 21 }) }
+        })
+    );
+    assert.equal(principal.principalId, 800);
+    assert.equal(principal.userId, 8000);
+    assert.deepEqual(createCurrentUserService().get(principal), {
+        id: 8,
+        roles: ["STUDENT"],
+        capabilities: [],
+        studentId: 21
+    });
 });

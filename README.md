@@ -382,3 +382,11 @@ limpeza agendada ou recuperação pendente; não confundem agendamento com exclu
 física concluída. Falhas técnicas continuam no handler central. As fronteiras
 verificam imports de tipo, estáticos e dinâmicos e possuem testes negativos em
 `npm run test:boundaries`, também executados por `npm test`.
+
+### Fundação de identidade
+
+A introdução interna de `Principal`, `AuthIdentity`, `User` e `ServiceAccount`,
+sem alteração dos contratos HTTP, está descrita em
+[Fundação de identidade](docs/identity-foundation.md). O documento detalha a
+compatibilidade com `AuthUser`, o backfill local e a ativação gradual. O rollout
+de homologação de 02/11/2026 está registrado no próprio documento.

@@ -485,3 +485,21 @@ test("media reports committed activation and distinguishes scheduled cleanup fro
         assert.equal(JSON.stringify(events).includes(uploaded.alias), false);
     }
 });
+
+test("a blocked canonical principal cannot read or change a private avatar", async () => {
+    const fixture = mediaFixture();
+    fixture.state().principalStatus = "DISABLED";
+    await assert.rejects(
+        fixture.service.read(
+            principal,
+            "old-id",
+            "avatarSmall",
+            new AbortController().signal
+        ),
+        NotFoundError
+    );
+    await assert.rejects(
+        fixture.studentAvatars.remove({ actor: principal, target }),
+        ForbiddenError
+    );
+});

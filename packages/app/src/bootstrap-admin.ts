@@ -1,5 +1,4 @@
-import { AuthRoles } from "#/auth.js";
-import { createDatabaseClient } from "@pomi/db";
+import { createDatabaseClient, ensureAdministratorIdentity } from "@pomi/db";
 import "dotenv/config";
 
 const connectionString = process.env.DATABASE_URL;
@@ -30,23 +29,11 @@ async function main() {
         );
     }
 
-    const authUser = await database.authUser.upsert({
-        where: { issuer_subject: { issuer, subject } },
-        create: {
-            issuer,
-            subject,
-            roles: { create: { role: AuthRoles.ADMIN } }
-        },
-        update: { status: "ACTIVE" }
-    });
-
-    await database.authUserRole.upsert({
-        where: {
-            authUserId_role: { authUserId: authUser.id, role: AuthRoles.ADMIN }
-        },
-        create: { authUserId: authUser.id, role: AuthRoles.ADMIN },
-        update: {}
-    });
+    const authUser = await ensureAdministratorIdentity(
+        database,
+        issuer,
+        subject
+    );
 
     console.log(`Administrator ${authUser.id} is active.`);
 }

@@ -4,6 +4,13 @@ import {
     sendProblem,
     unauthenticatedProblem
 } from "@pomi/api-core";
+import {
+    canonicalIdentity,
+    canonicalIdentityInclude,
+    createCanonicalIdentity,
+    linkCanonicalStudent,
+    runIdentityTransaction
+} from "@pomi/db";
 import { asValue } from "awilix";
 import { NextFunction, Request, Response } from "express";
 import * as jose from "jose";
@@ -90,6 +97,7 @@ export async function resolvePrincipal(
     let authUser = await req.prisma.authUser.findUnique({
         where: { issuer_subject: { issuer: tokenIssuer, subject } },
         include: {
+            ...canonicalIdentityInclude,
             roles: true,
             capabilities: true
         }
@@ -98,22 +106,42 @@ export async function resolvePrincipal(
     if (!authUser) {
         const studentIdentity = studentIdentityFromToken(payload);
         if (!studentIdentity) throw new ForbiddenError();
-        authUser = await req.prisma.authUser.create({
-            data: {
-                issuer: tokenIssuer,
-                subject,
-                email: studentIdentity.email,
-                displayName: studentIdentity.displayName,
-                roles: { create: { role: AuthRoles.STUDENT } }
-            },
-            include: {
-                roles: true,
-                capabilities: true
-            }
+        authUser = await runIdentityTransaction(req.prisma, async (tx) => {
+            const existing = await tx.authUser.findUnique({
+                where: { issuer_subject: { issuer: tokenIssuer, subject } },
+                include: {
+                    ...canonicalIdentityInclude,
+                    roles: true,
+                    capabilities: true
+                }
+            });
+            if (existing) return existing;
+            const created = await tx.authUser.create({
+                data: {
+                    issuer: tokenIssuer,
+                    subject,
+                    email: studentIdentity.email,
+                    displayName: studentIdentity.displayName,
+                    roles: { create: { role: AuthRoles.STUDENT } }
+                },
+                include: { roles: true }
+            });
+            await createCanonicalIdentity(tx, created, "HUMAN");
+            return tx.authUser.findUniqueOrThrow({
+                where: { id: created.id },
+                include: {
+                    ...canonicalIdentityInclude,
+                    roles: true,
+                    capabilities: true
+                }
+            });
         });
     }
 
     if (authUser.status === "DISABLED") throw new ForbiddenError();
+
+    const resolved = canonicalIdentity(authUser);
+    if (resolved.principal.status !== "ACTIVE") throw new ForbiddenError();
 
     const studentIdentity = studentIdentityFromToken(payload);
     if (
@@ -122,30 +150,40 @@ export async function resolvePrincipal(
         authUser.roles.some((entry) => entry.role === AuthRoles.STUDENT) &&
         studentIdentity
     ) {
-        authUser.studentId = await req.prisma.$transaction(async (tx) => {
-            const student = await tx.student.upsert({
-                where: { ra: studentIdentity.ra },
-                update: {},
-                create: {
-                    ra: studentIdentity.ra,
-                    name: studentIdentity.displayName
-                },
-                select: { id: true }
-            });
-            const linked = await tx.authUser.updateMany({
-                where: { id: authUser.id, studentId: null },
-                data: { studentId: student.id }
-            });
-            if (linked.count > 0) return student.id;
-            const current = await tx.authUser.findUnique({
-                where: { id: authUser.id },
-                select: { studentId: true }
-            });
-            return current?.studentId ?? null;
-        });
+        authUser.studentId = await runIdentityTransaction(
+            req.prisma,
+            async (tx) => {
+                const student = await tx.student.upsert({
+                    where: { ra: studentIdentity.ra },
+                    update: {},
+                    create: {
+                        ra: studentIdentity.ra,
+                        name: studentIdentity.displayName
+                    },
+                    select: { id: true }
+                });
+                const linked = await tx.authUser.updateMany({
+                    where: { id: authUser.id, studentId: null },
+                    data: { studentId: student.id }
+                });
+                if (linked.count > 0) {
+                    await linkCanonicalStudent(tx, authUser.id, student.id);
+                    return student.id;
+                }
+                const current = await tx.authUser.findUnique({
+                    where: { id: authUser.id },
+                    select: { studentId: true }
+                });
+                return current?.studentId ?? null;
+            }
+        );
     }
 
     return {
+        principalId: resolved.principal.id,
+        authIdentityId: resolved.identity.id,
+        userId: resolved.principal.user?.id ?? null,
+        serviceAccountId: resolved.principal.serviceAccount?.id ?? null,
         authUserId: authUser.id,
         issuer: authUser.issuer,
         subject: authUser.subject,

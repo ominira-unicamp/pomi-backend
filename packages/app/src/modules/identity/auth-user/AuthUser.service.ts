@@ -10,7 +10,13 @@ import {
 } from "#/modules/identity/auth-user/AuthUser.problems.js";
 import { prismaAuthUserSelection } from "#/modules/identity/auth-user/AuthUser.queries.js";
 import { compileSort, err, ok, resolveSort, type Result } from "@pomi/api-core";
-import type { PrismaClient } from "@pomi/db";
+import {
+    canonicalIdentity,
+    canonicalIdentityInclude,
+    createCanonicalIdentity,
+    runIdentityTransaction,
+    type PrismaClient
+} from "@pomi/db";
 import z from "zod";
 
 type AuthUser = z.infer<typeof IO.schemas.entity>;
@@ -59,70 +65,138 @@ export function createAuthUserService({
             ).map(authUserPresenter.build);
         },
         async create(principal, input) {
-            const authUser = await prisma.authUser.upsert({
-                where: {
-                    issuer_subject: {
-                        issuer: principal.issuer,
-                        subject: input.subject
+            const authUser = await runIdentityTransaction(
+                prisma,
+                async (tx) => {
+                    const existing = await tx.authUser.findUnique({
+                        where: {
+                            issuer_subject: {
+                                issuer: principal.issuer,
+                                subject: input.subject
+                            }
+                        },
+                        include: canonicalIdentityInclude
+                    });
+                    if (existing) canonicalIdentity(existing);
+                    const authUser = await tx.authUser.upsert({
+                        where: {
+                            issuer_subject: {
+                                issuer: principal.issuer,
+                                subject: input.subject
+                            }
+                        },
+                        create: {
+                            issuer: principal.issuer,
+                            subject: input.subject,
+                            displayName: input.displayName,
+                            roles: { create: { role: AuthRoles.BOT } },
+                            capabilities: {
+                                create: input.capabilities.map(
+                                    (capability) => ({
+                                        capability
+                                    })
+                                )
+                            }
+                        },
+                        update: {
+                            displayName: input.displayName,
+                            status: "ACTIVE"
+                        },
+                        ...prismaAuthUserSelection
+                    });
+                    await tx.authUserRole.upsert({
+                        where: {
+                            authUserId_role: {
+                                authUserId: authUser.id,
+                                role: AuthRoles.BOT
+                            }
+                        },
+                        create: {
+                            authUserId: authUser.id,
+                            role: AuthRoles.BOT
+                        },
+                        update: {}
+                    });
+                    if (!existing) {
+                        await createCanonicalIdentity(
+                            tx,
+                            {
+                                ...authUser,
+                                studentId: null,
+                                roles: [{ role: "BOT" }]
+                            },
+                            "SERVICE"
+                        );
+                    } else {
+                        const { principal: canonical } =
+                            canonicalIdentity(existing);
+                        if (canonical.user)
+                            await tx.user.update({
+                                where: { id: canonical.user.id },
+                                data: { name: input.displayName }
+                            });
+                        if (canonical.serviceAccount)
+                            await tx.serviceAccount.update({
+                                where: { id: canonical.serviceAccount.id },
+                                data: { name: input.displayName }
+                            });
                     }
-                },
-                create: {
-                    issuer: principal.issuer,
-                    subject: input.subject,
-                    displayName: input.displayName,
-                    roles: { create: { role: AuthRoles.BOT } },
-                    capabilities: {
-                        create: input.capabilities.map((capability) => ({
-                            capability
-                        }))
-                    }
-                },
-                update: { displayName: input.displayName, status: "ACTIVE" },
-                ...prismaAuthUserSelection
-            });
-            await prisma.authUserRole.upsert({
-                where: {
-                    authUserId_role: {
-                        authUserId: authUser.id,
-                        role: AuthRoles.BOT
-                    }
-                },
-                create: { authUserId: authUser.id, role: AuthRoles.BOT },
-                update: {}
-            });
+                    return authUser;
+                }
+            );
             return authUserPresenter.build(authUser);
         },
         async patch(id, input) {
             const existing = await prisma.authUser.findUnique({
                 where: { id },
-                include: { roles: true }
+                include: { ...canonicalIdentityInclude, roles: true }
             });
             if (!existing) return err(authUserNotFoundProblem());
             if (existing.roles.some((role) => role.role === AuthRoles.ADMIN))
                 return err(adminIdentityManagedByCliProblem());
-            const authUser = await prisma.$transaction(async (tx) => {
-                if (input.capabilities) {
-                    await tx.authUserCapability.deleteMany({
-                        where: { authUserId: id }
+            const authUser = await runIdentityTransaction(
+                prisma,
+                async (tx) => {
+                    const current = await tx.authUser.findUniqueOrThrow({
+                        where: { id },
+                        include: canonicalIdentityInclude
                     });
-                    await tx.authUserCapability.createMany({
-                        data: input.capabilities.map((capability) => ({
-                            authUserId: id,
-                            capability
-                        }))
+                    const { principal: canonical } = canonicalIdentity(current);
+                    if (input.displayName) {
+                        if (canonical.user)
+                            await tx.user.update({
+                                where: { id: canonical.user.id },
+                                data: { name: input.displayName }
+                            });
+                        if (canonical.serviceAccount)
+                            await tx.serviceAccount.update({
+                                where: { id: canonical.serviceAccount.id },
+                                data: { name: input.displayName }
+                            });
+                    }
+                    if (input.capabilities) {
+                        await tx.authUserCapability.deleteMany({
+                            where: { authUserId: id }
+                        });
+                        await tx.authUserCapability.createMany({
+                            data: input.capabilities.map((capability) => ({
+                                authUserId: id,
+                                capability
+                            }))
+                        });
+                    }
+                    return tx.authUser.update({
+                        where: { id },
+                        data: {
+                            ...(input.status ? { status: input.status } : {}),
+                            ...(input.displayName
+                                ? { displayName: input.displayName }
+                                : {})
+                        },
+                        ...prismaAuthUserSelection
                     });
                 }
-                return tx.authUser.update({
-                    where: { id },
-                    data: {
-                        ...(input.status ? { status: input.status } : {}),
-                        ...(input.displayName
-                            ? { displayName: input.displayName }
-                            : {})
-                    },
-                    ...prismaAuthUserSelection
-                });
-            });
+            );
             return ok(authUserPresenter.build(authUser));
         }
     };

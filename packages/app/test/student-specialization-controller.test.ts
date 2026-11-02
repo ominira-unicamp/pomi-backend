@@ -25,6 +25,10 @@ test("rejects a student specialization from another program", async () => {
     });
     const result = await service.create(
         {
+            principalId: 1,
+            authIdentityId: 1,
+            userId: 1,
+            serviceAccountId: null,
             authUserId: 1,
             issuer: "http://keycloak/realms/pomi",
             subject: "student",

@@ -9,7 +9,11 @@ import {
     type StudentProblem
 } from "#/modules/student/Student.problems.js";
 import { compileSort, err, ok, resolveSort, type Result } from "@pomi/api-core";
-import type { PrismaClient } from "@pomi/db";
+import {
+    linkCanonicalStudent,
+    runIdentityTransaction,
+    type PrismaClient
+} from "@pomi/db";
 import z from "zod";
 
 type Student = z.infer<typeof IO.schema>;
@@ -198,9 +202,16 @@ export function createStudentService({
                     )
                 );
             if (existing) {
-                await prisma.authUser.update({
-                    where: { id: principal.authUserId },
-                    data: { studentId: existing.id }
+                await runIdentityTransaction(prisma, async (tx) => {
+                    await linkCanonicalStudent(
+                        tx,
+                        principal.authUserId,
+                        existing.id
+                    );
+                    await tx.authUser.update({
+                        where: { id: principal.authUserId },
+                        data: { studentId: existing.id }
+                    });
                 });
                 return ok({
                     student: existing,
@@ -217,7 +228,7 @@ export function createStudentService({
                 return err(studentReferenceNotFoundProblem(validation.fields));
             if (validation)
                 return err(invalidStudentProfileProblem(validation.fields));
-            const student = await prisma.$transaction(async (tx) => {
+            const student = await runIdentityTransaction(prisma, async (tx) => {
                 const student = await tx.student.create({
                     data: {
                         ra,
@@ -229,6 +240,11 @@ export function createStudentService({
                         languageId: input.languageId
                     }
                 });
+                await linkCanonicalStudent(
+                    tx,
+                    principal.authUserId,
+                    student.id
+                );
                 await tx.authUser.update({
                     where: { id: principal.authUserId },
                     data: { studentId: student.id }

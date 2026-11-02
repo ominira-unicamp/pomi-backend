@@ -1,6 +1,10 @@
 import type { AuthRole, Capability } from "./Authorization.js";
 
 export type Principal = {
+    principalId: number;
+    authIdentityId: number;
+    userId: number | null;
+    serviceAccountId: number | null;
     authUserId: number;
     issuer: string;
     subject: string;

@@ -32,7 +32,8 @@
         "prisma:deploy": "npm run migrate:deploy --workspace @pomi/db",
         "prisma:status": "npm run migrate:status --workspace @pomi/db",
         "prepare": "husky install",
-        "test:boundaries": "node scripts/check-package-boundaries.test.mjs"
+        "test:boundaries": "node scripts/check-package-boundaries.test.mjs",
+        "auth:backfill-local": "npm run auth:backfill-local --workspace @pomi/db --"
     },
     "devDependencies": {
         "@eslint/js": "^9.39.2",
