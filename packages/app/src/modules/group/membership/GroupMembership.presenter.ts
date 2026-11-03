@@ -16,7 +16,7 @@ export const membershipInclude = {
                 select: {
                     identities: {
                         where: {
-                            legacyAuthUser: { status: "ACTIVE" as const }
+                            status: "ACTIVE" as const
                         },
                         take: 1,
                         select: { id: true }

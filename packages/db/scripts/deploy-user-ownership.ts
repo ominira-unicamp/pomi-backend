@@ -13,7 +13,9 @@ import {
 config({ path: resolve(import.meta.dirname, "../../../.env"), quiet: true });
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is required.");
-const migrations = resolve(import.meta.dirname, "../prisma/migrations");
+const migrations =
+    process.env.POMI_IDENTITY_STAGED_MIGRATIONS_PATH ??
+    resolve(import.meta.dirname, "../prisma/migrations");
 const prismaConfig = resolve(import.meta.dirname, "../prisma.config.ts");
 const contract = "20261102113617_contract_user_ownership";
 const require = createRequire(import.meta.url);

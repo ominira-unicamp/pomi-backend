@@ -21,7 +21,7 @@ import {
     socialNotFoundProblem
 } from "../Social.problems.js";
 import type { friendship } from "../Social.schemas.js";
-import { activeLegacyIdentity } from "../SocialPerson.queries.js";
+import { activeIdentity } from "../SocialPerson.queries.js";
 import type { AcceptFriendshipFailure } from "./AcceptFriendship.use-case.js";
 import { acceptFriendship } from "./AcceptFriendship.use-case.js";
 import IO, { studentFriendshipSort } from "./SocialFriendship.contract.js";
@@ -134,7 +134,7 @@ export function createSocialFriendshipService({
                 where: {
                     publicId: targetPublicId,
                     publicProfileEnabled: true,
-                    ...activeLegacyIdentity
+                    ...activeIdentity
                 },
                 select: { id: true }
             });

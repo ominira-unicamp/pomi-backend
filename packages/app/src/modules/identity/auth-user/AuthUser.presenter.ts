@@ -4,14 +4,20 @@ import { type AuthUserPayload } from "./AuthUser.queries.js";
 
 function build(authUser: AuthUserPayload): z.infer<typeof IO.schemas.entity> {
     return {
-        id: authUser.id,
+        id: authUser.legacyId,
         issuer: authUser.issuer,
         subject: authUser.subject,
         email: authUser.email,
         displayName: authUser.displayName,
         status: authUser.status,
-        roles: authUser.roles,
-        capabilities: authUser.capabilities
+        roles: authUser.roles.map(({ role }) => ({
+            authUserId: authUser.legacyId,
+            role
+        })),
+        capabilities: authUser.capabilities.map(({ capability }) => ({
+            authUserId: authUser.legacyId,
+            capability
+        }))
     };
 }
 

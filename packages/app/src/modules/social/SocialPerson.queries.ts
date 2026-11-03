@@ -45,8 +45,8 @@ export type SelectedPerson = MyPrisma.UserGetPayload<{
     select: typeof personSelection;
 }>;
 
-export const activeLegacyIdentity = {
+export const activeIdentity = {
     principal: {
-        identities: { some: { legacyAuthUser: { status: "ACTIVE" as const } } }
+        identities: { some: { status: "ACTIVE" as const } }
     }
 };

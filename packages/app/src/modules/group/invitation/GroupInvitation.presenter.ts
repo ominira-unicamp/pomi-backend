@@ -46,7 +46,7 @@ export const invitationInclude = {
                 select: {
                     identities: {
                         where: {
-                            legacyAuthUser: { status: "ACTIVE" as const }
+                            status: "ACTIVE" as const
                         },
                         select: { id: true },
                         take: 1

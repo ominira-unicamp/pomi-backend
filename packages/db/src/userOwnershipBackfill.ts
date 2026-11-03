@@ -3,7 +3,10 @@ import {
     Prisma as MyPrisma,
     type PrismaClient
 } from "../prisma/generated/client.js";
-import { canonicalIdentity, canonicalIdentityInclude } from "./identity.js";
+import {
+    readLegacyIdentityAccounts,
+    validateLegacyIdentity
+} from "./legacyIdentityMigration.js";
 
 export const userOwnershipTables = [
     "StudentTagInterest",
@@ -206,10 +209,9 @@ export async function backfillUserOwnership(
     return prisma.$transaction(
         async (tx) => {
             if (!options.apply) await tx.$executeRaw`SET TRANSACTION READ ONLY`;
-            const credentials = await tx.authUser.findMany({
-                include: canonicalIdentityInclude
-            });
-            for (const credential of credentials) canonicalIdentity(credential);
+            const credentials = await readLegacyIdentityAccounts(tx);
+            for (const credential of credentials)
+                validateLegacyIdentity(credential);
             const snapshot = {
                 ...(await sourceSnapshot(tx)),
                 ...(await inspectUserOwnershipState(tx, true))

@@ -1,17 +1,15 @@
 import type {
+    AuthRole,
+    Capability,
     Prisma as MyPrisma,
     PrismaClient
 } from "../prisma/generated/client.js";
 
 export const canonicalIdentityInclude = {
-    authIdentity: {
-        include: {
-            principal: { include: { user: true, serviceAccount: true } }
-        }
-    }
+    principal: { include: { user: true, serviceAccount: true } }
 } as const;
 
-export type LegacyIdentity = MyPrisma.AuthUserGetPayload<{
+export type CanonicalIdentityRecord = MyPrisma.AuthIdentityGetPayload<{
     include: typeof canonicalIdentityInclude;
 }>;
 export type IdentityKind = "HUMAN" | "SERVICE";
@@ -34,129 +32,132 @@ export function classifyIdentity(
     return bot ? "SERVICE" : "HUMAN";
 }
 
-export function canonicalIdentity(authUser: LegacyIdentity) {
-    const identity = authUser.authIdentity;
-    const principal = identity?.principal;
+export function canonicalIdentity(identity: CanonicalIdentityRecord) {
+    const principal = identity.principal;
     if (
-        !identity ||
         !principal ||
-        identity.legacyAuthUserId !== authUser.id ||
-        identity.issuer !== authUser.issuer ||
-        identity.subject !== authUser.subject ||
+        !Number.isSafeInteger(identity.legacyId) ||
+        identity.legacyId <= 0 ||
         (principal.kind === "HUMAN" &&
             (!principal.user || principal.serviceAccount)) ||
         (principal.kind === "SERVICE" &&
             (!principal.serviceAccount || principal.user)) ||
-        (authUser.studentId !== null &&
-            principal.user?.studentId !== authUser.studentId)
+        (identity.legacyStudentId !== null &&
+            principal.user?.studentId !== identity.legacyStudentId)
     )
         throw new IdentityConsistencyError();
     return { identity, principal };
 }
 
+type IdentityInput = {
+    issuer: string;
+    subject: string;
+    displayName?: string | null;
+    email?: string | null;
+    studentId?: number | null;
+    roles: readonly { role: AuthRole }[];
+    capabilities?: readonly { capability: Capability }[];
+};
+
 export async function createCanonicalIdentity(
     tx: MyPrisma.TransactionClient,
-    authUser: {
-        id: number;
-        issuer: string;
-        subject: string;
-        displayName: string | null;
-        email?: string | null;
-        studentId: number | null;
-        roles: readonly { role: string }[];
-    },
-    kind = classifyIdentity(authUser.roles)
+    input: IdentityInput,
+    kind = classifyIdentity(input.roles)
 ) {
-    if (kind === "SERVICE" && authUser.studentId !== null)
+    const studentId = input.studentId ?? null;
+    if (kind === "SERVICE" && studentId !== null)
         throw new IdentityConsistencyError(
             "A service identity cannot own a student profile."
         );
-    if (kind === "HUMAN" && authUser.studentId !== null) {
-        const academicUser = await tx.user.findUnique({
-            where: { studentId: authUser.studentId },
-            include: {
-                principal: {
-                    include: { identities: true, serviceAccount: true }
-                }
-            }
-        });
-        if (academicUser) {
-            if (
-                academicUser.principal.kind !== "HUMAN" ||
-                academicUser.principal.status !== "ACTIVE" ||
-                academicUser.principal.serviceAccount ||
-                academicUser.principal.identities.length
-            )
-                throw new IdentityConsistencyError(
-                    "Academic user is already claimed or unavailable."
-                );
-            await tx.authIdentity.create({
-                data: {
-                    principalId: academicUser.principalId,
-                    issuer: authUser.issuer,
-                    subject: authUser.subject,
-                    legacyAuthUserId: authUser.id
-                }
-            });
-            if (authUser.email?.trim()) {
-                const email = authUser.email.trim().toLowerCase();
-                await tx.userEmail.upsert({
-                    where: { userId_email: { userId: academicUser.id, email } },
-                    create: { userId: academicUser.id, email },
-                    update: {}
-                });
-            }
-            return tx.principal.findUniqueOrThrow({
-                where: { id: academicUser.principalId }
-            });
-        }
-    }
-    return tx.principal.create({
-        data: {
-            kind,
-            ...(kind === "HUMAN"
-                ? {
-                      user: {
-                          create: {
-                              name: authUser.displayName,
-                              studentId: authUser.studentId,
-                              legacyStudentId: authUser.studentId,
-                              emails: authUser.email?.trim()
-                                  ? {
-                                        create: {
-                                            email: authUser.email
-                                                .trim()
-                                                .toLowerCase()
-                                        }
-                                    }
-                                  : undefined
-                          }
+    const academicUser =
+        kind === "HUMAN" && studentId !== null
+            ? await tx.user.findUnique({
+                  where: { studentId },
+                  include: {
+                      principal: {
+                          include: { identities: true, serviceAccount: true }
                       }
                   }
+              })
+            : null;
+    if (
+        academicUser &&
+        (academicUser.principal.kind !== "HUMAN" ||
+            academicUser.principal.status !== "ACTIVE" ||
+            academicUser.principal.serviceAccount ||
+            academicUser.principal.identities.length)
+    )
+        throw new IdentityConsistencyError(
+            "Academic user is already claimed or unavailable."
+        );
+    const email = input.email?.trim().toLowerCase();
+    const identity = await tx.authIdentity.create({
+        data: {
+            issuer: input.issuer,
+            subject: input.subject,
+            email: input.email,
+            displayName: input.displayName,
+            legacyStudentId: studentId,
+            roles: { create: input.roles.map(({ role }) => ({ role })) },
+            capabilities: {
+                create: input.capabilities?.map(({ capability }) => ({
+                    capability
+                }))
+            },
+            principal: academicUser
+                ? { connect: { id: academicUser.principalId } }
                 : {
-                      serviceAccount: { create: { name: authUser.displayName } }
-                  }),
-            identities: {
-                create: {
-                    issuer: authUser.issuer,
-                    subject: authUser.subject,
-                    legacyAuthUserId: authUser.id
-                }
-            }
+                      create: {
+                          kind,
+                          ...(kind === "HUMAN"
+                              ? {
+                                    user: {
+                                        create: {
+                                            name: input.displayName,
+                                            studentId,
+                                            legacyStudentId: studentId,
+                                            emails: email
+                                                ? { create: { email } }
+                                                : undefined
+                                        }
+                                    }
+                                }
+                              : {
+                                    serviceAccount: {
+                                        create: { name: input.displayName }
+                                    }
+                                })
+                      }
+                  }
+        },
+        include: {
+            ...canonicalIdentityInclude,
+            roles: true,
+            capabilities: true
         }
     });
+    if (academicUser && email)
+        await tx.userEmail.upsert({
+            where: { userId_email: { userId: academicUser.id, email } },
+            create: { userId: academicUser.id, email },
+            update: {}
+        });
+    return identity;
 }
 
 export async function linkCanonicalStudent(
     tx: MyPrisma.TransactionClient,
-    authUserId: number,
+    authIdentityId: number,
     studentId: number
 ) {
-    const authUser = await tx.authUser.findUniqueOrThrow({
-        where: { id: authUserId },
+    const identity = await tx.authIdentity.findUniqueOrThrow({
+        where: { id: authIdentityId },
         include: canonicalIdentityInclude
     });
-    const { principal } = canonicalIdentity({ ...authUser, studentId: null });
+    const { principal } = canonicalIdentity({
+        ...identity,
+        legacyStudentId: null
+    });
     if (
         !principal.user ||
         (principal.user.studentId !== null &&
@@ -168,6 +169,10 @@ export async function linkCanonicalStudent(
     await tx.user.update({
         where: { id: principal.user.id },
         data: { studentId, legacyStudentId: studentId }
+    });
+    await tx.authIdentity.update({
+        where: { id: authIdentityId },
+        data: { legacyStudentId: studentId }
     });
 }
 
@@ -195,29 +200,30 @@ export async function ensureAdministratorIdentity(
     subject: string
 ) {
     return runIdentityTransaction(prisma, async (tx) => {
-        const existing = await tx.authUser.findUnique({
+        const existing = await tx.authIdentity.findUnique({
             where: { issuer_subject: { issuer, subject } },
             include: canonicalIdentityInclude
         });
-        if (existing) canonicalIdentity(existing);
-        const authUser = await tx.authUser.upsert({
-            where: { issuer_subject: { issuer, subject } },
-            create: { issuer, subject, roles: { create: { role: "ADMIN" } } },
-            update: { status: "ACTIVE" }
-        });
-        await tx.authUserRole.upsert({
-            where: {
-                authUserId_role: { authUserId: authUser.id, role: "ADMIN" }
-            },
-            create: { authUserId: authUser.id, role: "ADMIN" },
-            update: {}
-        });
         if (!existing)
-            await createCanonicalIdentity(
+            return createCanonicalIdentity(
                 tx,
-                { ...authUser, roles: [{ role: "ADMIN" }] },
+                { issuer, subject, roles: [{ role: "ADMIN" }] },
                 "HUMAN"
             );
-        return authUser;
+        canonicalIdentity(existing);
+        await tx.authIdentityRole.upsert({
+            where: {
+                authIdentityId_role: {
+                    authIdentityId: existing.id,
+                    role: "ADMIN"
+                }
+            },
+            create: { authIdentityId: existing.id, role: "ADMIN" },
+            update: {}
+        });
+        return tx.authIdentity.update({
+            where: { id: existing.id },
+            data: { status: "ACTIVE" }
+        });
     });
 }

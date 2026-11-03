@@ -69,23 +69,16 @@ test(
                 " Person+tag@Example.com ",
                 "person+tag@example.com"
             ].entries()) {
-                const auth = await prisma.authUser.create({
-                    data: {
-                        issuer: `https://${index}.example.invalid`,
-                        subject: token,
-                        email,
-                        status: index === 0 ? "ACTIVE" : "DISABLED"
-                    }
-                });
-                authUsers.push(auth.id);
-                await prisma.authIdentity.create({
-                    data: {
-                        issuer: auth.issuer,
-                        subject: token,
-                        legacyAuthUserId: auth.id,
-                        principalId: existing.id
-                    }
-                });
+                const issuer = `https://${index}.example.invalid`;
+                const [auth] = await prisma.$queryRaw<Array<{ id: number }>>`
+                    INSERT INTO app."AuthUser" (issuer, subject, email, status, "updatedAt")
+                    VALUES (${issuer}, ${token}, ${email}, ${index === 0 ? "ACTIVE" : "DISABLED"}::app."AuthUserStatus", now()) RETURNING id
+                `;
+                authUsers.push(auth!.id);
+                await prisma.$executeRaw`
+                    INSERT INTO app."AuthIdentity" (issuer, subject, "legacyAuthUserId", "principalId", "updatedAt")
+                    VALUES (${issuer}, ${token}, ${auth!.id}, ${existing.id}, now())
+                `;
             }
             await prisma.$executeRaw`UPDATE app."Student" SET "publicBio" = 'preserved bio',
             "publicDisplayName" = 'Preserved public name', "publicProfileEnabled" = true WHERE id = ${first.id}`;
@@ -219,12 +212,10 @@ test(
                 await prisma.curriculum.deleteMany({
                     where: { id: curriculumId }
                 });
-            await prisma.authIdentity.deleteMany({
-                where: { legacyAuthUserId: { in: authUsers } }
-            });
-            await prisma.authUser.deleteMany({
-                where: { id: { in: authUsers } }
-            });
+            for (const id of authUsers) {
+                await prisma.$executeRaw`DELETE FROM app."AuthIdentity" WHERE "legacyAuthUserId"=${id}`;
+                await prisma.$executeRaw`DELETE FROM app."AuthUser" WHERE id=${id}`;
+            }
             await prisma.user.deleteMany({
                 where: { principalId: { in: principals } }
             });

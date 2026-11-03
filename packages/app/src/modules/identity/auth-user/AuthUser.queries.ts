@@ -5,8 +5,8 @@ export const prismaAuthUserSelection = {
         roles: true,
         capabilities: true
     }
-} as const satisfies MyPrisma.AuthUserDefaultArgs;
+} as const satisfies MyPrisma.AuthIdentityDefaultArgs;
 
-export type AuthUserPayload = MyPrisma.AuthUserGetPayload<
+export type AuthUserPayload = MyPrisma.AuthIdentityGetPayload<
     typeof prismaAuthUserSelection
 >;

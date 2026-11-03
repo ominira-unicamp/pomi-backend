@@ -14,7 +14,7 @@
         "sync:academic-position-catalog": "tsx scripts/sync-academic-position-catalog.ts",
         "generate": "prisma generate --config prisma.config.ts --generator client && prisma generate --config prisma.config.ts --generator zod",
         "migrate:dev": "prisma migrate dev --config prisma.config.ts",
-        "migrate:deploy": "node --import tsx scripts/deploy-user-ownership.ts",
+        "migrate:deploy": "node --import tsx scripts/deploy-identities.ts",
         "migrate:status": "prisma migrate status --config prisma.config.ts",
         "auth:backfill-local": "tsx scripts/backfill-identities.ts",
         "auth:backfill-user-ownership": "tsx scripts/backfill-user-ownership.ts"

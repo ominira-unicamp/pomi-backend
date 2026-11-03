@@ -25,7 +25,7 @@ test("student social directory lists every active public profile without a query
         id: { not: 7 },
         publicProfileEnabled: true,
         principal: {
-            identities: { some: { legacyAuthUser: { status: "ACTIVE" } } }
+            identities: { some: { status: "ACTIVE" } }
         }
     });
     assert.deepEqual(result.items, []);

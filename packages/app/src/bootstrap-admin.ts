@@ -35,7 +35,7 @@ async function main() {
         subject
     );
 
-    console.log(`Administrator ${authUser.id} is active.`);
+    console.log(`Administrator ${authUser.legacyId} is active.`);
 }
 
 void main().finally(() => database.$disconnect());

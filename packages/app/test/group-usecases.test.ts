@@ -109,7 +109,7 @@ test("public memberships expose profile links only for enabled active profiles",
             publicId,
             publicProfileEnabled: true,
             principal: {
-                identities: { some: { legacyAuthUser: { status: "ACTIVE" } } }
+                identities: { some: { status: "ACTIVE" } }
             }
         }
     });

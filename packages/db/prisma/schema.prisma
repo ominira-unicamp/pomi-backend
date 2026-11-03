@@ -137,12 +137,6 @@ enum PeriodPlanningCurriculumSource {
   @@schema("app")
 }
 
-enum AuthUserStatus {
-  ACTIVE
-  DISABLED
-
-  @@schema("app")
-}
 
 enum AuthRole {
   STUDENT
@@ -349,16 +343,33 @@ model Principal {
   @@schema("app")
 }
 
+enum AuthIdentityStatus {
+  ACTIVE
+  DISABLED
+
+  @@schema("app")
+}
+
 model AuthIdentity {
-  id               Int       @id @default(autoincrement())
+  id               Int                      @id @default(autoincrement())
   principalId      Int
   issuer           String
   subject          String
-  legacyAuthUserId Int       @unique
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  principal        Principal @relation(fields: [principalId], references: [id], onDelete: Restrict)
-  legacyAuthUser   AuthUser  @relation(fields: [legacyAuthUserId], references: [id], onDelete: Restrict)
+  legacyId         Int @unique @default(autoincrement())
+  legacyStudentId  Int?
+  registeredAt DateTime @default(now())
+  credentialUpdatedAt DateTime @default(now()) @updatedAt
+  email            String?
+  displayName      String?
+  status           AuthIdentityStatus @default(ACTIVE)
+  roles            AuthIdentityRole[]
+  capabilities     AuthIdentityCapability[]
+  botGrants        BotGrant[]               @relation("BotGrantIdentity")
+  grantsGiven      BotGrant[]               @relation("BotGrantGivenIdentity")
+  grantsRevoked    BotGrant[]               @relation("BotGrantRevokedIdentity")
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  principal        Principal                @relation(fields: [principalId], references: [id], onDelete: Restrict)
 
   @@unique([issuer, subject])
   @@index([principalId])
@@ -366,7 +377,7 @@ model AuthIdentity {
 }
 
 model User {
-  legacyStudentId Int? @unique
+  legacyStudentId            Int?                            @unique
   id                         Int                             @id @default(autoincrement())
   principalId                Int                             @unique
   name                       String?
@@ -416,28 +427,6 @@ model ServiceAccount {
   @@schema("app")
 }
 
-model AuthUser {
-  id          Int            @id @default(autoincrement())
-  issuer      String
-  subject     String
-  email       String?
-  displayName String?
-  status      AuthUserStatus @default(ACTIVE)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
-  authIdentity  AuthIdentity?
-  roles         AuthUserRole[]
-  capabilities  AuthUserCapability[]
-  studentId     Int?
-  botGrants     BotGrant[]           @relation("BotGrantBot")
-  grantsGiven   BotGrant[]           @relation("BotGrantGrantedBy")
-  grantsRevoked BotGrant[]           @relation("BotGrantRevokedBy")
-
-  @@unique([issuer, subject])
-  @@index([studentId])
-  @@schema("app")
-}
 
 model JobRequest {
   id               String            @id @default(uuid())
@@ -518,23 +507,25 @@ model DataSnapshotComponent {
   @@schema("app")
 }
 
-model AuthUserRole {
-  authUser   AuthUser @relation(fields: [authUserId], references: [id], onDelete: Cascade)
-  authUserId Int
-  role       AuthRole
+model AuthIdentityRole {
+  authIdentityId Int
+  authIdentity   AuthIdentity @relation(fields: [authIdentityId], references: [id], onDelete: Cascade)
+  role           AuthRole
 
-  @@id([authUserId, role])
+  @@id([authIdentityId, role])
   @@schema("app")
 }
 
-model AuthUserCapability {
-  authUser   AuthUser   @relation(fields: [authUserId], references: [id], onDelete: Cascade)
-  authUserId Int
-  capability Capability
+model AuthIdentityCapability {
+  authIdentityId Int
+  authIdentity   AuthIdentity @relation(fields: [authIdentityId], references: [id], onDelete: Cascade)
+  capability     Capability
 
-  @@id([authUserId, capability])
+  @@id([authIdentityId, capability])
   @@schema("app")
 }
+
+
 
 // ----------------------- Academic Models ----------------------- //
 
@@ -1463,22 +1454,22 @@ model StudentFriendship {
 }
 
 model BotGrant {
-  id                  Int               @id @default(autoincrement())
-  botAuthUser         AuthUser          @relation("BotGrantBot", fields: [botAuthUserId], references: [id], onDelete: Cascade)
-  botAuthUserId       Int
-  capability          StudentCapability
-  grantedByAuthUser   AuthUser          @relation("BotGrantGrantedBy", fields: [grantedByAuthUserId], references: [id])
-  grantedByAuthUserId Int
-  createdAt           DateTime          @default(now())
-  revokedAt           DateTime?
-  revokedByAuthUser   AuthUser?         @relation("BotGrantRevokedBy", fields: [revokedByAuthUserId], references: [id])
-  revokedByAuthUserId Int?
-  userId              Int
-  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  botAuthIdentityId       Int
+  botAuthIdentity         AuthIdentity     @relation("BotGrantIdentity", fields: [botAuthIdentityId], references: [id], onDelete: Cascade)
+  grantedByAuthIdentityId Int
+  grantedByAuthIdentity   AuthIdentity     @relation("BotGrantGivenIdentity", fields: [grantedByAuthIdentityId], references: [id])
+  revokedByAuthIdentityId Int?
+  revokedByAuthIdentity   AuthIdentity?     @relation("BotGrantRevokedIdentity", fields: [revokedByAuthIdentityId], references: [id])
+  id                      Int               @id @default(autoincrement())
+  capability              StudentCapability
+  createdAt               DateTime          @default(now())
+  revokedAt               DateTime?
+  userId                  Int
+  user                    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, botAuthIdentityId, capability, revokedAt])
   @@schema("app")
-  @@index([userId, botAuthUserId, capability, revokedAt])
 }
 
 model StudentCourseAttempt {
@@ -1502,9 +1493,9 @@ model StudentCourseAttempt {
   @@unique([userId, courseId, studyPeriodId])
   @@index([classId])
   @@index([userId])
-  @@schema("app")
   @@index([userId, studyPeriodId])
   @@index([userId, status])
+  @@schema("app")
 }
 
 model ProfessorEvaluation {
@@ -1575,8 +1566,8 @@ model Curriculum {
   favoriteForUser User? @relation("UserFavoriteCurriculum")
 
   @@index([userId])
-  @@schema("app")
   @@index([userId, updatedAt])
+  @@schema("app")
 }
 
 model CurriculumCourse {
@@ -1640,8 +1631,8 @@ model PeriodPlanning {
   @@index([languageId])
   @@index([visibility, studyPeriodId, updatedAt])
   @@index([userId])
-  @@schema("app")
   @@index([userId, updatedAt])
+  @@schema("app")
 }
 
 model PeriodPlanningManualCourse {
@@ -1798,8 +1789,8 @@ model GroupMembership {
   @@unique([groupId, userId, activeKey])
   @@index([groupId, isPublic, leftAt])
   @@index([userId])
-  @@schema("app")
   @@index([userId, leftAt])
+  @@schema("app")
 }
 
 model GroupPosition {

@@ -16,10 +16,7 @@ import {
     buildPerson,
     decidePersonDisclosure
 } from "../SocialPerson.presenter.js";
-import {
-    activeLegacyIdentity,
-    personSelection
-} from "../SocialPerson.queries.js";
+import { activeIdentity, personSelection } from "../SocialPerson.queries.js";
 import IO, {
     studentPeoplePagination,
     studentPeopleSort
@@ -74,7 +71,7 @@ export function createSocialPeopleService({
             const where = {
                 id: { not: userId },
                 publicProfileEnabled: true,
-                ...activeLegacyIdentity,
+                ...activeIdentity,
                 ...(input.query === undefined
                     ? {}
                     : z.string().uuid().safeParse(input.query).success
@@ -143,7 +140,7 @@ export function createSocialPeopleService({
                     publicId,
                     id: { not: userId },
                     publicProfileEnabled: true,
-                    ...activeLegacyIdentity
+                    ...activeIdentity
                 },
                 select: personSelection
             });

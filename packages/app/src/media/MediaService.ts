@@ -115,7 +115,7 @@ export function createMediaService({
                             "Autenticação necessária."
                         );
                     const release = mediaUploadLimiter.acquire(
-                        actor.authUserId
+                        actor.authIdentityId
                     );
                     try {
                         const uploaded = await storage.upload(

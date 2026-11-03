@@ -128,19 +128,24 @@ test(
                 role: "STUDENT" | "ADMIN" | "BOT",
                 studentId: number | null
             ) => {
-                const auth = await prisma.authUser.create({
-                    data: {
+                const auth = await prisma.$transaction((tx) =>
+                    createCanonicalIdentity(tx, {
                         issuer,
                         subject,
                         studentId,
                         displayName: `${subject}-${tag}`,
                         email: `${subject}@example.test`,
-                        roles: { create: { role } }
-                    }
-                });
-                const principal = await prisma.$transaction((tx) =>
-                    createCanonicalIdentity(tx, { ...auth, roles: [{ role }] })
+                        roles: [{ role }]
+                    })
                 );
+                const legacyId = baseId + 10000000 + principalIds.length;
+                await prisma.authIdentity.update({
+                    where: { id: auth.id },
+                    data: { legacyId }
+                });
+                auth.legacyId = legacyId;
+                assert.notEqual(auth.legacyId, auth.id);
+                const principal = auth.principal;
                 principalIds.push(principal.id);
                 const user = await prisma.user.findUnique({
                     where: { principalId: principal.id }
@@ -175,11 +180,14 @@ test(
             );
             const firstClaim = await request("/me", orphanJwt);
             assert.equal(firstClaim.status, 200);
-            const claimedIdentity = await prisma.authUser.findUniqueOrThrow({
-                where: { issuer_subject: { issuer, subject: "first-claim" } },
-                include: { authIdentity: true }
-            });
-            assert.equal(claimedIdentity.authIdentity!.principalId, dormant.id);
+            const claimedIdentity = await prisma.authIdentity.findUniqueOrThrow(
+                {
+                    where: {
+                        issuer_subject: { issuer, subject: "first-claim" }
+                    }
+                }
+            );
+            assert.equal(claimedIdentity.principalId, dormant.id);
             assert.equal(
                 (
                     await prisma.user.findUniqueOrThrow({
@@ -276,9 +284,9 @@ test(
             await prisma.botGrant.create({
                 data: {
                     userId: owner.user!.id,
-                    botAuthUserId: bot.auth.id,
+                    botAuthIdentityId: bot.auth.id,
                     capability: "STUDENT_PLANNING_READ",
-                    grantedByAuthUserId: owner.auth.id
+                    grantedByAuthIdentityId: owner.auth.id
                 }
             });
             const [ownerJwt, otherJwt, adminJwt, botJwt] = await Promise.all([
@@ -331,7 +339,7 @@ test(
             );
             const meResponse = await request("/me", ownerJwt);
             const me = jsonObject(await meResponse.json());
-            assert.equal(me.id, owner.auth.id);
+            assert.equal(me.id, owner.auth.legacyId);
             assert.equal(me.studentId, studentIds[0]);
             assert.equal("userId" in me, false);
             const removed = await request(
@@ -379,10 +387,10 @@ test(
             );
             assert.equal(
                 (
-                    await prisma.authUser.findUniqueOrThrow({
+                    await prisma.authIdentity.findUniqueOrThrow({
                         where: { id: owner.auth.id }
                     })
-                ).studentId,
+                ).legacyStudentId,
                 null
             );
         } finally {
@@ -411,16 +419,7 @@ test(
             await prisma.curriculum.deleteMany({
                 where: { userId: { in: userIds } }
             });
-            const credentials = await prisma.authUser.findMany({
-                where: { issuer },
-                select: { id: true }
-            });
-            await prisma.authIdentity.deleteMany({
-                where: {
-                    legacyAuthUserId: { in: credentials.map(({ id }) => id) }
-                }
-            });
-            await prisma.authUser.deleteMany({ where: { issuer } });
+            await prisma.authIdentity.deleteMany({ where: { issuer } });
             await prisma.user.deleteMany({ where: { id: { in: userIds } } });
             await prisma.serviceAccount.deleteMany({
                 where: { principalId: { in: principalIds } }

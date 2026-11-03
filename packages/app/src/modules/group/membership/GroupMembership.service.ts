@@ -41,7 +41,7 @@ export function createGroupMembershipService({
                             principal: {
                                 identities: {
                                     some: {
-                                        legacyAuthUser: { status: "ACTIVE" }
+                                        status: "ACTIVE"
                                     }
                                 }
                             }

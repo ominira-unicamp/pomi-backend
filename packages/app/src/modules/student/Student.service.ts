@@ -257,13 +257,9 @@ export function createStudentService({
                 await runIdentityTransaction(prisma, async (tx) => {
                     await linkCanonicalStudent(
                         tx,
-                        principal.authUserId,
+                        principal.authIdentityId,
                         existing.id
                     );
-                    await tx.authUser.update({
-                        where: { id: principal.authUserId },
-                        data: { studentId: existing.id }
-                    });
                 });
                 return ok({
                     student: legacyStudent(
@@ -299,13 +295,9 @@ export function createStudentService({
                 });
                 await linkCanonicalStudent(
                     tx,
-                    principal.authUserId,
+                    principal.authIdentityId,
                     student.id
                 );
-                await tx.authUser.update({
-                    where: { id: principal.authUserId },
-                    data: { studentId: student.id }
-                });
                 return tx.student.findUniqueOrThrow({
                     where: { id: student.id },
                     include: legacyStudentInclude
@@ -373,9 +365,9 @@ export function createStudentService({
                 await tx.studentCourseAttempt.deleteMany({
                     where: { userId: owner.id }
                 });
-                await tx.authUser.updateMany({
-                    where: { studentId: id },
-                    data: { studentId: null }
+                await tx.authIdentity.updateMany({
+                    where: { legacyStudentId: id },
+                    data: { legacyStudentId: null }
                 });
                 await tx.student.delete({ where: { id } });
             });

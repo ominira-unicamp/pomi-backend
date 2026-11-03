@@ -1,14 +1,14 @@
-import type {
-    Prisma as MyPrisma,
-    PrismaClient
-} from "../prisma/generated/client.js";
+import type { PrismaClient } from "../prisma/generated/client.js";
 import {
-    canonicalIdentity,
-    canonicalIdentityInclude,
     classifyIdentity,
     IdentityConsistencyError,
     type IdentityKind
 } from "./identity.js";
+import {
+    readLegacyIdentityAccounts,
+    validateLegacyIdentity,
+    type LegacyIdentityAccount
+} from "./legacyIdentityMigration.js";
 
 export type IdentityMapping = {
     canonicalAuthUserId: number;
@@ -22,9 +22,7 @@ export type IdentityMapping = {
     }>;
 };
 
-type Source = MyPrisma.AuthUserGetPayload<{
-    include: typeof canonicalIdentityInclude & { roles: true };
-}>;
+type Source = LegacyIdentityAccount;
 
 export function planIdentityBackfill(
     accounts: Source[],
@@ -130,14 +128,14 @@ export function planIdentityBackfill(
         if (existing.length) {
             const ids = new Set(
                 existing.map(
-                    (account) => canonicalIdentity(account).principal.id
+                    (account) => validateLegacyIdentity(account).principal.id
                 )
             );
             if (ids.size !== 1)
                 throw new IdentityConsistencyError(
                     "Existing principals cannot be merged by backfill."
                 );
-            const { principal } = canonicalIdentity(existing[0]);
+            const { principal } = validateLegacyIdentity(existing[0]);
             if (
                 principals.has(principal.id) ||
                 principal.kind !== group.kind ||
@@ -160,10 +158,7 @@ export async function backfillIdentities(
     return prisma.$transaction(
         async (tx) => {
             if (!apply) await tx.$executeRaw`SET TRANSACTION READ ONLY`;
-            const accounts = await tx.authUser.findMany({
-                orderBy: { id: "asc" },
-                include: { ...canonicalIdentityInclude, roles: true }
-            });
+            const accounts = await readLegacyIdentityAccounts(tx);
             const groups = planIdentityBackfill(accounts, mappings);
             const report = {
                 authUsers: accounts.length,
@@ -181,53 +176,53 @@ export async function backfillIdentities(
                     continue;
                 }
                 if (apply) {
-                    await tx.principal.create({
-                        data: {
-                            kind: group.kind,
-                            ...(group.kind === "HUMAN"
-                                ? {
-                                      user: {
-                                          create: {
-                                              name: group.canonical.displayName,
-                                              studentId: group.studentId,
-                                              legacyStudentId: group.studentId,
-                                              emails: {
-                                                  create: [
-                                                      ...new Set(
-                                                          group.accounts
-                                                              .map((account) =>
-                                                                  account.email
-                                                                      ?.trim()
-                                                                      .toLowerCase()
-                                                              )
-                                                              .filter(
-                                                                  (
-                                                                      email
-                                                                  ): email is string =>
-                                                                      !!email
-                                                              )
-                                                      )
-                                                  ].map((email) => ({ email }))
-                                              }
-                                          }
-                                      }
-                                  }
-                                : {
-                                      serviceAccount: {
-                                          create: {
-                                              name: group.canonical.displayName
-                                          }
-                                      }
-                                  }),
-                            identities: {
-                                create: group.accounts.map((account) => ({
-                                    issuer: account.issuer,
-                                    subject: account.subject,
-                                    legacyAuthUserId: account.id
-                                }))
-                            }
+                    const [principal] = await tx.$queryRaw<
+                        Array<{ id: number }>
+                    >`
+                        INSERT INTO app."Principal" (kind, "updatedAt") VALUES (${group.kind}::app."PrincipalKind", now()) RETURNING id
+                    `;
+                    if (group.kind === "HUMAN") {
+                        const [user] = await tx.$queryRaw<
+                            Array<{ id: number }>
+                        >`
+                            INSERT INTO app."User" ("principalId", name, "studentId", "updatedAt")
+                            VALUES (${principal!.id}, ${group.canonical.displayName}, ${group.studentId}, now()) RETURNING id
+                        `;
+                        const [fields] = await tx.$queryRaw<
+                            Array<{ alias: boolean; contacts: boolean }>
+                        >`
+                            SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='app'
+                                AND table_name='User' AND column_name='legacyStudentId') AS alias,
+                                to_regclass('app."UserEmail"') IS NOT NULL AS contacts
+                        `;
+                        if (fields!.alias)
+                            await tx.$executeRaw`UPDATE app."User" SET "legacyStudentId"=${group.studentId} WHERE id=${user!.id}`;
+                        if (fields!.contacts) {
+                            const emails = [
+                                ...new Set(
+                                    group.accounts
+                                        .map(({ email }) =>
+                                            email?.trim().toLowerCase()
+                                        )
+                                        .filter(
+                                            (email): email is string => !!email
+                                        )
+                                )
+                            ];
+                            for (const email of emails)
+                                await tx.$executeRaw`INSERT INTO app."UserEmail" ("userId", email, "updatedAt") VALUES (${user!.id}, ${email}, now()) ON CONFLICT DO NOTHING`;
                         }
-                    });
+                    } else {
+                        await tx.$executeRaw`
+                            INSERT INTO app."ServiceAccount" ("principalId", name, "updatedAt")
+                            VALUES (${principal!.id}, ${group.canonical.displayName}, now())
+                        `;
+                    }
+                    for (const account of group.accounts)
+                        await tx.$executeRaw`
+                            INSERT INTO app."AuthIdentity" ("principalId", issuer, subject, "legacyAuthUserId", "updatedAt")
+                            VALUES (${principal!.id}, ${account.issuer}, ${account.subject}, ${account.id}, now())
+                        `;
                     report.created++;
                 }
             }

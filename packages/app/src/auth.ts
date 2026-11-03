@@ -95,7 +95,7 @@ export async function resolvePrincipal(
     const subject = payload.sub;
     if (!tokenIssuer || !subject) throw new ForbiddenError();
 
-    let authUser = await req.prisma.authUser.findUnique({
+    let identity = await req.prisma.authIdentity.findUnique({
         where: { issuer_subject: { issuer: tokenIssuer, subject } },
         include: {
             ...canonicalIdentityInclude,
@@ -104,11 +104,11 @@ export async function resolvePrincipal(
         }
     });
 
-    if (!authUser) {
+    if (!identity) {
         const studentIdentity = studentIdentityFromToken(payload);
         if (!studentIdentity) throw new ForbiddenError();
-        authUser = await runIdentityTransaction(req.prisma, async (tx) => {
-            const existing = await tx.authUser.findUnique({
+        identity = await runIdentityTransaction(req.prisma, async (tx) => {
+            const existing = await tx.authIdentity.findUnique({
                 where: { issuer_subject: { issuer: tokenIssuer, subject } },
                 include: {
                     ...canonicalIdentityInclude,
@@ -124,42 +124,34 @@ export async function resolvePrincipal(
                           select: { id: true }
                       })
                     : null;
-            const created = await tx.authUser.create({
-                data: {
+            return createCanonicalIdentity(
+                tx,
+                {
                     issuer: tokenIssuer,
                     subject,
                     studentId: existingAcademic?.id ?? null,
                     email: studentIdentity.email,
                     displayName: studentIdentity.displayName,
-                    roles: { create: { role: AuthRoles.STUDENT } }
+                    roles: [{ role: AuthRoles.STUDENT }]
                 },
-                include: { roles: true }
-            });
-            await createCanonicalIdentity(tx, created, "HUMAN");
-            return tx.authUser.findUniqueOrThrow({
-                where: { id: created.id },
-                include: {
-                    ...canonicalIdentityInclude,
-                    roles: true,
-                    capabilities: true
-                }
-            });
+                "HUMAN"
+            );
         });
     }
 
-    if (authUser.status === "DISABLED") throw new ForbiddenError();
+    if (identity.status === "DISABLED") throw new ForbiddenError();
 
-    const resolved = canonicalIdentity(authUser);
+    const resolved = canonicalIdentity(identity);
     if (resolved.principal.status !== "ACTIVE") throw new ForbiddenError();
 
     const studentIdentity = studentIdentityFromToken(payload);
     if (
         options.provisionStudent !== false &&
-        authUser.studentId === null &&
-        authUser.roles.some((entry) => entry.role === AuthRoles.STUDENT) &&
+        identity.legacyStudentId === null &&
+        identity.roles.some((entry) => entry.role === AuthRoles.STUDENT) &&
         studentIdentity
     ) {
-        authUser.studentId = await runIdentityTransaction(
+        identity.legacyStudentId = await runIdentityTransaction(
             req.prisma,
             async (tx) => {
                 const student = await tx.student.upsert({
@@ -171,19 +163,19 @@ export async function resolvePrincipal(
                     },
                     select: { id: true }
                 });
-                const linked = await tx.authUser.updateMany({
-                    where: { id: authUser.id, studentId: null },
-                    data: { studentId: student.id }
+                const linked = await tx.authIdentity.updateMany({
+                    where: { id: identity.id, legacyStudentId: null },
+                    data: { legacyStudentId: student.id }
                 });
                 if (linked.count > 0) {
-                    await linkCanonicalStudent(tx, authUser.id, student.id);
+                    await linkCanonicalStudent(tx, identity.id, student.id);
                     return student.id;
                 }
-                const current = await tx.authUser.findUnique({
-                    where: { id: authUser.id },
-                    select: { studentId: true }
+                const current = await tx.authIdentity.findUnique({
+                    where: { id: identity.id },
+                    select: { legacyStudentId: true }
                 });
-                return current?.studentId ?? null;
+                return current?.legacyStudentId ?? null;
             }
         );
     }
@@ -193,15 +185,15 @@ export async function resolvePrincipal(
         authIdentityId: resolved.identity.id,
         userId: resolved.principal.user?.id ?? null,
         serviceAccountId: resolved.principal.serviceAccount?.id ?? null,
-        authUserId: authUser.id,
-        issuer: authUser.issuer,
-        subject: authUser.subject,
-        email: authUser.email,
-        roles: new Set(authUser.roles.map((entry) => entry.role as AuthRole)),
+        authUserId: identity.legacyId,
+        issuer: identity.issuer,
+        subject: identity.subject,
+        email: identity.email,
+        roles: new Set(identity.roles.map((entry) => entry.role as AuthRole)),
         capabilities: new Set(
-            authUser.capabilities.map((entry) => entry.capability as Capability)
+            identity.capabilities.map((entry) => entry.capability as Capability)
         ),
-        studentId: authUser.studentId
+        studentId: identity.legacyStudentId
     } satisfies Principal;
 }
 

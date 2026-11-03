@@ -30,46 +30,79 @@ export function createBotGrantService({
     prisma: PrismaClient;
 }): BotGrantService {
     return {
-        listBots: (query) =>
-            prisma.authUser.findMany({
-                where: {
-                    status: "ACTIVE",
-                    roles: { some: { role: AuthRoles.BOT } }
-                },
-                select: { id: true, displayName: true },
-                orderBy: compileSort(resolveSort(query.sort, botIdentitySort), {
-                    displayName: (direction) => ({ displayName: direction }),
-                    id: (direction) => ({ id: direction })
+        listBots: async (query) =>
+            (
+                await prisma.authIdentity.findMany({
+                    where: {
+                        status: "ACTIVE",
+                        roles: { some: { role: AuthRoles.BOT } }
+                    },
+                    select: { legacyId: true, displayName: true },
+                    orderBy: compileSort(
+                        resolveSort(query.sort, botIdentitySort),
+                        {
+                            displayName: (direction) => ({
+                                displayName: direction
+                            }),
+                            id: (direction) => ({ legacyId: direction })
+                        }
+                    )
                 })
-            }),
+            ).map(({ legacyId, displayName }) => ({
+                id: legacyId,
+                displayName
+            })),
         async list(principal, query) {
             if (principal.studentId === null || principal.userId === null)
                 return [];
             const grants = await prisma.botGrant.findMany({
                 where: { userId: principal.userId },
                 include: {
-                    botAuthUser: { select: { id: true, displayName: true } }
+                    botAuthIdentity: {
+                        select: { legacyId: true, displayName: true }
+                    },
+                    grantedByAuthIdentity: { select: { legacyId: true } },
+                    revokedByAuthIdentity: { select: { legacyId: true } }
                 },
                 orderBy: compileSort(resolveSort(query.sort, botGrantSort), {
                     createdAt: (direction) => ({ createdAt: direction }),
                     capability: (direction) => ({ capability: direction }),
                     botDisplayName: (direction) => ({
-                        botAuthUser: { displayName: direction }
+                        botAuthIdentity: { displayName: direction }
                     }),
                     id: (direction) => ({ id: direction })
                 })
             });
-            return grants.map(({ userId: _userId, ...grant }) => ({
-                ...grant,
-                studentId: principal.studentId!
-            }));
+            return grants.map(
+                ({
+                    userId: _userId,
+                    botAuthIdentityId: _botId,
+                    grantedByAuthIdentityId: _grantedId,
+                    revokedByAuthIdentityId: _revokedId,
+                    botAuthIdentity,
+                    grantedByAuthIdentity,
+                    revokedByAuthIdentity,
+                    ...grant
+                }) => ({
+                    ...grant,
+                    studentId: principal.studentId!,
+                    botAuthUserId: botAuthIdentity.legacyId,
+                    grantedByAuthUserId: grantedByAuthIdentity.legacyId,
+                    revokedByAuthUserId:
+                        revokedByAuthIdentity?.legacyId ?? null,
+                    botAuthUser: {
+                        id: botAuthIdentity.legacyId,
+                        displayName: botAuthIdentity.displayName
+                    }
+                })
+            );
         },
         async replace(principal, botAuthUserId, requested) {
             if (principal.studentId === null || principal.userId === null)
                 return err(botNotFoundProblem());
-            const bot = await prisma.authUser.findFirst({
+            const bot = await prisma.authIdentity.findFirst({
                 where: {
-                    id: botAuthUserId,
+                    legacyId: botAuthUserId,
                     status: "ACTIVE",
                     roles: { some: { role: AuthRoles.BOT } }
                 },
@@ -81,7 +114,7 @@ export function createBotGrantService({
                 await tx.botGrant.updateMany({
                     where: {
                         userId: principal.userId!,
-                        botAuthUserId: bot.id,
+                        botAuthIdentityId: bot.id,
                         revokedAt: null,
                         ...(capabilities.length
                             ? { capability: { notIn: capabilities } }
@@ -89,7 +122,7 @@ export function createBotGrantService({
                     },
                     data: {
                         revokedAt: new Date(),
-                        revokedByAuthUserId: principal.authUserId
+                        revokedByAuthIdentityId: principal.authIdentityId
                     }
                 });
                 const active = new Set(
@@ -97,7 +130,7 @@ export function createBotGrantService({
                         await tx.botGrant.findMany({
                             where: {
                                 userId: principal.userId!,
-                                botAuthUserId: bot.id,
+                                botAuthIdentityId: bot.id,
                                 revokedAt: null
                             },
                             select: { capability: true }
@@ -111,9 +144,9 @@ export function createBotGrantService({
                     await tx.botGrant.createMany({
                         data: missing.map((capability) => ({
                             userId: principal.userId!,
-                            botAuthUserId: bot.id,
+                            botAuthIdentityId: bot.id,
                             capability,
-                            grantedByAuthUserId: principal.authUserId
+                            grantedByAuthIdentityId: principal.authIdentityId
                         }))
                     });
             });

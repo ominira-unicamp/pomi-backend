@@ -87,29 +87,24 @@ export function mediaFixture(
         created: 0
     };
     const database = {
-        authUser: {
+        authIdentity: {
             findUnique: async () => ({
                 id: 9,
+                legacyId: 9,
                 issuer: "test",
                 subject: "student",
-                authIdentity: {
+                principal: {
                     id: 9,
-                    legacyAuthUserId: 9,
-                    issuer: "test",
-                    subject: "student",
-                    principal: {
-                        id: 9,
-                        kind: "HUMAN",
-                        status: state.principalStatus,
-                        user: {
-                            id: state.userStudentId === 42 ? 9 : 10,
-                            studentId: state.userStudentId
-                        },
-                        serviceAccount: null
-                    }
+                    kind: "HUMAN",
+                    status: state.principalStatus,
+                    user: {
+                        id: state.userStudentId === 42 ? 9 : 10,
+                        studentId: state.userStudentId
+                    },
+                    serviceAccount: null
                 },
                 status: state.userStatus,
-                studentId: state.userStudentId,
+                legacyStudentId: state.userStudentId,
                 roles: state.userRoles.map((role) => ({ role }))
             })
         },

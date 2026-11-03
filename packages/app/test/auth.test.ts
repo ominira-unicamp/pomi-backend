@@ -56,29 +56,22 @@ async function signToken(overrides: Record<string, unknown> = {}) {
 
 function authUser(overrides: Record<string, unknown> = {}) {
     return {
-        id: 8,
+        id: 80,
+        legacyId: 8,
         issuer,
         subject: "keycloak-user",
         email: "s195440@dac.unicamp.br",
         displayName: "Samuel Rodrigues Ferreira",
         status: "ACTIVE",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        studentId: null,
-        authIdentity: {
-            id: 80,
-            legacyAuthUserId: 8,
-            issuer,
-            subject: "keycloak-user",
-            principal: {
-                id: 800,
-                kind: "HUMAN",
-                status: "ACTIVE",
-                user: { id: 8000, studentId: overrides.studentId ?? null },
-                serviceAccount: null
-            }
+        legacyStudentId: overrides.studentId ?? null,
+        principal: {
+            id: 800,
+            kind: "HUMAN",
+            status: "ACTIVE",
+            user: { id: 8000, studentId: overrides.studentId ?? null },
+            serviceAccount: null
         },
-        roles: [{ authUserId: 8, role: "STUDENT" }],
+        roles: [{ authIdentityId: 80, role: "STUDENT" }],
         capabilities: [],
         ...overrides
     };
@@ -122,7 +115,7 @@ test("resolves optional media authentication only when a bearer is present", asy
             method: "GET",
             path: "/media/id/avatarSmall",
             headers: authorization ? { authorization } : {},
-            prisma: { authUser: { findUnique: async () => authUser() } },
+            prisma: { authIdentity: { findUnique: async () => authUser() } },
             scope: { register: () => undefined }
         }) as unknown as Request;
     let nextCount = 0;
@@ -198,14 +191,15 @@ test("creates and links a student for an existing unlinked student identity", as
                 return { id: 12 };
             }
         },
-        authUser: {
+        authIdentity: {
             findUniqueOrThrow: async () => authUser(),
+            update: async () => authUser(),
             updateMany: async () => ({ count: 1 }),
             findUnique: async () => ({ studentId: 12 })
         }
     };
     const prisma = {
-        authUser: { findUnique: async () => authUser() },
+        authIdentity: { findUnique: async () => authUser() },
         $transaction: async (
             operation: (tx: typeof transactionClient) => Promise<unknown>
         ) => operation(transactionClient)
@@ -235,7 +229,7 @@ test("creates and links a student for an existing unlinked student identity", as
 test("keeps an existing student link without starting a transaction", async () => {
     let transactionStarted = false;
     const prisma = {
-        authUser: {
+        authIdentity: {
             findUnique: async () => authUser({ studentId: 21 })
         },
         $transaction: async () => {
@@ -259,7 +253,7 @@ test("keeps an existing student link without starting a transaction", async () =
 test("leaves explicit student registration to the registration endpoint", async () => {
     let transactionStarted = false;
     const prisma = {
-        authUser: { findUnique: async () => authUser() },
+        authIdentity: { findUnique: async () => authUser() },
         $transaction: async () => {
             transactionStarted = true;
         }
@@ -283,13 +277,13 @@ test("preserves a link written by a concurrent request", async () => {
     const transactionClient = {
         user: { update: async () => ({}) },
         student: { upsert: async () => ({ id: 12 }) },
-        authUser: {
+        authIdentity: {
             updateMany: async () => ({ count: 0 }),
-            findUnique: async () => ({ studentId: 23 })
+            findUnique: async () => ({ legacyStudentId: 23 })
         }
     };
     const prisma = {
-        authUser: { findUnique: async () => authUser() },
+        authIdentity: { findUnique: async () => authUser() },
         $transaction: async (
             operation: (tx: typeof transactionClient) => Promise<unknown>
         ) => operation(transactionClient)
@@ -317,14 +311,15 @@ test("uses the username when the token has no display name", async () => {
                 return { id: 12 };
             }
         },
-        authUser: {
+        authIdentity: {
             findUniqueOrThrow: async () => authUser(),
+            update: async () => authUser(),
             updateMany: async () => ({ count: 1 }),
             findUnique: async () => ({ studentId: 12 })
         }
     };
     const prisma = {
-        authUser: { findUnique: async () => authUser() },
+        authIdentity: { findUnique: async () => authUser() },
         $transaction: async (
             operation: (tx: typeof transactionClient) => Promise<unknown>
         ) => operation(transactionClient)
@@ -346,7 +341,7 @@ test("uses the username when the token has no display name", async () => {
 test("does not provision a disabled identity", async () => {
     let transactionStarted = false;
     const prisma = {
-        authUser: {
+        authIdentity: {
             findUnique: async () => authUser({ status: "DISABLED" })
         },
         $transaction: async () => {
@@ -373,8 +368,8 @@ test("fails closed when an existing legacy account has no canonical identity", a
         resolvePrincipal(
             { iss: issuer, sub: "keycloak-user" },
             requestWithPrisma({
-                authUser: {
-                    findUnique: async () => authUser({ authIdentity: null })
+                authIdentity: {
+                    findUnique: async () => authUser({ principal: null })
                 }
             })
         ),
@@ -384,12 +379,12 @@ test("fails closed when an existing legacy account has no canonical identity", a
 
 test("rejects a disabled canonical principal even when the legacy account is active", async () => {
     const account = authUser();
-    account.authIdentity.principal.status = "DISABLED";
+    account.principal.status = "DISABLED";
     await assert.rejects(
         resolvePrincipal(
             { iss: issuer, sub: "keycloak-user" },
             requestWithPrisma({
-                authUser: { findUnique: async () => account }
+                authIdentity: { findUnique: async () => account }
             })
         ),
         /Forbidden/
@@ -402,7 +397,9 @@ test("keeps the public current-user representation unchanged", async () => {
     const principal = await resolvePrincipal(
         { iss: issuer, sub: "keycloak-user" },
         requestWithPrisma({
-            authUser: { findUnique: async () => authUser({ studentId: 21 }) }
+            authIdentity: {
+                findUnique: async () => authUser({ studentId: 21 })
+            }
         })
     );
     assert.equal(principal.principalId, 800);

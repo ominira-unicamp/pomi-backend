@@ -1,14 +1,11 @@
-import { createStudentService } from "#/modules/student/Student.service.js";
 import {
-    backfillIdentities,
     canonicalIdentity,
     canonicalIdentityInclude,
     createCanonicalIdentity,
     createDatabaseClient,
     linkCanonicalStudent,
     localIdentityDatabaseUrl,
-    runIdentityTransaction,
-    type IdentityMapping
+    runIdentityTransaction
 } from "@pomi/db";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -17,158 +14,84 @@ import test from "node:test";
 const databaseUrl = process.env.POMI_IAM_TEST_DATABASE_URL;
 
 test(
-    "backfills explicit aliases without unioning permissions and preserves canonical invariants",
+    "multiple canonical credentials preserve individual privileges, aliases and blocking",
     { skip: !databaseUrl },
     async () => {
+        process.env.DISABLED_AUTH = "true";
+        const { resolvePrincipal } = await import("#/auth.js");
         const prisma = createDatabaseClient(
             localIdentityDatabaseUrl(databaseUrl)
         );
-        const suffix = randomUUID();
-        const student = await prisma.student.create({
-            data: { ra: suffix, name: "Identity fixture" }
-        });
-        const create = (
-            issuer: string,
-            roles: Array<"STUDENT" | "ADMIN" | "BOT">,
-            studentId: number | null = null
-        ) =>
-            prisma.authUser.create({
-                data: {
-                    issuer: `${issuer}/${suffix}`,
-                    subject: suffix,
-                    studentId,
-                    roles: { create: roles.map((role) => ({ role })) }
-                },
-                include: { roles: true }
-            });
-        const old = await create("https://old.invalid", ["STUDENT"]);
-        const current = await create(
-            "https://current.invalid",
-            ["STUDENT", "ADMIN"],
-            student.id
-        );
-        const service = await create("https://service.invalid", ["BOT"]);
-        const ids = [old.id, current.id, service.id];
-        const mappings: IdentityMapping[] = [
-            {
-                canonicalAuthUserId: current.id,
-                authUserIds: [old.id, current.id],
-                expectedIdentities: [old, current].map(
-                    ({ id, issuer, subject, studentId }) => ({
-                        id,
-                        issuer,
-                        subject,
-                        studentId
-                    })
-                )
-            }
-        ];
+        const issuer = `https://credentials.invalid/${randomUUID()}`;
+        let principalId: number | undefined;
         try {
-            const before = await prisma.principal.count();
-            assert.equal(
-                (await backfillIdentities(prisma, mappings)).apply,
-                false
-            );
-            assert.equal(await prisma.principal.count(), before);
-            assert.equal(
-                (await backfillIdentities(prisma, mappings, true)).created,
-                2
-            );
-            assert.equal(
-                (await backfillIdentities(prisma, mappings, true)).created,
-                0
-            );
-            const read = (id: number) =>
-                prisma.authUser.findUniqueOrThrow({
-                    where: { id },
-                    include: { ...canonicalIdentityInclude, roles: true }
-                });
-            const left = await read(old.id);
-            const right = await read(current.id);
-            const principal = canonicalIdentity(left).principal;
-            assert.equal(principal.id, canonicalIdentity(right).principal.id);
-            assert.equal(principal.user?.studentId, student.id);
-            assert.deepEqual(
-                left.roles.map(({ role }) => role),
-                ["STUDENT"]
-            );
-            assert.deepEqual(
-                new Set(right.roles.map(({ role }) => role)),
-                new Set(["STUDENT", "ADMIN"])
-            );
-            assert.equal(
-                canonicalIdentity(await read(service.id)).principal.kind,
-                "SERVICE"
-            );
-            await assert.rejects(
-                backfillIdentities(prisma, [], true),
-                /Shared student|Existing canonical/
-            );
-            const wrong = structuredClone(mappings);
-            wrong[0].expectedIdentities[0].subject = "different";
-            await assert.rejects(
-                backfillIdentities(prisma, wrong, true),
-                /inspected source/
-            );
-            await prisma.principal.update({
-                where: { id: principal.id },
-                data: { status: "DISABLED" }
-            });
-            await backfillIdentities(prisma, mappings, true);
-            assert.equal(
-                canonicalIdentity(await read(current.id)).principal.status,
-                "DISABLED"
-            );
-            await prisma.authUser.update({
-                where: { id: old.id },
-                data: { status: "DISABLED" }
-            });
-            assert.equal((await read(current.id)).status, "ACTIVE");
-            await assert.rejects(
-                prisma.authIdentity.create({
-                    data: {
-                        issuer: old.issuer,
-                        subject: old.subject,
-                        principalId: principal.id,
-                        legacyAuthUserId: service.id
-                    }
+            const ordinary = await runIdentityTransaction(prisma, (tx) =>
+                createCanonicalIdentity(tx, {
+                    issuer,
+                    subject: "ordinary",
+                    roles: [{ role: "STUDENT" }]
                 })
             );
-            assert.ok(
-                (
-                    await createStudentService({ prisma }).remove(
-                        student.id,
-                        student.ra
-                    )
-                ).isOk()
+            principalId = ordinary.principalId;
+            const elevated = await prisma.authIdentity.create({
+                data: {
+                    issuer,
+                    subject: "elevated",
+                    principalId,
+                    roles: { create: { role: "ADMIN" } },
+                    capabilities: { create: { capability: "ACADEMIC_WRITE" } }
+                }
+            });
+            const request = { prisma } as never;
+            const left = await resolvePrincipal(
+                { iss: issuer, sub: "ordinary" },
+                request
+            );
+            const right = await resolvePrincipal(
+                { iss: issuer, sub: "elevated" },
+                request
+            );
+            assert.equal(left.principalId, right.principalId);
+            assert.equal(left.authUserId, ordinary.legacyId);
+            assert.equal(right.authIdentityId, elevated.id);
+            assert.equal(left.roles.has("ADMIN"), false);
+            assert.equal(left.capabilities.has("ACADEMIC_WRITE"), false);
+            assert.equal(right.roles.has("ADMIN"), true);
+            await prisma.authIdentity.update({
+                where: { id: ordinary.id },
+                data: { status: "DISABLED" }
+            });
+            await assert.rejects(
+                resolvePrincipal({ iss: issuer, sub: "ordinary" }, request),
+                /Forbidden/
             );
             assert.equal(
-                canonicalIdentity(await read(current.id)).principal.user
-                    ?.studentId,
-                null
+                (
+                    await resolvePrincipal(
+                        { iss: issuer, sub: "elevated" },
+                        request
+                    )
+                ).roles.has("ADMIN"),
+                true
             );
-            assert.equal((await read(current.id)).studentId, null);
+            await prisma.principal.update({
+                where: { id: principalId },
+                data: { status: "DISABLED" }
+            });
+            await assert.rejects(
+                resolvePrincipal({ iss: issuer, sub: "elevated" }, request),
+                /Forbidden/
+            );
+            await assert.rejects(
+                resolvePrincipal({ iss: issuer, sub: "ordinary" }, request),
+                /Forbidden/
+            );
         } finally {
-            const identities = await prisma.authIdentity.findMany({
-                where: { legacyAuthUserId: { in: ids } }
-            });
-            const principalIds = identities.map(
-                ({ principalId }) => principalId
-            );
-            await prisma.authIdentity.deleteMany({
-                where: { legacyAuthUserId: { in: ids } }
-            });
-            await prisma.user.deleteMany({
-                where: { principalId: { in: principalIds } }
-            });
-            await prisma.serviceAccount.deleteMany({
-                where: { principalId: { in: principalIds } }
-            });
-            await prisma.principal.deleteMany({
-                where: { id: { in: principalIds } }
-            });
-            await prisma.authUser.deleteMany({ where: { id: { in: ids } } });
-            await prisma.student.deleteMany({ where: { id: student.id } });
+            await prisma.authIdentity.deleteMany({ where: { issuer } });
+            if (principalId) {
+                await prisma.user.deleteMany({ where: { principalId } });
+                await prisma.principal.delete({ where: { id: principalId } });
+            }
             await prisma.$disconnect();
         }
     }
@@ -188,23 +111,15 @@ test(
         try {
             const provision = () =>
                 runIdentityTransaction(prisma, async (tx) => {
-                    const existing = await tx.authUser.findUnique({
+                    const existing = await tx.authIdentity.findUnique({
                         where: { issuer_subject: { issuer, subject: suffix } },
                         include: canonicalIdentityInclude
                     });
                     if (existing) return existing;
-                    const created = await tx.authUser.create({
-                        data: {
-                            issuer,
-                            subject: suffix,
-                            roles: { create: { role: "STUDENT" } }
-                        },
-                        include: { roles: true }
-                    });
-                    await createCanonicalIdentity(tx, created);
-                    return tx.authUser.findUniqueOrThrow({
-                        where: { id: created.id },
-                        include: canonicalIdentityInclude
+                    return createCanonicalIdentity(tx, {
+                        issuer,
+                        subject: suffix,
+                        roles: [{ role: "STUDENT" }]
                     });
                 });
             const [left, right] = await Promise.all([provision(), provision()]);
@@ -228,7 +143,7 @@ test(
                 await prisma.student.count({ where: { ra: suffix } }),
                 0
             );
-            const unchanged = await prisma.authUser.findUniqueOrThrow({
+            const unchanged = await prisma.authIdentity.findUniqueOrThrow({
                 where: { id: left.id },
                 include: canonicalIdentityInclude
             });
@@ -242,12 +157,8 @@ test(
             studentId = student.id;
             await runIdentityTransaction(prisma, async (tx) => {
                 await linkCanonicalStudent(tx, left.id, student.id);
-                await tx.authUser.update({
-                    where: { id: left.id },
-                    data: { studentId: student.id }
-                });
             });
-            const linked = await prisma.authUser.findUniqueOrThrow({
+            const linked = await prisma.authIdentity.findUniqueOrThrow({
                 where: { id: left.id },
                 include: canonicalIdentityInclude
             });
@@ -258,7 +169,7 @@ test(
         } finally {
             if (authUserId) {
                 const identity = await prisma.authIdentity.findUniqueOrThrow({
-                    where: { legacyAuthUserId: authUserId }
+                    where: { id: authUserId }
                 });
                 await prisma.authIdentity.delete({
                     where: { id: identity.id }
@@ -269,7 +180,6 @@ test(
                 await prisma.principal.delete({
                     where: { id: identity.principalId }
                 });
-                await prisma.authUser.delete({ where: { id: authUserId } });
             }
             if (studentId)
                 await prisma.student.delete({ where: { id: studentId } });
@@ -302,7 +212,7 @@ test(
                 { iss: issuer, sub: "admin" },
                 { prisma } as never
             );
-            assert.equal(actor.authUserId, admin.id);
+            assert.equal(actor.authUserId, admin.legacyId);
             assert.equal(actor.studentId, null);
             assert.ok(actor.userId);
             const service = createAuthUserService({ prisma });
@@ -312,8 +222,8 @@ test(
                 capabilities: ["ACADEMIC_WRITE"]
             });
             const read = (id: number) =>
-                prisma.authUser.findUniqueOrThrow({
-                    where: { id },
+                prisma.authIdentity.findUniqueOrThrow({
+                    where: { legacyId: id },
                     include: canonicalIdentityInclude
                 });
             const machine = canonicalIdentity(await read(bot.id));
@@ -350,10 +260,10 @@ test(
                 capabilities: []
             });
             assert.equal(
-                canonicalIdentity(await read(admin.id)).principal.kind,
+                canonicalIdentity(await read(admin.legacyId)).principal.kind,
                 "HUMAN"
             );
-            const result = await service.patch(admin.id, {
+            const result = await service.patch(admin.legacyId, {
                 status: "DISABLED"
             });
             assert.equal(result.isErr(), true);
@@ -380,7 +290,6 @@ test(
                 where: { principalId: { in: ids } }
             });
             await prisma.principal.deleteMany({ where: { id: { in: ids } } });
-            await prisma.authUser.deleteMany({ where: { issuer } });
             await prisma.$disconnect();
         }
     }
@@ -402,17 +311,12 @@ test(
         let id: number | undefined;
         try {
             const account = await runIdentityTransaction(prisma, async (tx) => {
-                const created = await tx.authUser.create({
-                    data: {
-                        issuer,
-                        subject: "student",
-                        email: `s${ra}@dac.unicamp.br`,
-                        roles: { create: { role: "STUDENT" } }
-                    },
-                    include: { roles: true }
+                return createCanonicalIdentity(tx, {
+                    issuer,
+                    subject: "student",
+                    email: `s${ra}@dac.unicamp.br`,
+                    roles: [{ role: "STUDENT" }]
                 });
-                await createCanonicalIdentity(tx, created);
-                return created;
             });
             id = account.id;
             const payload = {
@@ -429,21 +333,21 @@ test(
             });
             assert.ok(result.isOk());
             const studentId = result.value.student.id;
-            const linked = await prisma.authUser.findUniqueOrThrow({
+            const linked = await prisma.authIdentity.findUniqueOrThrow({
                 where: { id },
                 include: canonicalIdentityInclude
             });
-            assert.equal(linked.studentId, studentId);
+            assert.equal(linked.legacyStudentId, studentId);
             assert.equal(
                 canonicalIdentity(linked).principal.user?.studentId,
                 studentId
             );
             assert.ok((await service.remove(studentId, ra)).isOk());
-            const removed = await prisma.authUser.findUniqueOrThrow({
+            const removed = await prisma.authIdentity.findUniqueOrThrow({
                 where: { id },
                 include: canonicalIdentityInclude
             });
-            assert.equal(removed.studentId, null);
+            assert.equal(removed.legacyStudentId, null);
             assert.equal(
                 canonicalIdentity(removed).principal.user?.studentId,
                 null
@@ -461,7 +365,7 @@ test(
         } finally {
             if (id) {
                 const identity = await prisma.authIdentity.findUniqueOrThrow({
-                    where: { legacyAuthUserId: id }
+                    where: { id }
                 });
                 await prisma.authIdentity.delete({
                     where: { id: identity.id }
@@ -472,7 +376,6 @@ test(
                 await prisma.principal.delete({
                     where: { id: identity.principalId }
                 });
-                await prisma.authUser.delete({ where: { id } });
             }
             await prisma.student.deleteMany({ where: { ra } });
             await prisma.$disconnect();
@@ -507,10 +410,13 @@ test(
             assert.equal(left.userId, right.userId);
             assert.equal(left.studentId, right.studentId);
             assert.ok(left.studentId);
-            assert.equal(await prisma.authUser.count({ where: { issuer } }), 1);
+            assert.equal(
+                await prisma.authIdentity.count({ where: { issuer } }),
+                1
+            );
             assert.equal(await prisma.student.count({ where: { ra } }), 1);
-            const account = await prisma.authUser.findUniqueOrThrow({
-                where: { id: left.authUserId },
+            const account = await prisma.authIdentity.findUniqueOrThrow({
+                where: { legacyId: left.authUserId },
                 include: canonicalIdentityInclude
             });
             assert.equal(
@@ -527,7 +433,6 @@ test(
                 where: { principalId: { in: ids } }
             });
             await prisma.principal.deleteMany({ where: { id: { in: ids } } });
-            await prisma.authUser.deleteMany({ where: { issuer } });
             await prisma.student.deleteMany({ where: { ra } });
             await prisma.$disconnect();
         }

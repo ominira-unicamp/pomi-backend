@@ -8,7 +8,7 @@ import {
 
 type AccessDatabase = Pick<
     MyPrisma.TransactionClient,
-    "authUser" | "botGrant" | "user"
+    "authIdentity" | "botGrant" | "user"
 >;
 
 export async function hasUserAccess(
@@ -18,8 +18,8 @@ export async function hasUserAccess(
     capability: StudentCapability
 ) {
     if (!actor) return false;
-    const credential = await db.authUser.findUnique({
-        where: { id: actor.authUserId },
+    const credential = await db.authIdentity.findUnique({
+        where: { id: actor.authIdentityId },
         include: { ...canonicalIdentityInclude, roles: true }
     });
     if (!credential || credential.status !== "ACTIVE") return false;
@@ -31,7 +31,7 @@ export async function hasUserAccess(
     return !!(await db.botGrant.findFirst({
         where: {
             userId,
-            botAuthUserId: actor.authUserId,
+            botAuthIdentityId: actor.authIdentityId,
             capability,
             revokedAt: null
         },
