@@ -30,7 +30,7 @@ const enrolledHistory = {
 test("accepts enrolled courses in a student history import", () => {
     assert.equal(
         IO.importHistory.request.safeParse({
-            path: { sid: "1" },
+            path: { userId: "1" },
             body: enrolledHistory
         }).success,
         true

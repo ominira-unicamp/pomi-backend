@@ -14,12 +14,12 @@ test("shared period plan contracts expose public and student routes", () => {
         "public"
     );
     assert.equal(
-        sharedPeriodPlanContracts.listForStudent.meta.authorization.kind,
-        "student-access"
+        sharedPeriodPlanContracts.listForUser.meta.authorization.kind,
+        "user-access"
     );
     assert.equal(
-        sharedPeriodPlanContracts.getForStudent.meta.authorization.kind,
-        "student-access"
+        sharedPeriodPlanContracts.getForUser.meta.authorization.kind,
+        "user-access"
     );
 });
 
@@ -126,7 +126,7 @@ test("student shared query grants access only to public and accepted-friend plan
         }
     } as never);
 
-    await service.listForStudent(7, { page: 1, pageSize: 20 });
+    await service.listForUser(7, { page: 1, pageSize: 20 });
 
     assert.ok(where);
     assert.equal(where.OR.length, 3);
@@ -173,7 +173,7 @@ test("student shared query can be scoped to a public profile owner", async () =>
         }
     } as never);
 
-    await service.listForStudent(7, {
+    await service.listForUser(7, {
         page: 1,
         pageSize: 20,
         filter: [

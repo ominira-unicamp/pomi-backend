@@ -1,4 +1,4 @@
-import { requireLegacyStudentId } from "#/modules/identity/LegacyStudentContext.js";
+import { canonicalUserId } from "#/modules/identity/UserContext.js";
 import { invitationStatus } from "./GroupInvitation.rules.js";
 const date = (value: Date | null) => value?.toISOString() ?? null;
 export function invitation(
@@ -6,10 +6,12 @@ export function invitation(
         id: number;
         groupId: number;
         recipientUser: {
+            id: number;
             studentId: number | null;
             legacyStudentId: number | null;
         };
         inviterUser: {
+            id: number;
             studentId: number | null;
             legacyStudentId: number | null;
         };
@@ -23,8 +25,8 @@ export function invitation(
     return {
         id: value.id,
         groupId: value.groupId,
-        recipientStudentId: requireLegacyStudentId(value.recipientUser),
-        inviterStudentId: requireLegacyStudentId(value.inviterUser),
+        recipientUserId: canonicalUserId(value.recipientUser),
+        inviterUserId: canonicalUserId(value.inviterUser),
         status: invitationStatus(value.status, value.expiresAt, now),
         expiresAt: value.expiresAt.toISOString(),
         createdAt: value.createdAt.toISOString(),
@@ -35,6 +37,7 @@ export function invitation(
 export const invitationInclude = {
     recipientUser: {
         select: {
+            id: true,
             studentId: true,
             legacyStudentId: true,
             name: true,
@@ -55,5 +58,7 @@ export const invitationInclude = {
             }
         }
     },
-    inviterUser: { select: { studentId: true, legacyStudentId: true } }
+    inviterUser: {
+        select: { id: true, studentId: true, legacyStudentId: true }
+    }
 } as const;

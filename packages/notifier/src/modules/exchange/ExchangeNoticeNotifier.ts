@@ -449,7 +449,7 @@ export class ExchangeNoticeNotifier {
             .setExpirationTime("180d")
             .sign(new TextEncoder().encode(this.config.unsubscribeSecret));
         const url = new URL(
-            "/exchange-notice-subscriptions/unsubscribe",
+            `/users/${userId}/exchange-notice-subscription/unsubscribe`,
             this.config.appApiUrl
         );
         url.searchParams.set("token", token);

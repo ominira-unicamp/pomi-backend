@@ -1,4 +1,4 @@
-import { requireLegacyStudentId } from "#/modules/identity/LegacyStudentContext.js";
+import { canonicalUserId } from "#/modules/identity/UserContext.js";
 import type IO from "#/modules/planning/student-course-attempt/StudentCourseAttempt.contract.js";
 import type z from "zod";
 import { type PrismaStudentCoursePayload } from "./StudentCourseAttempt.queries.js";
@@ -21,7 +21,7 @@ function buildStudentCourseAttempt(
     const resolvedStudyPeriod = classData?.studyPeriod ?? storedStudyPeriod;
     return {
         ...rest,
-        studentId: requireLegacyStudentId(user),
+        userId: canonicalUserId(user),
         studyPeriodId: resolvedStudyPeriod?.id ?? null,
         grade: grade === null ? null : Number(grade),
         createdAt: createdAt.toISOString(),

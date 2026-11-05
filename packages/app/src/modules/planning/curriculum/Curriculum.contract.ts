@@ -19,15 +19,15 @@ import z from "zod";
 extendZodWithOpenApi(z);
 
 const basePath = [
-    pathSeg.literal("student"),
-    pathSeg.param("sid"),
-    pathSeg.literal("curricula")
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
+    pathSeg.literal("curriculums")
 ];
-const tags = ["curricula"];
+const tags = ["curriculums"];
 const specBuilder = new SpecBuilder(basePath, tags, "id", {
-    resource: "curricula",
-    operationName: "StudentCurricula",
-    pathParameters: { sid: "studentId", id: "curriculumId" }
+    resource: "curriculums",
+    operationName: "Curriculums",
+    pathParameters: { userId: "userId", id: "curriculumId" }
 });
 
 const selection = z
@@ -66,7 +66,7 @@ const course = z
 const curriculumEntity = z
     .object({
         id: z.number().int(),
-        studentId: z.number().int(),
+        userId: z.number().int(),
         name: z.string(),
         isFavorite: z.boolean(),
         selection,
@@ -89,7 +89,7 @@ const curriculumEntity = z
 const curriculumSummaryEntity = z
     .object({
         id: z.number().int(),
-        studentId: z.number().int(),
+        userId: z.number().int(),
         name: z.string(),
         isFavorite: z.boolean(),
         selection,
@@ -146,7 +146,7 @@ export const patchBody = z
     .strict();
 
 const pathWithId = z.object({
-    sid: pathParam.integer(),
+    userId: pathParam.integer(),
     id: pathParam.integer()
 });
 
@@ -163,8 +163,8 @@ export const curriculumSort = defineSort({
 const get = {
     meta: {
         ...specBuilder.get(),
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PLANNING_READ
         )
     },
@@ -178,8 +178,8 @@ const get = {
 const list = {
     meta: {
         ...specBuilder.list(),
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PLANNING_READ
         ),
         queryFeatures: { sort: true },
@@ -187,7 +187,7 @@ const list = {
     },
     request: z.object({
         path: z.object({
-            sid: pathParam.integer()
+            userId: pathParam.integer()
         }),
         query: createPaginationQuerySchema(unpaginatedByDefault, {
             sort: resourceSortSchema(curriculumSort).optional()
@@ -215,14 +215,14 @@ export const createBody = z
 const create = {
     meta: {
         ...specBuilder.create(),
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PLANNING_WRITE
         )
     },
     request: z.object({
         path: z.object({
-            sid: pathParam.integer()
+            userId: pathParam.integer()
         }),
         body: createBody
     }),
@@ -242,8 +242,8 @@ const create = {
 const patch = {
     meta: {
         ...specBuilder.patch(),
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PLANNING_WRITE
         )
     },
@@ -268,8 +268,8 @@ const patch = {
 const remove = {
     meta: {
         ...specBuilder.remove(),
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PLANNING_WRITE
         )
     },

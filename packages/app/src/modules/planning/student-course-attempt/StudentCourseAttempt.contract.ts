@@ -24,8 +24,9 @@ import z from "zod";
 extendZodWithOpenApi(z);
 
 const basePath = [
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
     pathSeg.literal("student"),
-    pathSeg.param("sid"),
     pathSeg.literal("course-attempts")
 ];
 const tags = ["student-course-attempts"];
@@ -119,7 +120,7 @@ const courseAttemptClassSchema = z
 const attemptEntity = z
     .object({
         id: z.number().int(),
-        studentId: z.number().int(),
+        userId: z.number().int(),
         courseId: z.number().int(),
         studyPeriodId: z.number().int().nullable(),
         classId: z.number().int().nullable(),
@@ -213,16 +214,16 @@ const get = {
             resource: "courseAttempts",
             action: "get" as const,
             method: "get",
-            pathParameters: { sid: "studentId", id: "courseAttemptId" }
+            pathParameters: { userId: "userId", id: "courseAttemptId" }
         },
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.HISTORY_READ
         )
     },
     request: z.object({
         path: z.object({
-            sid: pathParam.integer(),
+            userId: pathParam.integer(),
             id: pathParam.integer()
         })
     }),
@@ -244,10 +245,10 @@ const list = {
             resource: "courseAttempts",
             action: "list" as const,
             method: "list",
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.HISTORY_READ
         ),
         queryFeatures: { filter: true, sort: true },
@@ -255,7 +256,7 @@ const list = {
     },
     request: z.object({
         path: z.object({
-            sid: pathParam.integer()
+            userId: pathParam.integer()
         }),
         query: createPaginationQuerySchema(unpaginatedByDefault, {
             filter: attemptFilter.optional(),
@@ -285,16 +286,16 @@ const create = {
             resource: "courseAttempts",
             action: "create" as const,
             method: "create",
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.HISTORY_WRITE
         )
     },
     request: z.object({
         path: z.object({
-            sid: pathParam.integer()
+            userId: pathParam.integer()
         }),
         body: attemptBody
     }),
@@ -324,16 +325,16 @@ const patch = {
             resource: "courseAttempts",
             action: "update" as const,
             method: "update",
-            pathParameters: { sid: "studentId", id: "courseAttemptId" }
+            pathParameters: { userId: "userId", id: "courseAttemptId" }
         },
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.HISTORY_WRITE
         )
     },
     request: z.object({
         path: z.object({
-            sid: pathParam.integer(),
+            userId: pathParam.integer(),
             id: pathParam.integer()
         }),
         body: attemptBody
@@ -378,16 +379,16 @@ const remove = {
             resource: "courseAttempts",
             action: "delete" as const,
             method: "delete",
-            pathParameters: { sid: "studentId", id: "courseAttemptId" }
+            pathParameters: { userId: "userId", id: "courseAttemptId" }
         },
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.HISTORY_WRITE
         )
     },
     request: z.object({
         path: z.object({
-            sid: pathParam.integer(),
+            userId: pathParam.integer(),
             id: pathParam.integer()
         })
     }),

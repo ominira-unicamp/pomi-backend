@@ -11,7 +11,7 @@ const courseSelection = {
 
 export const prismaCurriculumFieldSelection = {
     include: {
-        user: { select: { studentId: true, legacyStudentId: true } },
+        user: { select: { id: true, studentId: true, legacyStudentId: true } },
         courses: {
             include: { course: courseSelection }
         },
@@ -29,7 +29,7 @@ export const prismaCurriculumSummaryFieldSelection = {
     select: {
         id: true,
         userId: true,
-        user: { select: { studentId: true, legacyStudentId: true } },
+        user: { select: { id: true, studentId: true, legacyStudentId: true } },
         name: true,
         catalogProgramId: true,
         catalogProgramVariant: { select: { id: true } },

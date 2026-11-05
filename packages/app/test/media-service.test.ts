@@ -20,8 +20,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { mediaFixture, principal, upload, uploaded } from "./fixtures/media.js";
 
-const target = { studentId: 42 };
-const groupTarget = { groupId: 7, studentId: 42 };
+const target = { userId: 9 };
+const groupTarget = { groupId: 7, userId: 9 };
 
 test("replacement advances the slot revision and queues only the prior alias", async () => {
     const fixture = mediaFixture();

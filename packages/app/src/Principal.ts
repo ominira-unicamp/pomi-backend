@@ -5,7 +5,6 @@ export type Principal = {
     authIdentityId: number;
     userId: number | null;
     serviceAccountId: number | null;
-    authUserId: number;
     issuer: string;
     subject: string;
     email: string | null;

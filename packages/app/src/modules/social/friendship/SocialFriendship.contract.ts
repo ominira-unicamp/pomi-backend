@@ -34,21 +34,21 @@ export const studentFriendshipSort = defineSort({
 export type StudentFriendshipFilter = Filter;
 
 const friendshipsPath = [
-    pathSeg.literal("student"),
-    pathSeg.param("sid"),
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
     pathSeg.literal("friendships")
 ];
-const read = policies.studentAccess("sid", StudentCapabilities.SOCIAL_READ);
-const write = policies.studentAccess("sid", StudentCapabilities.SOCIAL_WRITE);
+const read = policies.userAccess("userId", StudentCapabilities.SOCIAL_READ);
+const write = policies.userAccess("userId", StudentCapabilities.SOCIAL_WRITE);
 
 const listFriendships = {
     meta: {
-        operationId: "listStudentFriendships",
+        operationId: "listUserFriendships",
         sdk: {
-            resource: "studentSocial",
+            resource: "userSocial",
             method: "listFriendships",
             action: "list" as const,
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
         method: "get" as const,
         path: friendshipsPath,
@@ -64,10 +64,10 @@ const listFriendships = {
             sort: resourceSortSchema(studentFriendshipSort).optional()
         })
             .strict()
-            .openapi("ListStudentFriendshipsQuery", {
+            .openapi("ListUserFriendshipsQuery", {
                 "x-pomi-schema": {
                     kind: "input",
-                    publicName: "ListStudentFriendshipsQuery"
+                    publicName: "ListUserFriendshipsQuery"
                 }
             })
     }),
@@ -77,12 +77,12 @@ const listFriendships = {
 } satisfies IO;
 const createFriendship = {
     meta: {
-        operationId: "createStudentFriendship",
+        operationId: "createUserFriendship",
         sdk: {
-            resource: "studentSocial",
+            resource: "userSocial",
             method: "createFriendship",
             action: "create" as const,
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
         method: "post" as const,
         path: friendshipsPath,
@@ -105,12 +105,12 @@ const createFriendship = {
 } satisfies IO;
 const acceptFriendship = {
     meta: {
-        operationId: "acceptStudentFriendship",
+        operationId: "acceptUserFriendship",
         sdk: {
-            resource: "studentSocial",
+            resource: "userSocial",
             method: "acceptFriendship",
             action: "update" as const,
-            pathParameters: { sid: "studentId", id: "friendshipId" }
+            pathParameters: { userId: "userId", id: "friendshipId" }
         },
         method: "post" as const,
         path: [
@@ -138,12 +138,12 @@ const acceptFriendship = {
 } satisfies IO;
 const removeFriendship = {
     meta: {
-        operationId: "deleteStudentFriendship",
+        operationId: "deleteUserFriendship",
         sdk: {
-            resource: "studentSocial",
+            resource: "userSocial",
             method: "removeFriendship",
             action: "delete" as const,
-            pathParameters: { sid: "studentId", id: "friendshipId" }
+            pathParameters: { userId: "userId", id: "friendshipId" }
         },
         method: "delete" as const,
         path: [...friendshipsPath, pathSeg.param("id")],

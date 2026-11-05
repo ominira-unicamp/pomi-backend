@@ -20,13 +20,13 @@ const actions: Actions = {
     get: async (ctx, input) =>
         ApiResponse.ok(
             await ctx.exchangeNoticeSubscriptionService.get(
-                await ctx.resolveLegacyUser(input.path.sid)
+                await ctx.resolveUserContext(input.path.userId)
             )
         ),
     patch: async (ctx, input) =>
         respond(
             await ctx.exchangeNoticeSubscriptionService.patch(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.body
             ),
             ApiResponse.ok,

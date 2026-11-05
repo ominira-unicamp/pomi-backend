@@ -4,7 +4,7 @@ import test from "node:test";
 
 test("accepts a curriculum with allocated and unallocated courses", () => {
     const result = IO.patch.request.safeParse({
-        path: { sid: "7", id: "3" },
+        path: { userId: "7", id: "3" },
         body: {
             name: "Plano de conclusão",
             selection: {
@@ -34,9 +34,9 @@ test("declares curriculum CRUD paths and summary-free entity fields", () => {
     assert.equal(IO.create.meta.method, "post");
     assert.equal(IO.patch.meta.method, "patch");
     assert.deepEqual(IO.patch.meta.path, [
-        { type: "literal", value: "student" },
-        { type: "param", name: "sid" },
-        { type: "literal", value: "curricula" },
+        { type: "literal", value: "users" },
+        { type: "param", name: "userId" },
+        { type: "literal", value: "curriculums" },
         { type: "param", name: "id" }
     ]);
     assert.equal(IO.schema.safeParse({}).success, false);

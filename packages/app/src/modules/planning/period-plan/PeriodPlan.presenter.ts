@@ -1,4 +1,4 @@
-import { requireLegacyStudentId } from "#/modules/identity/LegacyStudentContext.js";
+import { canonicalUserId } from "#/modules/identity/UserContext.js";
 import type IO from "#/modules/planning/period-plan/PeriodPlan.contract.js";
 import type { guideSchema } from "#/modules/planning/period-plan/PeriodPlan.contract.js";
 import { InconsistentResourceStateError } from "@pomi/api-core";
@@ -117,7 +117,7 @@ function buildPeriodPlanning(
     } = periodPlanning;
     return {
         ...rest,
-        studentId: requireLegacyStudentId(user),
+        userId: canonicalUserId(user),
         createdAt: periodPlanning.createdAt.toISOString(),
         updatedAt: periodPlanning.updatedAt.toISOString(),
         studyPeriodId: studyPeriod.id,

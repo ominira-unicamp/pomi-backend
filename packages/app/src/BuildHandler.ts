@@ -5,7 +5,7 @@ import type { EvaluationSummaryService } from "#/modules/academic/evaluation/sum
 import type { ExchangeNoticeSubscriptionService } from "#/modules/exchange/exchange-notice-subscription/ExchangeNoticeSubscription.service.js";
 import type { ExchangeNoticeUnsubscribeService } from "#/modules/exchange/exchange-notice-unsubscribe/ExchangeNoticeUnsubscribe.service.js";
 import type { FeedbackReportService } from "#/modules/feedback/feedback-report/FeedbackReport.service.js";
-import type { AuthUserService } from "#/modules/identity/auth-user/AuthUser.service.js";
+import type { AuthIdentityService } from "#/modules/identity/auth-identity/AuthIdentity.service.js";
 import type { BotGrantService } from "#/modules/identity/bot-grant/BotGrant.service.js";
 import type { CurrentUserService } from "#/modules/identity/current-user/CurrentUser.service.js";
 import type { CurriculumService } from "#/modules/planning/curriculum/Curriculum.service.js";
@@ -28,7 +28,7 @@ import {
 import type { Request } from "express";
 
 export type Context = {
-    resolveLegacyUser(studentId: number): Promise<number>;
+    resolveUserContext(userId: number, academic?: boolean): Promise<number>;
     principal?: Principal;
     studentCourseAttemptService: StudentCourseAttemptService;
     studentHistoryImportService: StudentHistoryImportService;
@@ -36,7 +36,7 @@ export type Context = {
     studentService: StudentService;
     currentUserService: CurrentUserService;
     botGrantService: BotGrantService;
-    authUserService: AuthUserService;
+    authIdentityService: AuthIdentityService;
     curriculumService: CurriculumService;
     evaluationSummaryService: EvaluationSummaryService;
     periodPlanService: PeriodPlanService;
@@ -129,7 +129,7 @@ function registerAppEndpoints<
 
 function createLegacyContext(request: Request): Context {
     return {
-        resolveLegacyUser: request.scope.cradle.resolveLegacyUser,
+        resolveUserContext: request.scope.cradle.resolveUserContext,
         principal: request.scope.cradle.principal,
         studentCourseAttemptService:
             request.scope.cradle.studentCourseAttemptService,
@@ -139,7 +139,7 @@ function createLegacyContext(request: Request): Context {
         studentService: request.scope.cradle.studentService,
         currentUserService: request.scope.cradle.currentUserService,
         botGrantService: request.scope.cradle.botGrantService,
-        authUserService: request.scope.cradle.authUserService,
+        authIdentityService: request.scope.cradle.authIdentityService,
         curriculumService: request.scope.cradle.curriculumService,
         evaluationSummaryService: request.scope.cradle.evaluationSummaryService,
         periodPlanService: request.scope.cradle.periodPlanService,

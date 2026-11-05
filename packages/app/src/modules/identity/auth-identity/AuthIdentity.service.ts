@@ -1,14 +1,14 @@
-import { AuthRoles, type Capability, type Principal } from "#/auth.js";
+import { AuthRoles, type Capability } from "#/auth.js";
 import IO, {
-    authUserSort
-} from "#/modules/identity/auth-user/AuthUser.contract.js";
-import authUserPresenter from "#/modules/identity/auth-user/AuthUser.presenter.js";
+    authIdentitySort
+} from "#/modules/identity/auth-identity/AuthIdentity.contract.js";
+import authIdentityPresenter from "#/modules/identity/auth-identity/AuthIdentity.presenter.js";
 import {
     adminIdentityManagedByCliProblem,
-    authUserNotFoundProblem,
-    type AuthUserProblem
-} from "#/modules/identity/auth-user/AuthUser.problems.js";
-import { prismaAuthUserSelection } from "#/modules/identity/auth-user/AuthUser.queries.js";
+    authIdentityNotFoundProblem,
+    type AuthIdentityProblem
+} from "#/modules/identity/auth-identity/AuthIdentity.problems.js";
+import { prismaAuthIdentitySelection } from "#/modules/identity/auth-identity/AuthIdentity.queries.js";
 import { compileSort, err, ok, resolveSort, type Result } from "@pomi/api-core";
 import {
     canonicalIdentity,
@@ -19,9 +19,10 @@ import {
 } from "@pomi/db";
 import z from "zod";
 
-type AuthUser = z.infer<typeof IO.schemas.entity>;
+type AuthIdentity = z.infer<typeof IO.schemas.entity>;
 type ListQuery = z.infer<typeof IO.list.request>["query"];
 type CreateInput = {
+    issuer: string;
     subject: string;
     displayName: string;
     capabilities: Capability[];
@@ -31,29 +32,29 @@ type PatchInput = {
     displayName?: string;
     capabilities?: Capability[];
 };
-export type AuthUserService = {
-    list(query: ListQuery): Promise<AuthUser[]>;
-    create(principal: Principal, input: CreateInput): Promise<AuthUser>;
+export type AuthIdentityService = {
+    list(query: ListQuery): Promise<AuthIdentity[]>;
+    create(input: CreateInput): Promise<AuthIdentity>;
     patch(
         id: number,
         input: PatchInput
-    ): Promise<Result<AuthUser, AuthUserProblem>>;
+    ): Promise<Result<AuthIdentity, AuthIdentityProblem>>;
 };
 
-export function createAuthUserService({
+export function createAuthIdentityService({
     prisma
 }: {
     prisma: PrismaClient;
-}): AuthUserService {
+}): AuthIdentityService {
     return {
         async list(query) {
             return (
                 await prisma.authIdentity.findMany({
-                    ...prismaAuthUserSelection,
+                    ...prismaAuthIdentitySelection,
                     orderBy: compileSort(
-                        resolveSort(query.sort, authUserSort),
+                        resolveSort(query.sort, authIdentitySort),
                         {
-                            id: (direction) => ({ legacyId: direction }),
+                            id: (direction) => ({ id: direction }),
                             displayName: (direction) => ({
                                 displayName: direction
                             }),
@@ -62,16 +63,16 @@ export function createAuthUserService({
                         }
                     )
                 })
-            ).map(authUserPresenter.build);
+            ).map(authIdentityPresenter.build);
         },
-        async create(actor, input) {
+        async create(input) {
             const identity = await runIdentityTransaction(
                 prisma,
                 async (tx) => {
                     const existing = await tx.authIdentity.findUnique({
                         where: {
                             issuer_subject: {
-                                issuer: actor.issuer,
+                                issuer: input.issuer,
                                 subject: input.subject
                             }
                         },
@@ -81,7 +82,7 @@ export function createAuthUserService({
                         return createCanonicalIdentity(
                             tx,
                             {
-                                issuer: actor.issuer,
+                                issuer: input.issuer,
                                 subject: input.subject,
                                 displayName: input.displayName,
                                 roles: [{ role: AuthRoles.BOT }],
@@ -105,11 +106,6 @@ export function createAuthUserService({
                         },
                         update: {}
                     });
-                    if (principal.user)
-                        await tx.user.update({
-                            where: { id: principal.user.id },
-                            data: { name: input.displayName }
-                        });
                     if (principal.serviceAccount)
                         await tx.serviceAccount.update({
                             where: { id: principal.serviceAccount.id },
@@ -121,28 +117,23 @@ export function createAuthUserService({
                             displayName: input.displayName,
                             status: "ACTIVE"
                         },
-                        ...prismaAuthUserSelection
+                        ...prismaAuthIdentitySelection
                     });
                 }
             );
-            return authUserPresenter.build(identity);
+            return authIdentityPresenter.build(identity);
         },
-        async patch(legacyId, input) {
+        async patch(id, input) {
             return runIdentityTransaction(prisma, async (tx) => {
                 const existing = await tx.authIdentity.findUnique({
-                    where: { legacyId },
+                    where: { id },
                     include: { ...canonicalIdentityInclude, roles: true }
                 });
-                if (!existing) return err(authUserNotFoundProblem());
+                if (!existing) return err(authIdentityNotFoundProblem());
                 if (existing.roles.some(({ role }) => role === AuthRoles.ADMIN))
                     return err(adminIdentityManagedByCliProblem());
                 const { principal } = canonicalIdentity(existing);
                 if (input.displayName) {
-                    if (principal.user)
-                        await tx.user.update({
-                            where: { id: principal.user.id },
-                            data: { name: input.displayName }
-                        });
                     if (principal.serviceAccount)
                         await tx.serviceAccount.update({
                             where: { id: principal.serviceAccount.id },
@@ -168,9 +159,9 @@ export function createAuthUserService({
                             ? { displayName: input.displayName }
                             : {})
                     },
-                    ...prismaAuthUserSelection
+                    ...prismaAuthIdentitySelection
                 });
-                return ok(authUserPresenter.build(updated));
+                return ok(authIdentityPresenter.build(updated));
             });
         }
     };

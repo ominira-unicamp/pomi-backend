@@ -14,11 +14,7 @@ type ProfileBody = z.infer<typeof IO.updateProfile.request>["body"];
 function buildProfile(user: SelectedPerson): Profile {
     return {
         publicId: user.publicId,
-        displayName:
-            user.publicDisplayName ??
-            user.student?.name ??
-            user.name ??
-            "Usuário do POMI",
+        displayName: user.publicDisplayName ?? user.name ?? "Usuário do POMI",
         avatarMediaId: user.avatarMediaId,
         bio: user.publicBio,
         interests: user.tagInterests
@@ -72,7 +68,7 @@ export function createSocialProfileService({
                 ? ok(buildProfile(user))
                 : err(
                       socialNotFoundProblem(
-                          "O aluno solicitado não foi encontrado."
+                          "O usuário solicitado não foi encontrado."
                       )
                   );
         },
@@ -84,7 +80,7 @@ export function createSocialProfileService({
             if (!existing)
                 return err(
                     socialNotFoundProblem(
-                        "O aluno solicitado não foi encontrado."
+                        "O usuário solicitado não foi encontrado."
                     )
                 );
             const user = await prisma.user.update({

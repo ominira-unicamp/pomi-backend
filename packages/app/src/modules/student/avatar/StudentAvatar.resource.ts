@@ -1,11 +1,8 @@
 import { defineImageResource, imageProfiles } from "#/media/public.js";
-import {
-    hasStudentAccess,
-    hasUserAccess
-} from "#/modules/identity/Student.access.js";
+import { hasUserAccess } from "#/modules/identity/Student.access.js";
 import { ForbiddenError, NotFoundError } from "@pomi/api-core";
 
-export type StudentAvatarTarget = { studentId: number };
+export type StudentAvatarTarget = { userId: number };
 type StudentOwner = { id: number; publicProfileEnabled: boolean };
 
 export const studentAvatarResource = defineImageResource<
@@ -16,10 +13,10 @@ export const studentAvatarResource = defineImageResource<
     profile: imageProfiles.avatar,
     async authorizeWrite({ db, actor, target }) {
         if (
-            !(await hasStudentAccess(
+            !(await hasUserAccess(
                 db,
                 actor,
-                target.studentId,
+                target.userId,
                 "STUDENT_PROFILE_WRITE"
             ))
         )
@@ -27,7 +24,7 @@ export const studentAvatarResource = defineImageResource<
     },
     async loadSlot({ db, target }) {
         const student = await db.user.findUnique({
-            where: { studentId: target.studentId },
+            where: { id: target.userId },
             select: { avatarMediaId: true, avatarRevision: true }
         });
         if (!student) throw new NotFoundError("Estudante não encontrado.");
@@ -39,7 +36,7 @@ export const studentAvatarResource = defineImageResource<
     async compareAndSetSlot({ tx, target, expected, nextMediaId }) {
         const updated = await tx.user.updateMany({
             where: {
-                studentId: target.studentId,
+                id: target.userId,
                 avatarMediaId: expected.mediaId,
                 avatarRevision: expected.revision
             },

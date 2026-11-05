@@ -22,15 +22,21 @@ const list: Actions["list"] = async (ctx, input) =>
             await ctx.studentService.list(input.query),
             input.query,
             unpaginatedByDefault,
-            "/students"
+            "/admin/students"
         )
     );
 
 const get: Actions["get"] = async (ctx, input) =>
-    respond(await ctx.studentService.getById(input.path.id), ApiResponse.ok);
+    respond(
+        await ctx.studentService.getForUser(input.path.userId),
+        ApiResponse.ok
+    );
 
 const create: Actions["create"] = async (ctx, input) => {
-    const result = await ctx.studentService.create(ctx.principal, input.body);
+    const result = await ctx.studentService.create(
+        await ctx.resolveUserContext(input.path.userId),
+        input.body
+    );
     return respond(
         result,
         ({ student, linked }) =>
@@ -41,15 +47,15 @@ const create: Actions["create"] = async (ctx, input) => {
 
 const patch: Actions["patch"] = async (ctx, input) =>
     respond(
-        await ctx.studentService.patch(input.path.id, input.body),
+        await ctx.studentService.patchForUser(input.path.userId, input.body),
         ApiResponse.ok,
         problemInput.body
     );
 
 const remove: Actions["remove"] = async (ctx, input) =>
     respond(
-        await ctx.studentService.remove(
-            input.path.id,
+        await ctx.studentService.removeForUser(
+            input.path.userId,
             input.body.confirmationRa
         ),
         () => ApiResponse.noContent(),
@@ -72,5 +78,5 @@ export default {
     router,
     registry,
     authRegistry,
-    paths: { entity: (studentId: number) => `/students/${studentId}` }
+    paths: { entity: (userId: number) => `/users/${userId}/student` }
 };

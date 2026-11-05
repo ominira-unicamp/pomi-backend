@@ -1,4 +1,4 @@
-import { requireLegacyStudentId } from "#/modules/identity/LegacyStudentContext.js";
+import { canonicalUserId } from "#/modules/identity/UserContext.js";
 import type IO from "#/modules/planning/curriculum/Curriculum.contract.js";
 import type z from "zod";
 import {
@@ -41,7 +41,7 @@ function buildCurriculum(
 ): z.infer<typeof IO.schema> {
     return {
         id: curriculum.id,
-        studentId: requireLegacyStudentId(curriculum.user),
+        userId: canonicalUserId(curriculum.user),
         name: curriculum.name,
         isFavorite: curriculum.favoriteForUser !== null,
         selection: selectionFromCurriculum(curriculum),
@@ -65,7 +65,7 @@ function buildCurriculumSummary(
 ): z.infer<typeof IO.summarySchema> {
     return {
         id: curriculum.id,
-        studentId: requireLegacyStudentId(curriculum.user),
+        userId: canonicalUserId(curriculum.user),
         name: curriculum.name,
         isFavorite: curriculum.favoriteForUser !== null,
         selection: selectionFromCurriculum(curriculum),

@@ -20,20 +20,21 @@ const list: Actions["list"] = async (ctx, input) =>
     ApiResponse.ok(
         buildArrayPaginationResponse(
             await ctx.studentAbsenceService.list(
-                await ctx.resolveLegacyUser(input.path.sid),
-                input.query
+                await ctx.resolveUserContext(input.path.userId, true),
+                input.query,
+                input.path.attemptId
             ),
             input.query,
             unpaginatedByDefault,
-            `/student/${input.path.sid}/absences`
+            `/users/${input.path.userId}/student/course-attempts/${input.path.attemptId}/absences`
         )
     );
 
 const create: Actions["create"] = async (ctx, input) =>
     respond(
         await ctx.studentAbsenceService.create(
-            await ctx.resolveLegacyUser(input.path.sid),
-            input.body
+            await ctx.resolveUserContext(input.path.userId, true),
+            { ...input.body, courseAttemptId: input.path.attemptId }
         ),
         ApiResponse.created,
         problemInput.body
@@ -42,8 +43,9 @@ const create: Actions["create"] = async (ctx, input) =>
 const remove: Actions["remove"] = async (ctx, input) =>
     respond(
         await ctx.studentAbsenceService.remove(
-            await ctx.resolveLegacyUser(input.path.sid),
-            input.path.id
+            await ctx.resolveUserContext(input.path.userId, true),
+            input.path.id,
+            input.path.attemptId
         ),
         () => ApiResponse.noContent()
     );
@@ -59,11 +61,9 @@ export default {
     registry,
     authRegistry,
     paths: {
-        entity: (studentId: number, id: number) =>
-            `/student/${studentId}/absences/${id}`,
-        list: (studentId: number, courseAttemptId?: number) =>
-            `/student/${studentId}/absences${
-                courseAttemptId ? `?courseAttemptId=${courseAttemptId}` : ""
-            }`
+        entity: (userId: number, courseAttemptId: number, id: number) =>
+            `/users/${userId}/student/course-attempts/${courseAttemptId}/absences/${id}`,
+        list: (userId: number, courseAttemptId: number) =>
+            `/users/${userId}/student/course-attempts/${courseAttemptId}/absences`
     }
 };

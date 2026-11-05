@@ -1,8 +1,8 @@
 import { defineImageResource, imageProfiles } from "#/media/public.js";
-import { hasStudentAccess } from "#/modules/identity/Student.access.js";
+import { hasUserAccess } from "#/modules/identity/Student.access.js";
 import { ForbiddenError, NotFoundError } from "@pomi/api-core";
 
-export type GroupAvatarTarget = { groupId: number; studentId: number };
+export type GroupAvatarTarget = { groupId: number; userId: number };
 type GroupOwner = { status: string };
 
 export const groupAvatarResource = defineImageResource<
@@ -13,16 +13,16 @@ export const groupAvatarResource = defineImageResource<
     profile: imageProfiles.avatar,
     async authorizeWrite({ db, actor, target }) {
         if (
-            !(await hasStudentAccess(
+            !(await hasUserAccess(
                 db,
                 actor,
-                target.studentId,
+                target.userId,
                 "STUDENT_PROFILE_WRITE"
             ))
         )
             throw new ForbiddenError("Acesso não permitido.");
         const user = await db.user.findUniqueOrThrow({
-            where: { studentId: target.studentId },
+            where: { id: target.userId },
             select: { id: true }
         });
         const granted = await db.groupMembershipRole.findFirst({

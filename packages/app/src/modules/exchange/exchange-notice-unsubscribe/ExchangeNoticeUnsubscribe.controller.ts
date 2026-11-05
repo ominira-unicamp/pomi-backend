@@ -7,6 +7,7 @@ import IO from "#/modules/exchange/exchange-notice-unsubscribe/ExchangeNoticeUns
 const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     unsubscribe: async (ctx, input) => {
         await ctx.exchangeNoticeUnsubscribeService.unsubscribe(
+            input.path.userId,
             input.query.token
         );
         return ApiResponse.ok({ enabled: false as const });

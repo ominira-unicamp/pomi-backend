@@ -21,7 +21,7 @@ const controllers = [
     ],
     [
         "groupInvitationService",
-        "/student/42/group-invitations",
+        "/users/42/group-invitations",
         (
             await import("#/modules/group/invitation/GroupInvitation.controller.js")
         ).default,
@@ -29,7 +29,7 @@ const controllers = [
     ],
     [
         "groupRoleService",
-        "/student/42/group-roles",
+        "/users/42/group-roles",
         (await import("#/modules/group/role/GroupRole.controller.js")).default,
         "listRoles"
     ],
@@ -52,7 +52,7 @@ for (const [dependency, path, controller, method] of controllers) {
                     {},
                     {
                         get(_target, key) {
-                            if (key === "resolveLegacyUser")
+                            if (key === "resolveUserContext")
                                 return async (studentId: number) => {
                                     assert.equal(studentId, 42);
                                     return 1042;
@@ -60,7 +60,7 @@ for (const [dependency, path, controller, method] of controllers) {
                             assert.equal(key, dependency);
                             return {
                                 [method]: async (...args: unknown[]) => {
-                                    if (path.startsWith("/student/"))
+                                    if (path.startsWith("/users/"))
                                         assert.equal(args[0], 1042);
                                     called = true;
                                     return [];
@@ -100,13 +100,13 @@ test("group mutation controllers preserve public failure status, type and detail
     for (const [dependency, path, controller, method] of [
         [
             "groupRoleService",
-            "/student/42/group-roles/3",
+            "/users/42/group-roles/3",
             controllers[3][2],
             "patchRole"
         ],
         [
             "groupMembershipService",
-            "/student/42/managed-group-memberships/3",
+            "/users/42/managed-group-memberships/3",
             controllers[1][2],
             "patchManagedMembership"
         ]
@@ -121,7 +121,7 @@ test("group mutation controllers preserve public failure status, type and detail
             application.use((request, _response, next) => {
                 request.scope = {
                     cradle: {
-                        resolveLegacyUser: async () => 1042,
+                        resolveUserContext: async () => 1042,
                         [dependency]: {
                             [method]: async () =>
                                 err({ kind, message: "Mensagem preservada." })

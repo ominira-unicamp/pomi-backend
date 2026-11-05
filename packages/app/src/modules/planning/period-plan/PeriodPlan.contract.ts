@@ -30,18 +30,18 @@ const planningVisibilitySchema = z
     });
 
 const basePath = [
-    pathSeg.literal("student"),
-    pathSeg.param("sid"),
-    pathSeg.literal("period-plannings")
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
+    pathSeg.literal("period-plans")
 ];
 const periodPlannings = defineResource({
     collectionPath: basePath,
     memberParameter: "id",
-    tag: "period-plannings",
-    operationName: "StudentPeriodPlannings",
+    tag: "period-plans",
+    operationName: "PeriodPlans",
     sdk: {
-        resource: "periodPlannings",
-        pathParameters: { sid: "studentId", id: "periodPlanningId" }
+        resource: "periodPlans",
+        pathParameters: { userId: "userId", id: "periodPlanningId" }
     }
 });
 
@@ -332,7 +332,7 @@ export const periodPlanningClass = z
 const periodPlanningEntity = z
     .object({
         id: z.number().int(),
-        studentId: z.number().int(),
+        userId: z.number().int(),
         name: z.string(),
         studyPeriodId: z.number().int(),
         studyPeriodYear: z.number().int(),
@@ -352,13 +352,13 @@ const periodPlanningEntity = z
             publicName: "PeriodPlanning",
             identityFields: ["id"],
             relations: {
-                studentId: { resource: "students", cardinality: "one" },
+                userId: { resource: "users", cardinality: "one" },
                 studyPeriodId: {
                     resource: "studyPeriods",
                     cardinality: "one"
                 },
                 curriculumId: {
-                    resource: "curricula",
+                    resource: "curriculums",
                     cardinality: "one",
                     nullable: true
                 },
@@ -387,14 +387,14 @@ export const periodPlanningListQuery = createPaginationQuerySchema(
 );
 
 const get = periodPlannings.get({
-    operationId: "getStudentPeriodPlannings",
-    authorization: policies.studentAccess(
-        "sid",
+    operationId: "getPeriodPlans",
+    authorization: policies.userAccess(
+        "userId",
         StudentCapabilities.PLANNING_READ
     ),
     request: z.object({
         path: z.object({
-            sid: pathParam.integer(),
+            userId: pathParam.integer(),
             id: pathParam.integer()
         })
     }),
@@ -405,15 +405,15 @@ const get = periodPlannings.get({
 });
 
 const list = periodPlannings.list({
-    operationId: "listStudentPeriodPlannings",
-    authorization: policies.studentAccess(
-        "sid",
+    operationId: "listPeriodPlans",
+    authorization: policies.userAccess(
+        "userId",
         StudentCapabilities.PLANNING_READ
     ),
     item: periodPlanningEntity,
     pagination: unpaginatedByDefault,
     request: z.object({
-        path: z.object({ sid: pathParam.integer() }),
+        path: z.object({ userId: pathParam.integer() }),
         query: periodPlanningListQuery
     }),
     response: new OutputBuilder()
@@ -445,14 +445,14 @@ export const createBody = createBodyWireSchema.transform((body) => ({
 }));
 
 const create = periodPlannings.create({
-    operationId: "createStudentPeriodPlannings",
-    authorization: policies.studentAccess(
-        "sid",
+    operationId: "createPeriodPlans",
+    authorization: policies.userAccess(
+        "userId",
         StudentCapabilities.PLANNING_WRITE
     ),
     request: z.object({
         path: z.object({
-            sid: pathParam.integer()
+            userId: pathParam.integer()
         }),
         body: createBody
     }),
@@ -518,14 +518,14 @@ export const patchBody = patchBodyWireSchema.transform((body): PatchBody => {
 });
 
 const patch = periodPlannings.update({
-    operationId: "updateStudentPeriodPlannings",
-    authorization: policies.studentAccess(
-        "sid",
+    operationId: "updatePeriodPlans",
+    authorization: policies.userAccess(
+        "userId",
         StudentCapabilities.PLANNING_WRITE
     ),
     request: z.object({
         path: z.object({
-            sid: pathParam.integer(),
+            userId: pathParam.integer(),
             id: pathParam.integer()
         }),
         body: patchBody
@@ -549,14 +549,14 @@ const patch = periodPlannings.update({
 });
 
 const remove = periodPlannings.delete({
-    operationId: "deleteStudentPeriodPlannings",
-    authorization: policies.studentAccess(
-        "sid",
+    operationId: "deletePeriodPlans",
+    authorization: policies.userAccess(
+        "userId",
         StudentCapabilities.PLANNING_WRITE
     ),
     request: z.object({
         path: z.object({
-            sid: pathParam.integer(),
+            userId: pathParam.integer(),
             id: pathParam.integer()
         })
     }),

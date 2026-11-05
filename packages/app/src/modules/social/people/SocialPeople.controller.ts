@@ -16,7 +16,7 @@ const actions: EndpointActions<typeof contracts, AuthorizationPolicy, Context> =
     {
         listPeople: async (ctx, input) => {
             const result = await ctx.socialPeopleService.listPeople(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.query
             );
             return ApiResponse.ok(
@@ -29,7 +29,7 @@ const actions: EndpointActions<typeof contracts, AuthorizationPolicy, Context> =
                             ...input.query,
                             ...pagination
                         });
-                        return `/student/${input.path.sid}/people${search ? `?${search}` : ""}`;
+                        return `/users/${input.path.userId}/people${search ? `?${search}` : ""}`;
                     }
                 )
             );
@@ -37,7 +37,7 @@ const actions: EndpointActions<typeof contracts, AuthorizationPolicy, Context> =
         getPerson: async (ctx, input) =>
             respond(
                 await ctx.socialPeopleService.getPerson(
-                    await ctx.resolveLegacyUser(input.path.sid),
+                    await ctx.resolveUserContext(input.path.userId),
                     input.path.publicId
                 ),
                 ApiResponse.ok

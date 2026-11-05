@@ -20,19 +20,19 @@ const list: Actions["list"] = async (ctx, input) =>
     ApiResponse.ok(
         buildArrayPaginationResponse(
             await ctx.studentCourseAttemptService.list(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId, true),
                 input.query
             ),
             input.query,
             unpaginatedByDefault,
-            `/student/${input.path.sid}/course-attempts`
+            `/users/${input.path.userId}/student/course-attempts`
         )
     );
 
 const get: Actions["get"] = async (ctx, input) =>
     respond(
         await ctx.studentCourseAttemptService.getById(
-            await ctx.resolveLegacyUser(input.path.sid),
+            await ctx.resolveUserContext(input.path.userId, true),
             input.path.id
         ),
         ApiResponse.ok
@@ -41,7 +41,7 @@ const get: Actions["get"] = async (ctx, input) =>
 const create: Actions["create"] = async (ctx, input) =>
     respond(
         await ctx.studentCourseAttemptService.create(
-            await ctx.resolveLegacyUser(input.path.sid),
+            await ctx.resolveUserContext(input.path.userId, true),
             input.body
         ),
         ApiResponse.created,
@@ -51,7 +51,7 @@ const create: Actions["create"] = async (ctx, input) =>
 const patch: Actions["patch"] = async (ctx, input) =>
     respond(
         await ctx.studentCourseAttemptService.patch(
-            await ctx.resolveLegacyUser(input.path.sid),
+            await ctx.resolveUserContext(input.path.userId, true),
             input.path.id,
             input.body
         ),
@@ -62,7 +62,7 @@ const patch: Actions["patch"] = async (ctx, input) =>
 const remove: Actions["remove"] = async (ctx, input) =>
     respond(
         await ctx.studentCourseAttemptService.remove(
-            await ctx.resolveLegacyUser(input.path.sid),
+            await ctx.resolveUserContext(input.path.userId, true),
             input.path.id
         ),
         () => ApiResponse.noContent()
@@ -85,7 +85,7 @@ export default {
     registry,
     authRegistry,
     paths: {
-        entity: (studentId: number, id: number) =>
-            `/student/${studentId}/course-attempts/${id}`
+        entity: (userId: number, id: number) =>
+            `/users/${userId}/student/course-attempts/${id}`
     }
 };

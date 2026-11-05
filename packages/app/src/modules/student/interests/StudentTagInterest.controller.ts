@@ -19,25 +19,25 @@ const actions: Actions = {
         ApiResponse.ok(
             buildArrayPaginationResponse(
                 await ctx.studentTagInterestService.list(
-                    await ctx.resolveLegacyUser(input.path.sid),
+                    await ctx.resolveUserContext(input.path.userId),
                     input.query
                 ),
                 input.query,
                 unpaginatedByDefault,
-                `/student/${input.path.sid}/tag-interests`
+                `/users/${input.path.userId}/interests`
             )
         ),
     put: async (ctx, input) =>
         respond(
             await ctx.studentTagInterestService.put(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.path.tagId
             ),
             () => ApiResponse.noContent()
         ),
     remove: async (ctx, input) => {
         await ctx.studentTagInterestService.remove(
-            await ctx.resolveLegacyUser(input.path.sid),
+            await ctx.resolveUserContext(input.path.userId),
             input.path.tagId
         );
         return ApiResponse.noContent();

@@ -14,26 +14,26 @@ import {
     type StudentAvatarTarget
 } from "./StudentAvatar.resource.js";
 
-const pathSchema = z.object({ sid: pathParam.positiveInteger() });
+const pathSchema = z.object({ userId: pathParam.positiveInteger() });
 export const studentAvatarEndpoints = {
     resource: studentAvatarResource,
     path: [
-        pathSeg.literal("student"),
-        pathSeg.param("sid"),
+        pathSeg.literal("users"),
+        pathSeg.param("userId"),
         pathSeg.literal("avatar")
     ],
     pathSchema,
-    target: ({ path }) => ({ studentId: path.sid }),
-    authorization: policies.studentAccess(
-        "sid",
+    target: ({ path }) => ({ userId: path.userId }),
+    authorization: policies.userAccess(
+        "userId",
         StudentCapabilities.PROFILE_WRITE
     ),
     operations: {
-        replace: "putStudentAvatar",
-        remove: "deleteStudentAvatar"
+        replace: "putUserAvatar",
+        remove: "deleteUserAvatar"
     } as const,
     tags: ["media"],
-    sdk: { resource: "media", pathParameters: { sid: "studentId" } }
+    sdk: { resource: "media", pathParameters: { userId: "userId" } }
 } satisfies ImageEndpointsDefinition<StudentAvatarTarget, typeof pathSchema>;
 
 const IO = createImageContracts(studentAvatarEndpoints);

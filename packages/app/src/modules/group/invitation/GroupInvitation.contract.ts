@@ -10,10 +10,10 @@ import {
     groupQuery,
     id,
     listQuery,
-    sid,
     sidId,
     studentBase,
-    studentMeta
+    studentMeta,
+    userId
 } from "../Group.http.js";
 import { ownMembership } from "../membership/GroupMembership.contract.js";
 
@@ -21,8 +21,8 @@ export const invitation = z
     .object({
         id,
         groupId: id,
-        recipientStudentId: id,
-        inviterStudentId: id,
+        recipientUserId: id,
+        inviterUserId: id,
         status: z.enum([
             "PENDING",
             "ACCEPTED",
@@ -56,7 +56,7 @@ export const listInvitations = {
         }),
         pagination: unpaginatedByDefault
     },
-    request: z.object({ path: sid, query: listQuery }),
+    request: z.object({ path: userId, query: listQuery }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(invitation), "Convites recebidos")
         .build()
@@ -73,7 +73,7 @@ export const listManagedInvitations = {
         }),
         pagination: unpaginatedByDefault
     },
-    request: z.object({ path: sid, query: listQuery }),
+    request: z.object({ path: userId, query: listQuery }),
     response: new OutputBuilder()
         .ok(
             getPaginatedSchema(managedInvitation),
@@ -91,7 +91,7 @@ export const createInvitation = {
         capability: "STUDENT_PROFILE_WRITE"
     }),
     request: z.object({
-        path: sid,
+        path: userId,
         query: groupQuery,
         body: z.object({ recipientPublicId: z.string().uuid() }).strict()
     }),

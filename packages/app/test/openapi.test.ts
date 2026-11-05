@@ -90,8 +90,8 @@ test("period planning classes expose reservation programs instead of legacy code
 test("does not expose removed period-plan aliases", () => {
     const document = generateAppOpenApiDocument();
 
-    assert.equal(document.paths["/student/{sid}/period-plan"], undefined);
-    assert.equal(document.paths["/student/{sid}/period-plan/{id}"], undefined);
+    assert.equal(document.paths["/users/{userId}/period-plan"], undefined);
+    assert.equal(document.paths["/users/{userId}/period-plan/{id}"], undefined);
 });
 
 test("collection operations expose the standard pagination contract", () => {
@@ -154,10 +154,10 @@ test("groups keep public reads separate from student-scoped management", () => {
     assert.ok(managedInvitation.properties?.recipientName);
     assert.ok(managedInvitation.properties?.recipientPublicId);
     assert.ok(document.paths["/groups"]?.get);
-    assert.ok(document.paths["/student/{sid}/groups"]?.post);
-    assert.ok(document.paths["/student/{sid}/groups/{id}"]?.patch);
-    assert.ok(document.paths["/student/{sid}/group-memberships"]?.get);
-    assert.ok(document.paths["/student/{sid}/managed-group-invitations"]?.get);
+    assert.ok(document.paths["/users/{userId}/groups"]?.post);
+    assert.ok(document.paths["/users/{userId}/groups/{id}"]?.patch);
+    assert.ok(document.paths["/users/{userId}/group-memberships"]?.get);
+    assert.ok(document.paths["/users/{userId}/managed-group-invitations"]?.get);
     assert.ok(document.paths["/group-events"]?.get);
     const memberships = document.paths["/group-memberships"]?.get;
     assert.ok(memberships);
@@ -180,9 +180,9 @@ test("groups keep public reads separate from student-scoped management", () => {
 test("group authorization scope comes from path and query", () => {
     const document = generateAppOpenApiDocument();
     const operations = [
-        ["/student/{sid}/group-invitations", "post"],
-        ["/student/{sid}/group-roles", "post"],
-        ["/student/{sid}/group-events", "post"]
+        ["/users/{userId}/group-invitations", "post"],
+        ["/users/{userId}/group-roles", "post"],
+        ["/users/{userId}/group-events", "post"]
     ] as const;
 
     for (const [path, method] of operations) {
@@ -203,7 +203,7 @@ test("group authorization scope comes from path and query", () => {
 
 test("media contracts declare multipart upload, binary reads and transport failures", () => {
     const document = generateAppOpenApiDocument();
-    const upload = document.paths["/student/{sid}/avatar"]?.post;
+    const upload = document.paths["/users/{userId}/avatar"]?.post;
     const read = document.paths["/media/{mediaId}/{variant}"]?.get;
     assert.ok(upload);
     assert.ok(read);
@@ -227,7 +227,7 @@ test("media contracts declare multipart upload, binary reads and transport failu
 test("media contract exposes only avatars and removes group headers", () => {
     const document = generateAppOpenApiDocument();
     assert.equal(
-        document.paths["/student/{sid}/groups/{id}/banner"],
+        document.paths["/users/{userId}/groups/{id}/banner"],
         undefined
     );
     const group = document.components?.schemas?.Group;

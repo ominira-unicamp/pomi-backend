@@ -23,7 +23,7 @@ import z from "zod";
 
 type SharedPeriodPlan = z.infer<typeof IO.schema>;
 type PublicQuery = z.infer<typeof IO.listPublic.request>["query"];
-type StudentQuery = z.infer<typeof IO.listForStudent.request>["query"];
+type StudentQuery = z.infer<typeof IO.listForUser.request>["query"];
 type NotFound = ReturnType<typeof ResourceNotFoundProblem.create>;
 
 const periodPlanningWhere = prismaWhereFor<MyPrisma.PeriodPlanningWhereInput>();
@@ -132,7 +132,7 @@ export type SharedPeriodPlanService = {
         pagination: ResolvedPagination;
     }>;
     getPublic(shareId: string): Promise<Result<SharedPeriodPlan, NotFound>>;
-    listForStudent(
+    listForUser(
         userId: number,
         input: StudentQuery
     ): Promise<{
@@ -140,7 +140,7 @@ export type SharedPeriodPlanService = {
         total: number;
         pagination: ResolvedPagination;
     }>;
-    getForStudent(
+    getForUser(
         userId: number,
         shareId: string
     ): Promise<Result<SharedPeriodPlan, NotFound>>;
@@ -224,7 +224,7 @@ export function createSharedPeriodPlanService({
             });
             return row ? ok(buildShared(row)) : err(notFound());
         },
-        async listForStudent(userId, input) {
+        async listForUser(userId, input) {
             const pagination = resolvePagination(
                 input,
                 sharedPeriodPlanningPagination
@@ -257,7 +257,7 @@ export function createSharedPeriodPlanService({
                 pagination
             };
         },
-        async getForStudent(userId, shareId) {
+        async getForUser(userId, shareId) {
             const row = await prisma.periodPlanning.findFirst({
                 ...selection,
                 where: { shareId, ...sharedWhere(userId, undefined) }

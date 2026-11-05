@@ -20,8 +20,8 @@ import z from "zod";
 extendZodWithOpenApi(z);
 
 const basePath = [
-    pathSeg.literal("student"),
-    pathSeg.param("sid"),
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
     pathSeg.literal("classes"),
     pathSeg.param("classId"),
     pathSeg.literal("professors"),
@@ -30,14 +30,14 @@ const basePath = [
 ];
 
 const pendingPath = [
-    pathSeg.literal("student"),
-    pathSeg.param("sid"),
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
     pathSeg.literal("professor-evaluations"),
     pathSeg.literal("pending")
 ];
 
 const path = z.object({
-    sid: pathParam.integer(),
+    userId: pathParam.integer(),
     classId: pathParam.integer(),
     professorId: pathParam.integer()
 });
@@ -62,7 +62,7 @@ const evaluationBody = z
 const evaluation = evaluationBody
     .extend({
         id: z.number().int(),
-        studentId: z.number().int(),
+        userId: z.number().int(),
         classId: z.number().int(),
         professorId: z.number().int(),
         createdAt: z.string().datetime(),
@@ -176,7 +176,7 @@ const get = {
             method: "get",
             action: "get" as const,
             pathParameters: {
-                sid: "studentId",
+                userId: "userId",
                 classId: "classId",
                 professorId: "professorId"
             }
@@ -184,8 +184,8 @@ const get = {
         method: "get" as const,
         path: basePath,
         tags: ["professor-evaluations"],
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.HISTORY_READ
         )
     },
@@ -204,7 +204,7 @@ const put = {
             method: "update",
             action: "update" as const,
             pathParameters: {
-                sid: "studentId",
+                userId: "userId",
                 classId: "classId",
                 professorId: "professorId"
             }
@@ -212,8 +212,8 @@ const put = {
         method: "put" as const,
         path: basePath,
         tags: ["professor-evaluations"],
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.HISTORY_WRITE
         )
     },
@@ -231,13 +231,13 @@ const listPending = {
             resource: "professorEvaluations",
             method: "listPending",
             action: "list" as const,
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
         method: "get" as const,
         path: pendingPath,
         tags: ["professor-evaluations"],
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.HISTORY_READ
         ),
         queryFeatures: { filter: true, sort: true },
@@ -245,7 +245,7 @@ const listPending = {
     },
     request: z.object({
         path: z.object({
-            sid: pathParam.integer()
+            userId: pathParam.integer()
         }),
         query: createPaginationQuerySchema(unpaginatedByDefault, {
             filter: pendingFilter,

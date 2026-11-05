@@ -122,10 +122,7 @@ function buildReport(report: {
         sourcePath: report.sourcePath,
         status: report.status,
         adminMessage: report.adminMessage,
-        reporterStudentId:
-            report.reporterUser?.legacyStudentId ??
-            report.reporterUser?.studentId ??
-            null,
+        reporterUserId: report.reporterUserId,
         createdAt: report.createdAt.toISOString(),
         updatedAt: report.updatedAt.toISOString()
     } as Report;
@@ -144,7 +141,9 @@ const reportSelection = {
     status: true,
     adminMessage: true,
     reporterUserId: true,
-    reporterUser: { select: { studentId: true, legacyStudentId: true } },
+    reporterUser: {
+        select: { id: true, studentId: true, legacyStudentId: true }
+    },
     createdAt: true,
     updatedAt: true
 } as const;
@@ -246,7 +245,7 @@ export type FeedbackReportService = {
         input: Input,
         requestIp: string
     ): Promise<Result<Receipt, FeedbackReportProblem>>;
-    createForStudent(
+    createForUser(
         userId: number,
         input: Input
     ): Promise<
@@ -258,7 +257,7 @@ export type FeedbackReportService = {
             >
         >
     >;
-    listForStudent(userId: number, query: StudentListQuery): Promise<Report[]>;
+    listForUser(userId: number, query: StudentListQuery): Promise<Report[]>;
     listForAdmin(query: AdminListQuery): Promise<Report[]>;
     patchAdmin(
         id: number,
@@ -311,10 +310,10 @@ export function createFeedbackReportService({
                 return err(feedbackRateLimitProblem(limit.retryAfterSeconds));
             return create(input);
         },
-        async createForStudent(userId, input) {
+        async createForUser(userId, input) {
             return create(input, userId);
         },
-        async listForStudent(userId, query) {
+        async listForUser(userId, query) {
             const reports = await prisma.feedbackReport.findMany({
                 where: { reporterUserId: userId },
                 select: reportSelection,

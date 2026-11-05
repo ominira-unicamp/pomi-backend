@@ -189,6 +189,10 @@ test(
                 1,
                 -1
             );
+            assert.equal(
+                new URL(unsubscribe).pathname,
+                `/users/${userId}/exchange-notice-subscription/unsubscribe`
+            );
             const token = new URL(unsubscribe).searchParams.get("token")!;
             const { payload } = await jwtVerify(
                 token,

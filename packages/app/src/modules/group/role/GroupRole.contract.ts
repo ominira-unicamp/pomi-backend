@@ -11,10 +11,10 @@ import {
     groupQuery,
     id,
     listQuery,
-    sid,
     sidId,
     studentBase,
-    studentMeta
+    studentMeta,
+    userId
 } from "../Group.http.js";
 import { rolePatch } from "./GroupRole.schemas.js";
 export { rolePatch } from "./GroupRole.schemas.js";
@@ -40,7 +40,7 @@ export const listRoles = {
         }),
         pagination: unpaginatedByDefault
     },
-    request: z.object({ path: sid, query: listQuery }),
+    request: z.object({ path: userId, query: listQuery }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(role), "Roles do grupo")
         .build()
@@ -55,7 +55,7 @@ export const createRole = {
         capability: "STUDENT_PROFILE_WRITE"
     }),
     request: z.object({
-        path: sid,
+        path: userId,
         query: groupQuery,
         body: z
             .object({

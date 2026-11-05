@@ -16,10 +16,10 @@ import {
     listQuery,
     publicId,
     publicMeta,
-    sid,
     sidId,
     studentBase,
-    studentMeta
+    studentMeta,
+    userId
 } from "../Group.http.js";
 import { memberPatch } from "./GroupMembership.schemas.js";
 export { memberPatch, positionInput } from "./GroupMembership.schemas.js";
@@ -62,7 +62,7 @@ export const publicMembership = z
 export const ownMembership = publicMembership
     .omit({ displayName: true, profilePublicId: true, avatarMediaId: true })
     .extend({
-        studentId: id,
+        userId: id,
         isPublic: z.boolean(),
         leftAt: z.string().datetime().nullable(),
         roles: z.array(z.object({ id, name: z.string() }).strict()),
@@ -107,7 +107,7 @@ export const getPublicMembership = {
 export const listOwnMemberships = {
     meta: {
         ...studentMeta({
-            operationId: "listStudentGroupMemberships",
+            operationId: "listUserGroupMemberships",
             method: "get",
             path: studentBase("group-memberships"),
             sdkAction: "list",
@@ -116,14 +116,14 @@ export const listOwnMemberships = {
         }),
         pagination: unpaginatedByDefault
     },
-    request: z.object({ path: sid, query: listQuery }),
+    request: z.object({ path: userId, query: listQuery }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(ownMembership), "Vínculos do estudante")
         .build()
 } satisfies IO;
 export const getOwnMembership = {
     meta: studentMeta({
-        operationId: "getStudentGroupMembership",
+        operationId: "getUserGroupMembership",
         method: "get",
         path: [...studentBase("group-memberships"), pathSeg.param("id")],
         sdkAction: "get",
@@ -138,7 +138,7 @@ export const getOwnMembership = {
 } satisfies IO;
 export const patchOwnMembership = {
     meta: studentMeta({
-        operationId: "updateStudentGroupMembership",
+        operationId: "updateUserGroupMembership",
         method: "patch",
         path: [...studentBase("group-memberships"), pathSeg.param("id")],
         sdkAction: "update",
@@ -166,7 +166,7 @@ export const listManagedMemberships = {
         }),
         pagination: unpaginatedByDefault
     },
-    request: z.object({ path: sid, query: listQuery }),
+    request: z.object({ path: userId, query: listQuery }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(managedMembership), "Membros gerenciados")
         .build()

@@ -10,8 +10,8 @@ test("keeps public, student and capability policies distinct", async () => {
     registry.addException("GET", "/courses");
     registry.addPolicy(
         "GET",
-        "/student/:sid/courses",
-        policies.studentAccess("sid", StudentCapabilities.HISTORY_READ)
+        "/users/:userId/courses",
+        policies.studentAccess("userId", StudentCapabilities.HISTORY_READ)
     );
     registry.addPolicy(
         "POST",
@@ -20,11 +20,11 @@ test("keeps public, student and capability policies distinct", async () => {
     );
 
     assert.equal(registry.checkException("GET", "/courses"), true);
-    assert.equal(registry.checkException("GET", "/student/42/courses"), false);
-    const studentRule = registry.findRule("GET", "/student/42/courses");
+    assert.equal(registry.checkException("GET", "/users/42/courses"), false);
+    const studentRule = registry.findRule("GET", "/users/42/courses");
     assert.equal(studentRule?.rule.policy.kind, "student-access");
-    assert.equal(studentRule?.rule.path, "/student/:sid/courses");
-    assert.equal(studentRule?.params.sid, "42");
+    assert.equal(studentRule?.rule.path, "/users/:userId/courses");
+    assert.equal(studentRule?.params.userId, "42");
     assert.equal(
         registry.findRule("POST", "/courses")?.rule.policy.kind,
         "capability"

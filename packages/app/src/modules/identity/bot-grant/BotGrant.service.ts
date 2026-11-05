@@ -1,4 +1,4 @@
-import { AuthRoles, type Principal, type StudentCapability } from "#/auth.js";
+import { AuthRoles, type StudentCapability } from "#/auth.js";
 import IO, {
     botGrantSort,
     botIdentitySort
@@ -16,11 +16,12 @@ export type BotGrantService = {
     listBots(
         query: BotsQuery
     ): Promise<Array<{ id: number; displayName: string | null }>>;
-    list(principal: Principal, query: GrantsQuery): Promise<BotGrant[]>;
+    list(userId: number, query: GrantsQuery): Promise<BotGrant[]>;
     replace(
-        principal: Principal,
-        botAuthUserId: number,
-        capabilities: StudentCapability[]
+        userId: number,
+        botAuthIdentityId: number,
+        capabilities: StudentCapability[],
+        authorAuthIdentityId: number
     ): Promise<Result<void, ReturnType<typeof botNotFoundProblem>>>;
 };
 
@@ -35,34 +36,33 @@ export function createBotGrantService({
                 await prisma.authIdentity.findMany({
                     where: {
                         status: "ACTIVE",
+                        principal: { status: "ACTIVE" },
                         roles: { some: { role: AuthRoles.BOT } }
                     },
-                    select: { legacyId: true, displayName: true },
+                    select: { id: true, displayName: true },
                     orderBy: compileSort(
                         resolveSort(query.sort, botIdentitySort),
                         {
                             displayName: (direction) => ({
                                 displayName: direction
                             }),
-                            id: (direction) => ({ legacyId: direction })
+                            id: (direction) => ({ id: direction })
                         }
                     )
                 })
-            ).map(({ legacyId, displayName }) => ({
-                id: legacyId,
+            ).map(({ id, displayName }) => ({
+                id: id,
                 displayName
             })),
-        async list(principal, query) {
-            if (principal.studentId === null || principal.userId === null)
-                return [];
+        async list(userId, query) {
             const grants = await prisma.botGrant.findMany({
-                where: { userId: principal.userId },
+                where: { userId: userId },
                 include: {
                     botAuthIdentity: {
-                        select: { legacyId: true, displayName: true }
+                        select: { id: true, displayName: true }
                     },
-                    grantedByAuthIdentity: { select: { legacyId: true } },
-                    revokedByAuthIdentity: { select: { legacyId: true } }
+                    grantedByAuthIdentity: { select: { id: true } },
+                    revokedByAuthIdentity: { select: { id: true } }
                 },
                 orderBy: compileSort(resolveSort(query.sort, botGrantSort), {
                     createdAt: (direction) => ({ createdAt: direction }),
@@ -73,37 +73,38 @@ export function createBotGrantService({
                     id: (direction) => ({ id: direction })
                 })
             });
-            return grants.map(
-                ({
-                    userId: _userId,
-                    botAuthIdentityId: _botId,
-                    grantedByAuthIdentityId: _grantedId,
-                    revokedByAuthIdentityId: _revokedId,
-                    botAuthIdentity,
-                    grantedByAuthIdentity,
-                    revokedByAuthIdentity,
-                    ...grant
-                }) => ({
-                    ...grant,
-                    studentId: principal.studentId!,
-                    botAuthUserId: botAuthIdentity.legacyId,
-                    grantedByAuthUserId: grantedByAuthIdentity.legacyId,
-                    revokedByAuthUserId:
-                        revokedByAuthIdentity?.legacyId ?? null,
-                    botAuthUser: {
-                        id: botAuthIdentity.legacyId,
-                        displayName: botAuthIdentity.displayName
-                    }
-                })
-            );
+            return grants.map((grant) => ({
+                id: grant.id,
+                userId: grant.userId,
+                botAuthIdentityId: grant.botAuthIdentityId,
+                grantedByAuthIdentityId: grant.grantedByAuthIdentityId,
+                revokedByAuthIdentityId: grant.revokedByAuthIdentityId,
+                capability: grant.capability,
+                createdAt: grant.createdAt,
+                revokedAt: grant.revokedAt,
+                botAuthIdentity: grant.botAuthIdentity
+            }));
         },
-        async replace(principal, botAuthUserId, requested) {
-            if (principal.studentId === null || principal.userId === null)
-                return err(botNotFoundProblem());
+        async replace(
+            userId,
+            botAuthIdentityId,
+            requested,
+            authorAuthIdentityId
+        ) {
+            const author = await prisma.authIdentity.findFirst({
+                where: {
+                    id: authorAuthIdentityId,
+                    status: "ACTIVE",
+                    principal: { status: "ACTIVE" }
+                },
+                select: { id: true }
+            });
+            if (!author) return err(botNotFoundProblem());
             const bot = await prisma.authIdentity.findFirst({
                 where: {
-                    legacyId: botAuthUserId,
+                    id: botAuthIdentityId,
                     status: "ACTIVE",
+                    principal: { status: "ACTIVE" },
                     roles: { some: { role: AuthRoles.BOT } }
                 },
                 select: { id: true }
@@ -113,7 +114,7 @@ export function createBotGrantService({
             await prisma.$transaction(async (tx) => {
                 await tx.botGrant.updateMany({
                     where: {
-                        userId: principal.userId!,
+                        userId: userId,
                         botAuthIdentityId: bot.id,
                         revokedAt: null,
                         ...(capabilities.length
@@ -122,14 +123,14 @@ export function createBotGrantService({
                     },
                     data: {
                         revokedAt: new Date(),
-                        revokedByAuthIdentityId: principal.authIdentityId
+                        revokedByAuthIdentityId: authorAuthIdentityId
                     }
                 });
                 const active = new Set(
                     (
                         await tx.botGrant.findMany({
                             where: {
-                                userId: principal.userId!,
+                                userId: userId,
                                 botAuthIdentityId: bot.id,
                                 revokedAt: null
                             },
@@ -143,10 +144,10 @@ export function createBotGrantService({
                 if (missing.length)
                     await tx.botGrant.createMany({
                         data: missing.map((capability) => ({
-                            userId: principal.userId!,
+                            userId: userId,
                             botAuthIdentityId: bot.id,
                             capability,
-                            grantedByAuthIdentityId: principal.authIdentityId
+                            grantedByAuthIdentityId: authorAuthIdentityId
                         }))
                     });
             });

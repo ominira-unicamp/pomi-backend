@@ -27,18 +27,22 @@ const actions: Actions = {
     list: async (ctx, input) =>
         ApiResponse.ok(
             buildArrayPaginationResponse(
-                await ctx.botGrantService.list(ctx.principal!, input.query),
+                await ctx.botGrantService.list(
+                    await ctx.resolveUserContext(input.path.userId),
+                    input.query
+                ),
                 input.query,
                 unpaginatedByDefault,
-                "/me/bot-grants"
+                `/users/${input.path.userId}/bot-grants`
             )
         ),
     replace: async (ctx, input) =>
         respond(
             await ctx.botGrantService.replace(
-                ctx.principal!,
-                input.path.botAuthUserId,
-                input.body.capabilities
+                await ctx.resolveUserContext(input.path.userId),
+                input.path.botAuthIdentityId,
+                input.body.capabilities,
+                input.body.authorAuthIdentityId
             ),
             () => ApiResponse.noContent(),
             problemInput.body

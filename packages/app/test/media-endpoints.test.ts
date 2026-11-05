@@ -41,7 +41,6 @@ const actor: Principal = {
     authIdentityId: 1,
     userId: 1,
     serviceAccountId: null,
-    authUserId: 1,
     issuer: "test",
     subject: "test",
     email: null,
@@ -49,7 +48,7 @@ const actor: Principal = {
     capabilities: new Set(),
     studentId: 42
 };
-const input = { path: { sid: 42, id: 7 } };
+const input = { path: { userId: 42, id: 7 } };
 const transport = {
     request: Object.assign(Readable.from(["image"]), {
         headers: { "content-type": "multipart/form-data; boundary=test" }
@@ -69,12 +68,12 @@ test("image definitions preserve operation keys, validated paths and resource ta
             | "deleteGroupAvatar"
             ? true
             : false;
-        missingParameter: { path: { sid: number } } extends Input
+        missingParameter: { path: { userId: number } } extends Input
             ? true
             : false;
         unknownParameter: "missing" extends keyof Input["path"] ? true : false;
         wrongTarget: (() => {
-            studentId: string;
+            userId: string;
             groupId: number;
         }) extends Definition["target"]
             ? true
@@ -92,14 +91,15 @@ test("image definitions preserve operation keys, validated paths and resource ta
         wrongTarget: false
     });
     assert.deepEqual(groupAvatarEndpoints.target(input), {
-        studentId: 42,
+        userId: 42,
         groupId: 7
     });
-    assert.deepEqual(studentAvatarEndpoints.target({ path: { sid: 42 } }), {
-        studentId: 42
+    assert.deepEqual(studentAvatarEndpoints.target({ path: { userId: 42 } }), {
+        userId: 42
     });
     assert.equal(
-        groupAvatarEndpoints.pathSchema.safeParse({ sid: -1, id: 7 }).success,
+        groupAvatarEndpoints.pathSchema.safeParse({ userId: -1, id: 7 })
+            .success,
         false
     );
 });
@@ -166,14 +166,14 @@ test("image actions forward actor, domain target and the original upload transpo
     assert.deepEqual(calls, [
         {
             actor,
-            target: { studentId: 42, groupId: 7 },
+            target: { userId: 42, groupId: 7 },
             upload: {
                 stream: transport.request,
                 contentType: transport.request.headers["content-type"],
                 signal: transport.signal
             }
         },
-        { actor, target: { studentId: 42, groupId: 7 } }
+        { actor, target: { userId: 42, groupId: 7 } }
     ]);
 });
 

@@ -13,7 +13,7 @@ export const AdminIdentityManagedByCliProblem = defineProblem({
     extensions: {}
 });
 
-export const authUserNotFoundProblem = () =>
+export const authIdentityNotFoundProblem = () =>
     ResourceNotFoundProblem.create({
         detail: "A identidade solicitada não foi encontrada."
     });
@@ -22,12 +22,12 @@ export const adminIdentityManagedByCliProblem = () =>
         detail: "Remova a função administrativa pela linha de comando antes de alterar esta identidade."
     });
 
-export type AuthUserProblem =
-    | ReturnType<typeof authUserNotFoundProblem>
+export type AuthIdentityProblem =
+    | ReturnType<typeof authIdentityNotFoundProblem>
     | ReturnType<typeof adminIdentityManagedByCliProblem>;
-export const authUserProblemResponses = {
+export const authIdentityProblemResponses = {
     [ResourceNotFoundProblem.type]: problemResponse(ResourceNotFoundProblem),
     [AdminIdentityManagedByCliProblem.type]: problemResponse(
         AdminIdentityManagedByCliProblem
     )
-} satisfies ProblemResponseMap<AuthUserProblem, object>;
+} satisfies ProblemResponseMap<AuthIdentityProblem, object>;

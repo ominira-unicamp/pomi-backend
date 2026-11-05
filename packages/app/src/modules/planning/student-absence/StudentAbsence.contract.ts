@@ -6,12 +6,10 @@ import {
     createPaginationQuerySchema,
     DayOfWeekSchema,
     defineSort,
-    filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
-    resourceFilterSchema,
     ResourceNotFoundProblemSchema,
     resourceSortSchema,
     SpecBuilder,
@@ -25,14 +23,21 @@ import z from "zod";
 extendZodWithOpenApi(z);
 
 const basePath = [
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
     pathSeg.literal("student"),
-    pathSeg.param("sid"),
+    pathSeg.literal("course-attempts"),
+    pathSeg.param("attemptId"),
     pathSeg.literal("absences")
 ];
 const specsBuilder = new SpecBuilder(basePath, ["student-absences"], "id", {
     resource: "studentAbsences",
     operationName: "StudentAbsences",
-    pathParameters: { sid: "studentId", id: "studentAbsenceId" }
+    pathParameters: {
+        userId: "userId",
+        attemptId: "courseAttemptId",
+        id: "studentAbsenceId"
+    }
 });
 
 const dayOfWeekSchema = DayOfWeekSchema;
@@ -67,7 +72,6 @@ const absenceEntity = z
 
 const absenceBody = z
     .object({
-        courseAttemptId: z.number().int(),
         classScheduleId: z.number().int(),
         date: z.string().date()
     })
@@ -80,18 +84,13 @@ const absenceBody = z
     });
 
 const studentPath = z.object({
-    sid: pathParam.integer()
+    userId: pathParam.integer(),
+    attemptId: pathParam.positiveInteger()
 });
 const entityPath = studentPath.extend({
     id: pathParam.integer()
 });
 
-const absenceFilter = resourceFilterSchema(
-    { courseAttemptId: filterDefinition.id() },
-    "student absences",
-    "Structured absence filters. Use filter[courseAttemptId]=42.",
-    { courseAttemptId: 42 }
-);
 export type StudentAbsenceFilter = Filter;
 export const studentAbsenceSort = defineSort({
     resourceName: "student absences",
@@ -109,17 +108,16 @@ export const studentAbsenceSort = defineSort({
 const list = {
     meta: {
         ...specsBuilder.list(),
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.HISTORY_READ
         ),
-        queryFeatures: { filter: true, sort: true },
+        queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         path: studentPath,
         query: createPaginationQuerySchema(unpaginatedByDefault, {
-            filter: absenceFilter.optional(),
             sort: resourceSortSchema(studentAbsenceSort).optional()
         })
             .strict()
@@ -132,20 +130,30 @@ const list = {
     }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(absenceEntity), "Faltas recuperadas com sucesso")
+        .problem(
+            404,
+            ResourceNotFoundProblemSchema,
+            "Registro acadêmico não encontrado"
+        )
         .build()
 } satisfies IO;
 
 const create = {
     meta: {
         ...specsBuilder.create(),
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.HISTORY_WRITE
         )
     },
     request: z.object({ path: studentPath, body: absenceBody }),
     response: new OutputBuilder()
         .created(absenceEntity, "Falta registrada com sucesso")
+        .problem(
+            404,
+            ResourceNotFoundProblemSchema,
+            "Registro acadêmico não encontrado"
+        )
         .problem(409, UniqueConstraintConflictProblemSchema, "Falta duplicada")
         .problem(
             422,
@@ -161,8 +169,8 @@ const create = {
 const remove = {
     meta: {
         ...specsBuilder.remove(),
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.HISTORY_WRITE
         )
     },

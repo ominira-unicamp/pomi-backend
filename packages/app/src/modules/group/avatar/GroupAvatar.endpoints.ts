@@ -15,22 +15,22 @@ import {
 } from "./GroupAvatar.resource.js";
 
 const pathSchema = z.object({
-    sid: pathParam.positiveInteger(),
+    userId: pathParam.positiveInteger(),
     id: pathParam.positiveInteger()
 });
 export const groupAvatarEndpoints = {
     resource: groupAvatarResource,
     path: [
-        pathSeg.literal("student"),
-        pathSeg.param("sid"),
+        pathSeg.literal("users"),
+        pathSeg.param("userId"),
         pathSeg.literal("groups"),
         pathSeg.param("id"),
         pathSeg.literal("avatar")
     ],
     pathSchema,
-    target: ({ path }) => ({ studentId: path.sid, groupId: path.id }),
-    authorization: policies.studentAccess(
-        "sid",
+    target: ({ path }) => ({ userId: path.userId, groupId: path.id }),
+    authorization: policies.userAccess(
+        "userId",
         StudentCapabilities.PROFILE_WRITE
     ),
     operations: {
@@ -40,7 +40,7 @@ export const groupAvatarEndpoints = {
     tags: ["media"],
     sdk: {
         resource: "media",
-        pathParameters: { sid: "studentId", id: "groupId" }
+        pathParameters: { userId: "userId", id: "groupId" }
     }
 } satisfies ImageEndpointsDefinition<GroupAvatarTarget, typeof pathSchema>;
 

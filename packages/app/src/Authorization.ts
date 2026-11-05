@@ -43,6 +43,13 @@ export type AuthorizationPolicy =
           studentParam: string;
           capability: StudentCapability;
       }
+    | {
+          kind: "user-access";
+          userParam: string;
+          capability: StudentCapability;
+          ownerOnly?: boolean;
+      }
+    | { kind: "academic-registration" }
     | { kind: "student-registration" };
 
 export const policies = {
@@ -62,5 +69,16 @@ export const policies = {
         studentParam,
         capability
     }),
+    userAccess: (
+        userParam: string,
+        capability: StudentCapability,
+        ownerOnly = false
+    ): AuthorizationPolicy => ({
+        kind: "user-access",
+        userParam,
+        capability,
+        ...(ownerOnly ? { ownerOnly: true } : {})
+    }),
+    academicRegistration: { kind: "academic-registration" } as const,
     studentRegistration: { kind: "student-registration" } as const
 };

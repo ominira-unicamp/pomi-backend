@@ -1,7 +1,7 @@
 import { createAppEndpointRegistries, type Context } from "#/BuildHandler.js";
 import type { AuthorizationPolicy } from "#/auth.js";
-import IO from "#/modules/identity/auth-user/AuthUser.contract.js";
-import { authUserProblemResponses } from "#/modules/identity/auth-user/AuthUser.problems.js";
+import IO from "#/modules/identity/auth-identity/AuthIdentity.contract.js";
+import { authIdentityProblemResponses } from "#/modules/identity/auth-identity/AuthIdentity.problems.js";
 import {
     ApiResponse,
     buildArrayPaginationResponse,
@@ -11,24 +11,22 @@ import {
 } from "@pomi/api-core";
 const { schemas: _schemas, ...contracts } = IO;
 type Actions = EndpointActions<typeof contracts, AuthorizationPolicy, Context>;
-const respond = createResultResponder(authUserProblemResponses);
+const respond = createResultResponder(authIdentityProblemResponses);
 const actions: Actions = {
     list: async (ctx, input) =>
         ApiResponse.ok(
             buildArrayPaginationResponse(
-                await ctx.authUserService.list(input.query),
+                await ctx.authIdentityService.list(input.query),
                 input.query,
                 unpaginatedByDefault,
-                "/admin/auth-users"
+                "/admin/auth-identities"
             )
         ),
     create: async (ctx, input) =>
-        ApiResponse.created(
-            await ctx.authUserService.create(ctx.principal!, input.body)
-        ),
+        ApiResponse.created(await ctx.authIdentityService.create(input.body)),
     patch: async (ctx, input) =>
         respond(
-            await ctx.authUserService.patch(input.path.id, input.body),
+            await ctx.authIdentityService.patch(input.path.id, input.body),
             ApiResponse.ok
         )
 };

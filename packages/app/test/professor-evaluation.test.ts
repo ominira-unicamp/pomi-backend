@@ -4,7 +4,7 @@ import { createProfessorEvaluationService } from "#/modules/academic/evaluation/
 import assert from "node:assert/strict";
 import test from "node:test";
 
-const path = { sid: "1", classId: "2", professorId: "3" };
+const path = { userId: "1", classId: "2", professorId: "3" };
 const body = {
     wouldTakeAgain: 5,
     fairness: 4,
@@ -14,8 +14,8 @@ const body = {
 
 test("declares professor evaluation paths and scores", () => {
     assert.deepEqual(IO.get.meta.path, [
-        { type: "literal", value: "student" },
-        { type: "param", name: "sid" },
+        { type: "literal", value: "users" },
+        { type: "param", name: "userId" },
         { type: "literal", value: "classes" },
         { type: "param", name: "classId" },
         { type: "literal", value: "professors" },
@@ -32,7 +32,7 @@ test("declares professor evaluation paths and scores", () => {
     );
     assert.equal(
         IO.listPending.request.safeParse({
-            path: { sid: "1" },
+            path: { userId: "1" },
             query: {
                 filter: {
                     year: "2026",
@@ -165,7 +165,7 @@ test("upserts an evaluation for an eligible student", async () => {
                     return {
                         id: 4,
                         userId: 1,
-                        user: { studentId: 1, legacyStudentId: 1 },
+                        user: { userId: 1, legacyStudentId: 1 },
                         classId: 2,
                         professorId: 3,
                         ...body,

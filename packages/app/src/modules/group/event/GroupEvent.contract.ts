@@ -15,10 +15,10 @@ import {
     publicId,
     publicMeta,
     publicTag,
-    sid,
     sidId,
     studentBase,
-    studentMeta
+    studentMeta,
+    userId
 } from "../Group.http.js";
 
 export const eventBase = z
@@ -100,7 +100,7 @@ export const listManagedEvents = {
         }),
         pagination: unpaginatedByDefault
     },
-    request: z.object({ path: sid, query: listQuery }),
+    request: z.object({ path: userId, query: listQuery }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(managedEvent), "Eventos gerenciados")
         .build()
@@ -114,7 +114,7 @@ export const createEvent = {
         queryFeatures: { filter: false },
         capability: "STUDENT_PROFILE_WRITE"
     }),
-    request: z.object({ path: sid, query: groupQuery, body: eventBody }),
+    request: z.object({ path: userId, query: groupQuery, body: eventBody }),
     response: new OutputBuilder().created(managedEvent, "Evento criado").build()
 } satisfies IO;
 export const patchEvent = {

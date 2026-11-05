@@ -1,7 +1,7 @@
 import { type IO, OutputBuilder } from "#/Contract.js";
 import { policies } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { pathSeg } from "@pomi/api-core";
+import { pathParam, pathSeg } from "@pomi/api-core";
 import z from "zod";
 
 extendZodWithOpenApi(z);
@@ -12,17 +12,23 @@ const unsubscribe = {
         sdk: {
             resource: "exchangeNoticeSubscriptions",
             method: "unsubscribe",
-            action: "update" as const
+            action: "update" as const,
+            pathParameters: { userId: "userId" }
         },
         method: "post" as const,
         path: [
-            pathSeg.literal("exchange-notice-subscriptions"),
+            pathSeg.literal("users"),
+            pathSeg.param("userId"),
+            pathSeg.literal("exchange-notice-subscription"),
             pathSeg.literal("unsubscribe")
         ],
         tags: ["exchange-notice-subscriptions"],
         authorization: policies.public
     },
-    request: z.object({ query: z.object({ token: z.string().min(1) }) }),
+    request: z.object({
+        path: z.object({ userId: pathParam.positiveInteger() }),
+        query: z.object({ token: z.string().min(1) })
+    }),
     response: new OutputBuilder()
         .ok(
             z.object({ enabled: z.literal(false) }).strict(),

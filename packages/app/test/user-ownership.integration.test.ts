@@ -14,7 +14,7 @@ function jsonObject(value: unknown): Record<string, unknown> {
 }
 
 test(
-    "legacy HTTP targets canonical users without leaking user ids and academic removal preserves personal resources",
+    "canonical HTTP uses explicit User ids for humans and bots and academic removal preserves personal resources",
     {
         skip: !databaseUrl,
         timeout: 90000
@@ -125,7 +125,7 @@ test(
             }
             const account = async (
                 subject: string,
-                role: "STUDENT" | "ADMIN" | "BOT",
+                role: "STUDENT" | "ADMIN" | "BOT" | null,
                 studentId: number | null
             ) => {
                 const auth = await prisma.$transaction((tx) =>
@@ -135,7 +135,7 @@ test(
                         studentId,
                         displayName: `${subject}-${tag}`,
                         email: `${subject}@example.test`,
-                        roles: [{ role }]
+                        roles: role ? [{ role }] : []
                     })
                 );
                 const legacyId = baseId + 10000000 + principalIds.length;
@@ -155,7 +155,7 @@ test(
             };
             const owner = await account("owner", "STUDENT", studentIds[0]!);
             const other = await account("other", "STUDENT", studentIds[1]!);
-            await account("admin", "ADMIN", null);
+            const administrator = await account("admin", "ADMIN", null);
             const bot = await account("bot", "BOT", null);
             assert.notEqual(owner.user!.id, studentIds[0]);
             const dormant = await prisma.principal.create({
@@ -179,15 +179,13 @@ test(
                 `s${Number(ra) + 2}@dac.unicamp.br`
             );
             const firstClaim = await request("/me", orphanJwt);
-            assert.equal(firstClaim.status, 200);
-            const claimedIdentity = await prisma.authIdentity.findUniqueOrThrow(
-                {
-                    where: {
-                        issuer_subject: { issuer, subject: "first-claim" }
-                    }
-                }
+            assert.equal(firstClaim.status, 403);
+            assert.equal(
+                await prisma.authIdentity.count({
+                    where: { issuer, subject: "first-claim" }
+                }),
+                0
             );
-            assert.equal(claimedIdentity.principalId, dormant.id);
             assert.equal(
                 (
                     await prisma.user.findUniqueOrThrow({
@@ -209,6 +207,7 @@ test(
                 where: { id: owner.user!.id },
                 data: {
                     publicBio: "Preserved profile",
+                    name: "Owner personal name",
                     publicProfileEnabled: true,
                     favoriteCurriculumId: curriculum.id
                 }
@@ -290,12 +289,139 @@ test(
                 }
             });
             const [ownerJwt, otherJwt, adminJwt, botJwt] = await Promise.all([
-                token("owner"),
+                token("owner", `s${ra}@dac.unicamp.br`),
                 token("other"),
                 token("admin"),
                 token("bot")
             ]);
-            const path = `/student/${studentIds[0]}/curricula/${curriculum.id}`;
+            const identitiesResponse = await request(
+                "/admin/auth-identities",
+                adminJwt
+            );
+            assert.equal(identitiesResponse.status, 200);
+            const identitiesPage = jsonObject(await identitiesResponse.json());
+            assert.ok(Array.isArray(identitiesPage.data));
+            const ownerIdentity = identitiesPage.data
+                .map(jsonObject)
+                .find((value) => value.id === owner.auth.id);
+            assert.ok(ownerIdentity);
+            assert.equal(ownerIdentity.userId, owner.user!.id);
+            assert.equal(ownerIdentity.principalId, owner.principal.id);
+            assert.equal(ownerIdentity.serviceAccountId, null);
+            assert.equal(
+                (await request("/admin/auth-identities", ownerJwt)).status,
+                403
+            );
+            const noAcademic = await account("no-academic", null, null);
+            const noAcademicJwt = await token("no-academic");
+            assert.equal(
+                (await request(`/users/${noAcademic.user!.id}`, noAcademicJwt))
+                    .status,
+                200
+            );
+            assert.equal(
+                (
+                    await request(
+                        `/users/${noAcademic.user!.id}/profile`,
+                        noAcademicJwt
+                    )
+                ).status,
+                200
+            );
+            assert.equal(
+                (
+                    await request(
+                        `/users/${noAcademic.user!.id}/curriculums`,
+                        noAcademicJwt
+                    )
+                ).status,
+                200
+            );
+            assert.equal(
+                (
+                    await request(
+                        `/users/${noAcademic.user!.id}/student/course-attempts`,
+                        noAcademicJwt
+                    )
+                ).status,
+                404
+            );
+            assert.equal(
+                (
+                    await request(
+                        `/users/${noAcademic.user!.id}/bot-grants`,
+                        noAcademicJwt
+                    )
+                ).status,
+                200
+            );
+            assert.equal(
+                (await request(`/users/${owner.user!.id}/bot-grants`, botJwt))
+                    .status,
+                403
+            );
+            assert.equal(
+                (
+                    await request(
+                        `/users/${other.user!.id}/curriculums/${curriculum.id}`,
+                        adminJwt
+                    )
+                ).status,
+                404
+            );
+            assert.equal(
+                (await request(`/student/${studentIds[0]}/curricula`, ownerJwt))
+                    .status,
+                404
+            );
+            assert.equal(
+                (await request("/me/bot-grants", ownerJwt)).status,
+                404
+            );
+            const registeredUser = await account(
+                "registered-user",
+                "STUDENT",
+                null
+            );
+            const registrationPath = `/users/${registeredUser.user!.id}/student`;
+            const registrationBody = {
+                ra: String(Number(ra) + 3),
+                name: "Explicit academic complement"
+            };
+            const registration = await request(registrationPath, adminJwt, {
+                method: "POST",
+                body: JSON.stringify(registrationBody)
+            });
+            assert.equal(registration.status, 201);
+            const academic = jsonObject(await registration.json());
+            assert.equal(academic.userId, registeredUser.user!.id);
+            assert.equal(academic.ra, registrationBody.ra);
+            assert.equal(typeof academic.id, "number");
+            studentIds.push(academic.id as number);
+            assert.equal(
+                (
+                    await request(registrationPath, adminJwt, {
+                        method: "POST",
+                        body: JSON.stringify(registrationBody)
+                    })
+                ).status,
+                409
+            );
+            const registeredMe = jsonObject(
+                await (
+                    await request("/me", await token("registered-user"))
+                ).json()
+            );
+            assert.equal(registeredMe.studentId, academic.id);
+            assert.equal(
+                (
+                    await prisma.user.findUniqueOrThrow({
+                        where: { id: administrator.user!.id }
+                    })
+                ).studentId,
+                null
+            );
+            const path = `/users/${owner.user!.id}/curriculums/${curriculum.id}`;
             const responses = await Promise.all(
                 [ownerJwt, adminJwt, botJwt].map((jwt) => request(path, jwt))
             );
@@ -307,13 +433,13 @@ test(
             );
             assert.deepEqual(representations[0], representations[1]);
             assert.deepEqual(representations[0], representations[2]);
-            assert.equal(representations[0].studentId, studentIds[0]);
-            assert.equal("userId" in representations[0], false);
+            assert.equal(representations[0].userId, owner.user!.id);
+            assert.equal("studentId" in representations[0], false);
             assert.equal((await request(path, otherJwt)).status, 403);
             assert.equal(
                 (
                     await request(
-                        `/student/${studentIds[1]}/curricula/${otherCurriculum.id}`,
+                        `/users/${other.user!.id}/curriculums/${otherCurriculum.id}`,
                         botJwt
                     )
                 ).status,
@@ -322,28 +448,135 @@ test(
             assert.equal(
                 (
                     await request(
-                        `/student/${studentIds[0]}/curricula/${otherCurriculum.id}`,
+                        `/users/${owner.user!.id}/curriculums/${otherCurriculum.id}`,
                         adminJwt
                     )
                 ).status,
                 404
             );
+            const foreignPreference = {
+                method: "PATCH",
+                body: JSON.stringify({
+                    favoriteCurriculumId: otherCurriculum.id
+                })
+            };
+            assert.equal(
+                (
+                    await request(
+                        `/users/${owner.user!.id}/preferences`,
+                        ownerJwt,
+                        foreignPreference
+                    )
+                ).status,
+                404
+            );
+            assert.equal(
+                (
+                    await request(
+                        `/users/${owner.user!.id}/preferences`,
+                        adminJwt,
+                        foreignPreference
+                    )
+                ).status,
+                404
+            );
+            assert.equal(
+                (
+                    await prisma.user.findUniqueOrThrow({
+                        where: { id: owner.user!.id }
+                    })
+                ).favoriteCurriculumId,
+                curriculum.id
+            );
+            const grantsResponse = await request(
+                `/users/${owner.user!.id}/bot-grants`,
+                ownerJwt
+            );
+            assert.equal(grantsResponse.status, 200);
+            const grantsPage = jsonObject(await grantsResponse.json());
+            assert.ok(Array.isArray(grantsPage.data));
+            assert.equal(
+                jsonObject(grantsPage.data[0]).botAuthIdentityId,
+                bot.auth.id
+            );
+            assert.equal(jsonObject(grantsPage.data[0]).userId, owner.user!.id);
+            const grantPath = `/users/${owner.user!.id}/bot-grants/${bot.auth.id}`;
+            assert.equal(
+                (
+                    await request(grantPath, ownerJwt, {
+                        method: "PUT",
+                        body: JSON.stringify({
+                            capabilities: [],
+                            authorAuthIdentityId: other.auth.id
+                        })
+                    })
+                ).status,
+                403
+            );
+            assert.equal((await request(path, botJwt)).status, 200);
+            assert.equal(
+                (
+                    await request(grantPath, ownerJwt, {
+                        method: "PUT",
+                        body: JSON.stringify({
+                            capabilities: [],
+                            authorAuthIdentityId: owner.auth.id
+                        })
+                    })
+                ).status,
+                204
+            );
+            assert.equal((await request(path, botJwt)).status, 403);
+            const revoked = await prisma.botGrant.findFirstOrThrow({
+                where: {
+                    userId: owner.user!.id,
+                    botAuthIdentityId: bot.auth.id,
+                    revokedAt: { not: null }
+                }
+            });
+            assert.equal(revoked.revokedByAuthIdentityId, owner.auth.id);
+            assert.equal(
+                (
+                    await request(grantPath, adminJwt, {
+                        method: "PUT",
+                        body: JSON.stringify({
+                            capabilities: ["STUDENT_PLANNING_READ"],
+                            authorAuthIdentityId: administrator.auth.id
+                        })
+                    })
+                ).status,
+                204
+            );
+            assert.equal((await request(path, botJwt)).status, 200);
+            const granted = await prisma.botGrant.findFirstOrThrow({
+                where: {
+                    userId: owner.user!.id,
+                    botAuthIdentityId: bot.auth.id,
+                    revokedAt: null
+                }
+            });
+            assert.equal(
+                granted.grantedByAuthIdentityId,
+                administrator.auth.id
+            );
             const profileResponse = await request(
-                `/student/${studentIds[0]}/public-profile`,
+                `/users/${owner.user!.id}/profile`,
                 ownerJwt
             );
             assert.equal(profileResponse.status, 200);
             assert.equal(
                 jsonObject(await profileResponse.json()).displayName,
-                "Owner academic name"
+                "Owner personal name"
             );
             const meResponse = await request("/me", ownerJwt);
             const me = jsonObject(await meResponse.json());
-            assert.equal(me.id, owner.auth.legacyId);
+            assert.equal(me.principalId, owner.principal.id);
+            assert.equal(me.authIdentityId, owner.auth.id);
+            assert.equal("id" in me, false);
             assert.equal(me.studentId, studentIds[0]);
-            assert.equal("userId" in me, false);
+            assert.equal(me.userId, owner.user!.id);
             const removed = await request(
-                `/students/${studentIds[0]}`,
+                `/users/${owner.user!.id}/student`,
                 ownerJwt,
                 {
                     method: "DELETE",
@@ -355,6 +588,15 @@ test(
                 where: { id: owner.user!.id }
             });
             assert.equal(preserved.studentId, null);
+            const meAfterRemoval = jsonObject(
+                await (await request("/me", ownerJwt)).json()
+            );
+            assert.equal(meAfterRemoval.studentId, null);
+            assert.equal((await request(path, ownerJwt)).status, 200);
+            assert.equal(
+                await prisma.student.count({ where: { id: studentIds[0] } }),
+                0
+            );
             assert.equal(preserved.legacyStudentId, studentIds[0]);
             assert.equal(preserved.publicBio, "Preserved profile");
             assert.equal(

@@ -113,7 +113,7 @@ test("media upload exposes stable validation and upstream failures", async () =>
             ["upstream", 503]
         ] as const) {
             failure = new PictRsError("Falha", kind);
-            const response = await fetch(`${baseUrl}/student/42/avatar`, {
+            const response = await fetch(`${baseUrl}/users/9/avatar`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "multipart/form-data; boundary=example"
@@ -132,7 +132,7 @@ test("media upload exposes stable validation and upstream failures", async () =>
         for (const slot of ["avatar"]) {
             expectedCrop = "square";
             const response = await fetch(
-                `${baseUrl}/student/42/groups/3/${slot}`,
+                `${baseUrl}/users/9/groups/3/${slot}`,
                 {
                     method: "POST",
                     headers: {
@@ -145,7 +145,7 @@ test("media upload exposes stable validation and upstream failures", async () =>
             await response.arrayBuffer();
         }
         for (const path of [
-            "/student/42/groups/3/banner",
+            "/users/9/groups/3/banner",
             "/media/123e4567-e89b-42d3-a456-426614174000/banner"
         ]) {
             const response = await fetch(`${baseUrl}${path}`, {
@@ -214,7 +214,7 @@ test("media upload rejects a rate-limited identity before forwarding the body", 
         await new Promise<void>((resolve) => server.once("listening", resolve));
         const address = server.address();
         assert.ok(address && typeof address !== "string");
-        const url = `http://127.0.0.1:${address.port}/student/42/avatar`;
+        const url = `http://127.0.0.1:${address.port}/users/9/avatar`;
         const options = {
             method: "POST",
             headers: {
@@ -244,8 +244,8 @@ test("media upload rejects a rate-limited identity before forwarding the body", 
 
 test("avatar contracts belong to their domains and media exposes only shared reads", () => {
     assert.deepEqual(Object.keys(studentAvatarController.contracts), [
-        "putStudentAvatar",
-        "deleteStudentAvatar"
+        "putUserAvatar",
+        "deleteUserAvatar"
     ]);
     assert.deepEqual(Object.keys(groupAvatarController.contracts), [
         "putGroupAvatar",
@@ -293,10 +293,7 @@ test("application composition routes avatar removals through the owning domain c
         await new Promise<void>((resolve) => server.once("listening", resolve));
         const address = server.address();
         assert.ok(address && typeof address !== "string");
-        for (const path of [
-            "/student/42/avatar",
-            "/student/42/groups/7/avatar"
-        ]) {
+        for (const path of ["/users/9/avatar", "/users/9/groups/7/avatar"]) {
             const response = await fetch(
                 `http://127.0.0.1:${address.port}${path}`,
                 { method: "DELETE" }
@@ -305,8 +302,8 @@ test("application composition routes avatar removals through the owning domain c
             await response.arrayBuffer();
         }
         assert.deepEqual(calls, [
-            { actor: principal, target: { studentId: 42 } },
-            { actor: principal, target: { studentId: 42, groupId: 7 } }
+            { actor: principal, target: { userId: 9 } },
+            { actor: principal, target: { userId: 9, groupId: 7 } }
         ]);
     } finally {
         await new Promise<void>((resolve, reject) =>

@@ -19,7 +19,7 @@ const respond = createResultResponder(professorEvaluationProblemResponses);
 const get: Actions["get"] = async (ctx, input) =>
     respond(
         await ctx.professorEvaluationService.get({
-            userId: await ctx.resolveLegacyUser(input.path.sid),
+            userId: await ctx.resolveUserContext(input.path.userId),
             classId: input.path.classId,
             professorId: input.path.professorId
         }),
@@ -30,7 +30,7 @@ const put: Actions["put"] = async (ctx, input) =>
     respond(
         await ctx.professorEvaluationService.put(
             {
-                userId: await ctx.resolveLegacyUser(input.path.sid),
+                userId: await ctx.resolveUserContext(input.path.userId),
                 classId: input.path.classId,
                 professorId: input.path.professorId
             },
@@ -44,12 +44,12 @@ const listPending: Actions["listPending"] = async (ctx, input) =>
     ApiResponse.ok(
         buildArrayPaginationResponse(
             await ctx.professorEvaluationService.listPending(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.query
             ),
             input.query,
             unpaginatedByDefault,
-            `/student/${input.path.sid}/professor-evaluations/pending`
+            `/users/${input.path.userId}/professor-evaluations/pending`
         )
     );
 

@@ -111,12 +111,14 @@ export const patchBody = z
 
 const base = [pathSeg.literal("groups")];
 const studentBase = [
-    pathSeg.literal("student"),
-    pathSeg.param("sid"),
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
     pathSeg.literal("groups")
 ];
 const groupPath = z.object({ id: pathParam.positiveInteger() });
-const studentGroupPath = groupPath.extend({ sid: pathParam.positiveInteger() });
+const studentGroupPath = groupPath.extend({
+    userId: pathParam.positiveInteger()
+});
 
 const list = {
     meta: {
@@ -162,18 +164,18 @@ const create = {
             resource: "groups",
             method: "create",
             action: "create" as const,
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
         method: "post" as const,
         path: studentBase,
         tags: ["groups"],
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PROFILE_WRITE
         )
     },
     request: z.object({
-        path: z.object({ sid: pathParam.positiveInteger() }),
+        path: z.object({ userId: pathParam.positiveInteger() }),
         body: createBody
     }),
     response: new OutputBuilder()
@@ -192,13 +194,13 @@ const patch = {
             resource: "groups",
             method: "update",
             action: "update" as const,
-            pathParameters: { sid: "studentId", id: "groupId" }
+            pathParameters: { userId: "userId", id: "groupId" }
         },
         method: "patch" as const,
         path: [...studentBase, pathSeg.param("id")],
         tags: ["groups"],
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PROFILE_WRITE
         )
     },
@@ -221,13 +223,13 @@ const archive = {
             resource: "groups",
             method: "archive",
             action: "update" as const,
-            pathParameters: { sid: "studentId", id: "groupId" }
+            pathParameters: { userId: "userId", id: "groupId" }
         },
         method: "post" as const,
         path: [...studentBase, pathSeg.param("id"), pathSeg.literal("archive")],
         tags: ["groups"],
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PROFILE_WRITE
         )
     },

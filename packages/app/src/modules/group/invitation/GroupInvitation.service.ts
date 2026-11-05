@@ -36,10 +36,7 @@ export function createGroupInvitationService({
                 })
             ).map((value) => ({
                 ...invitation(value, clock.now()),
-                recipientName:
-                    value.recipientUser.student?.name ??
-                    value.recipientUser.name ??
-                    "Usuário do POMI",
+                recipientName: value.recipientUser.name ?? "Usuário do POMI",
                 recipientPublicId: value.recipientUser.publicId,
                 recipientAvatarMediaId:
                     value.recipientUser.publicProfileEnabled &&

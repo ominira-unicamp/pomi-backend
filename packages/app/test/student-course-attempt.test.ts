@@ -6,7 +6,7 @@ import test from "node:test";
 test("declares assessment-specific course attempt statuses", () => {
     assert.equal(
         IO.create.request.safeParse({
-            path: { sid: "1" },
+            path: { userId: "1" },
             body: {
                 courseId: 2,
                 evaluationMode: "CONCEPT",
@@ -17,7 +17,7 @@ test("declares assessment-specific course attempt statuses", () => {
     );
     assert.equal(
         IO.create.request.safeParse({
-            path: { sid: "1" },
+            path: { userId: "1" },
             body: {
                 courseId: 2,
                 evaluationMode: "GRADE_AND_ATTENDANCE",
@@ -28,7 +28,7 @@ test("declares assessment-specific course attempt statuses", () => {
     );
     assert.equal(
         IO.create.request.safeParse({
-            path: { sid: "1" },
+            path: { userId: "1" },
             body: {
                 courseId: 2,
                 evaluationMode: "GRADE_AND_ATTENDANCE",

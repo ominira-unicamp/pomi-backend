@@ -20,18 +20,18 @@ export const periodPlanActions: Actions = {
         ApiResponse.ok(
             buildArrayPaginationResponse(
                 await ctx.periodPlanService.list(
-                    await ctx.resolveLegacyUser(input.path.sid),
+                    await ctx.resolveUserContext(input.path.userId),
                     input.query
                 ),
                 input.query,
                 unpaginatedByDefault,
-                `/student/${input.path.sid}/period-plannings`
+                `/users/${input.path.userId}/period-plans`
             )
         ),
     get: async (ctx, input) =>
         respond(
             await ctx.periodPlanService.getById(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.path.id
             ),
             ApiResponse.ok
@@ -39,7 +39,7 @@ export const periodPlanActions: Actions = {
     create: async (ctx, input) =>
         respond(
             await ctx.periodPlanService.create(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.body
             ),
             ApiResponse.created,
@@ -48,7 +48,7 @@ export const periodPlanActions: Actions = {
     patch: async (ctx, input) =>
         respond(
             await ctx.periodPlanService.patch(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.path.id,
                 input.body
             ),
@@ -58,7 +58,7 @@ export const periodPlanActions: Actions = {
     remove: async (ctx, input) =>
         respond(
             await ctx.periodPlanService.remove(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.path.id
             ),
             () => ApiResponse.noContent()
@@ -76,7 +76,7 @@ export default {
     registry,
     authRegistry,
     paths: {
-        entity: (studentId: number, id: number) =>
-            `/student/${studentId}/period-plannings/${id}`
+        entity: (userId: number, id: number) =>
+            `/users/${userId}/period-plans/${id}`
     }
 };

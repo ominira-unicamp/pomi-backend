@@ -15,7 +15,7 @@ test("friendship acceptance preserves the HTTP success and problem contract", as
     app.use((request, _response, next) => {
         request.scope = {
             cradle: {
-                resolveLegacyUser: async (studentId: number) => studentId,
+                resolveUserContext: async (studentId: number) => studentId,
                 socialFriendshipService: createSocialFriendshipService(fixture)
             }
         } as never;
@@ -30,7 +30,7 @@ test("friendship acceptance preserves the HTTP success and problem contract", as
         assert.ok(address && typeof address !== "string");
         const request = (studentId = 7) =>
             fetch(
-                `http://127.0.0.1:${address.port}/student/${studentId}/friendships/3/accept`,
+                `http://127.0.0.1:${address.port}/users/${studentId}/friendships/3/accept`,
                 { method: "POST" }
             );
         await t.test(

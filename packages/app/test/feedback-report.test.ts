@@ -8,14 +8,14 @@ test("declares anonymous and identified feedback paths", () => {
     assert.deepEqual(IO.createAnonymous.meta.path, [
         { type: "literal", value: "feedback-reports" }
     ]);
-    assert.deepEqual(IO.createForStudent.meta.path, [
-        { type: "literal", value: "student" },
-        { type: "param", name: "sid" },
+    assert.deepEqual(IO.createForUser.meta.path, [
+        { type: "literal", value: "users" },
+        { type: "param", name: "userId" },
         { type: "literal", value: "feedback-reports" }
     ]);
     assert.equal(
-        IO.createForStudent.request.safeParse({
-            path: { sid: "1" },
+        IO.createForUser.request.safeParse({
+            path: { userId: "1" },
             body: {
                 kind: "SUGGESTION",
                 target: { type: "FEATURE", feature: { key: "agenda" } },
@@ -27,8 +27,8 @@ test("declares anonymous and identified feedback paths", () => {
         true
     );
     assert.deepEqual(IO.listStudent.meta.path, [
-        { type: "literal", value: "student" },
-        { type: "param", name: "sid" },
+        { type: "literal", value: "users" },
+        { type: "param", name: "userId" },
         { type: "literal", value: "feedback-reports" }
     ]);
     assert.deepEqual(IO.patchAdmin.meta.path, [
@@ -77,9 +77,9 @@ test("lists a student's feedback reports", async () => {
     });
 
     await assert.doesNotReject(async () => {
-        const reports = await service.listForStudent(7, {});
+        const reports = await service.listForUser(7, {});
         assert.equal(reports[0]?.status, "OPEN");
-        assert.equal(reports[0]?.reporterStudentId, 7);
+        assert.equal(reports[0]?.reporterUserId, 7);
     });
 });
 
@@ -184,7 +184,7 @@ test("rejects an academic feedback report for an unknown resource", async () => 
         })
     });
 
-    const result = await service.createForStudent(1, {
+    const result = await service.createForUser(1, {
         kind: "DATA_ISSUE",
         target: {
             type: "ACADEMIC_RESOURCE",

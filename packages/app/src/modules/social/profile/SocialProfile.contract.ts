@@ -5,21 +5,21 @@ import z from "zod";
 import { ownProfile, profileBody, sidPath } from "../Social.schemas.js";
 
 const profilePath = [
-    pathSeg.literal("student"),
-    pathSeg.param("sid"),
-    pathSeg.literal("public-profile")
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
+    pathSeg.literal("profile")
 ];
-const read = policies.studentAccess("sid", StudentCapabilities.SOCIAL_READ);
-const write = policies.studentAccess("sid", StudentCapabilities.SOCIAL_WRITE);
+const read = policies.userAccess("userId", StudentCapabilities.SOCIAL_READ);
+const write = policies.userAccess("userId", StudentCapabilities.SOCIAL_WRITE);
 
 const getProfile = {
     meta: {
-        operationId: "getStudentPublicProfile",
+        operationId: "getUserProfile",
         sdk: {
-            resource: "studentSocial",
+            resource: "userSocial",
             method: "getProfile",
             action: "get" as const,
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
         method: "get" as const,
         path: profilePath,
@@ -34,12 +34,12 @@ const getProfile = {
 } satisfies IO;
 const updateProfile = {
     meta: {
-        operationId: "updateStudentPublicProfile",
+        operationId: "updateUserProfile",
         sdk: {
-            resource: "studentSocial",
+            resource: "userSocial",
             method: "updateProfile",
             action: "update" as const,
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
         method: "patch" as const,
         path: profilePath,

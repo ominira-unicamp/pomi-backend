@@ -13,23 +13,23 @@ const profileVisibilitySchema = z
     });
 const friendshipStatusSchema = z
     .enum(["PENDING", "ACCEPTED"])
-    .openapi("StudentFriendshipStatus", {
+    .openapi("UserFriendshipStatus", {
         "x-pomi-schema": {
             kind: "value-object",
-            publicName: "StudentFriendshipStatus"
+            publicName: "UserFriendshipStatus"
         }
     });
 const friendshipDirectionSchema = z
     .enum(["INCOMING", "OUTGOING", "NONE"])
-    .openapi("StudentFriendshipDirection", {
+    .openapi("UserFriendshipDirection", {
         "x-pomi-schema": {
             kind: "value-object",
-            publicName: "StudentFriendshipDirection"
+            publicName: "UserFriendshipDirection"
         }
     });
 
 export const sidPath = z.object({
-    sid: pathParam.integer()
+    userId: pathParam.integer()
 });
 export const publicIdPath = sidPath.extend({ publicId: z.string().uuid() });
 export const friendshipPath = sidPath.extend({
@@ -83,10 +83,10 @@ export const person = z
         entryYear: z.number().int().nullable()
     })
     .strict()
-    .openapi("StudentPublicPerson", {
+    .openapi("UserPublicPerson", {
         "x-pomi-schema": {
             kind: "entity",
-            publicName: "StudentPublicPerson",
+            publicName: "UserPublicPerson",
             identityFields: ["publicId"],
             relations: {
                 currentCourses: { resource: "courses", cardinality: "many" },
@@ -109,10 +109,10 @@ export const ownProfile = person
         currentCoursesVisibility: profileVisibilitySchema
     })
     .strict()
-    .openapi("StudentPublicProfile", {
+    .openapi("UserProfile", {
         "x-pomi-schema": {
             kind: "entity",
-            publicName: "StudentPublicProfile",
+            publicName: "UserProfile",
             identityFields: ["publicId"]
         }
     });
@@ -126,10 +126,10 @@ export const friendship = z
         acceptedAt: z.string().datetime().nullable()
     })
     .strict()
-    .openapi("StudentFriendship", {
+    .openapi("UserFriendship", {
         "x-pomi-schema": {
             kind: "entity",
-            publicName: "StudentFriendship",
+            publicName: "UserFriendship",
             identityFields: ["id"],
             relations: {
                 friend: { resource: "studentSocial", cardinality: "one" }

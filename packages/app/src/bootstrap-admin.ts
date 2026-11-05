@@ -29,13 +29,15 @@ async function main() {
         );
     }
 
-    const authUser = await ensureAdministratorIdentity(
+    const identity = await ensureAdministratorIdentity(
         database,
         issuer,
         subject
     );
 
-    console.log(`Administrator ${authUser.legacyId} is active.`);
+    console.log(
+        `Administrator AuthIdentity ${identity.id} (Principal ${identity.principalId}) is active.`
+    );
 }
 
 void main().finally(() => database.$disconnect());

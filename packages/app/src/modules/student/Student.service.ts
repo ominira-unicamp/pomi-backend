@@ -1,5 +1,3 @@
-import type { Principal } from "#/auth.js";
-import { raFromDacEmail } from "#/Authorization.js";
 import IO, { studentSort } from "#/modules/student/Student.contract.js";
 import {
     invalidStudentProfileProblem,
@@ -9,17 +7,15 @@ import {
     type StudentProblem
 } from "#/modules/student/Student.problems.js";
 import { compileSort, err, ok, resolveSort, type Result } from "@pomi/api-core";
-import {
-    linkCanonicalStudent,
-    runIdentityTransaction,
-    type PrismaClient
-} from "@pomi/db";
+import { runIdentityTransaction, type PrismaClient } from "@pomi/db";
 import z from "zod";
 
 type Student = z.infer<typeof IO.schema>;
 type ListQuery = z.infer<typeof IO.list.request>["query"];
 type CreateInput = z.infer<typeof IO.create.request>["body"];
 type PatchInput = z.infer<typeof IO.patch.request>["body"];
+class StudentAssociationConflict extends Error {}
+
 type Fields = Array<{ code: string; path: string[]; message: string }>;
 
 async function validateAcademicSelection(
@@ -129,12 +125,21 @@ async function validateAcademicSelection(
 }
 
 export type StudentService = {
+    getForUser(userId: number): ReturnType<StudentService["getById"]>;
+    patchForUser(
+        userId: number,
+        input: PatchInput
+    ): ReturnType<StudentService["patch"]>;
+    removeForUser(
+        userId: number,
+        confirmationRa: string
+    ): ReturnType<StudentService["remove"]>;
     list(query: ListQuery): Promise<Student[]>;
     getById(
         id: number
     ): Promise<Result<Student, ReturnType<typeof studentNotFoundProblem>>>;
     create(
-        principal: Principal | undefined,
+        userId: number,
         input: CreateInput
     ): Promise<
         Result<
@@ -166,22 +171,9 @@ export type StudentService = {
     >;
 };
 
-const legacyStudentInclude = {
-    user: {
-        select: {
-            publicId: true,
-            publicProfileEnabled: true,
-            publicDisplayName: true,
-            publicBio: true,
-            currentCoursesVisibility: true,
-            avatarMediaId: true,
-            avatarRevision: true,
-            favoriteCurriculumId: true
-        }
-    }
-} as const;
+const studentOwnerInclude = { user: { select: { id: true } } } as const;
 
-function legacyStudent(value: {
+function academicStudent(value: {
     id: number;
     ra: string;
     name: string;
@@ -190,21 +182,12 @@ function legacyStudent(value: {
     catalogId: number | null;
     entryYear: number | null;
     languageId: number | null;
-    user: {
-        publicId: string;
-        publicProfileEnabled: boolean;
-        publicDisplayName: string | null;
-        publicBio: string | null;
-        currentCoursesVisibility: string;
-        avatarMediaId: string | null;
-        avatarRevision: number;
-        favoriteCurriculumId: number | null;
-    } | null;
+    user: { id: number } | null;
 }) {
     const { user, ...academic } = value;
     if (!user)
         throw new Error("Academic complement is missing its canonical user.");
-    return { ...academic, ...user };
+    return { ...academic, userId: user.id };
 }
 
 export function createStudentService({
@@ -213,10 +196,37 @@ export function createStudentService({
     prisma: PrismaClient;
 }): StudentService {
     return {
+        async getForUser(userId) {
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { studentId: true }
+            });
+            return user?.studentId != null
+                ? this.getById(user.studentId)
+                : err(studentNotFoundProblem());
+        },
+        async patchForUser(userId, input) {
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { studentId: true }
+            });
+            return user?.studentId != null
+                ? this.patch(user.studentId, input)
+                : err(studentNotFoundProblem());
+        },
+        async removeForUser(userId, confirmationRa) {
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { studentId: true }
+            });
+            return user?.studentId != null
+                ? this.remove(user.studentId, confirmationRa)
+                : err(studentNotFoundProblem());
+        },
         async list(query) {
             return (
                 await prisma.student.findMany({
-                    include: legacyStudentInclude,
+                    include: studentOwnerInclude,
                     orderBy: compileSort(resolveSort(query.sort, studentSort), {
                         id: (direction) => ({ id: direction }),
                         ra: (direction) => ({ ra: direction }),
@@ -224,53 +234,29 @@ export function createStudentService({
                         entryYear: (direction) => ({ entryYear: direction })
                     })
                 })
-            ).map(legacyStudent);
+            ).map(academicStudent);
         },
         async getById(id) {
             const student = await prisma.student.findUnique({
                 where: { id },
-                include: legacyStudentInclude
+                include: studentOwnerInclude
             });
             return student
-                ? ok(legacyStudent(student))
+                ? ok(academicStudent(student))
                 : err(studentNotFoundProblem());
         },
-        async create(principal, input) {
-            const ra = raFromDacEmail(principal?.email ?? null);
-            if (!principal || !ra)
-                return err(
-                    studentIdentityConflictProblem(
-                        "A identidade autenticada não possui um RA institucional verificável."
-                    )
-                );
-            const existing = await prisma.student.findUnique({
-                where: { ra },
-                include: legacyStudentInclude
+        async create(userId, input) {
+            const ra = input.ra;
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { id: true, studentId: true }
             });
-            if (principal.studentId !== null)
+            if (!user || user.studentId !== null)
                 return err(
                     studentIdentityConflictProblem(
-                        "Esta identidade já está vinculada a um aluno."
+                        "Usuário ausente ou já vinculado a um aluno."
                     )
                 );
-            if (existing) {
-                await runIdentityTransaction(prisma, async (tx) => {
-                    await linkCanonicalStudent(
-                        tx,
-                        principal.authIdentityId,
-                        existing.id
-                    );
-                });
-                return ok({
-                    student: legacyStudent(
-                        await prisma.student.findUniqueOrThrow({
-                            where: { id: existing.id },
-                            include: legacyStudentInclude
-                        })
-                    ),
-                    linked: true
-                });
-            }
             const validation = await validateAcademicSelection(prisma, {
                 catalogId: input.catalogId ?? null,
                 programId: input.programId ?? null,
@@ -281,29 +267,59 @@ export function createStudentService({
                 return err(studentReferenceNotFoundProblem(validation.fields));
             if (validation)
                 return err(invalidStudentProfileProblem(validation.fields));
-            const student = await runIdentityTransaction(prisma, async (tx) => {
-                const student = await tx.student.create({
-                    data: {
-                        ra,
-                        name: input.name,
-                        programId: input.programId,
-                        specializationId: input.specializationId,
-                        catalogId: input.catalogId,
-                        entryYear: input.entryYear,
-                        languageId: input.languageId
+            try {
+                const result = await runIdentityTransaction(
+                    prisma,
+                    async (tx) => {
+                        const current = await tx.user.findUnique({
+                            where: { id: userId },
+                            select: { studentId: true }
+                        });
+                        if (!current || current.studentId !== null)
+                            throw new StudentAssociationConflict();
+                        const existing = await tx.student.findUnique({
+                            where: { ra },
+                            include: studentOwnerInclude
+                        });
+                        if (existing?.user)
+                            throw new StudentAssociationConflict();
+                        const academic =
+                            existing ??
+                            (await tx.student.create({
+                                data: {
+                                    ra,
+                                    name: input.name,
+                                    programId: input.programId,
+                                    specializationId: input.specializationId,
+                                    catalogId: input.catalogId,
+                                    entryYear: input.entryYear,
+                                    languageId: input.languageId
+                                }
+                            }));
+                        await tx.user.update({
+                            where: { id: userId },
+                            data: { studentId: academic.id }
+                        });
+                        const student = await tx.student.findUniqueOrThrow({
+                            where: { id: academic.id },
+                            include: studentOwnerInclude
+                        });
+                        return {
+                            student: academicStudent(student),
+                            linked: !!existing
+                        };
                     }
-                });
-                await linkCanonicalStudent(
-                    tx,
-                    principal.authIdentityId,
-                    student.id
                 );
-                return tx.student.findUniqueOrThrow({
-                    where: { id: student.id },
-                    include: legacyStudentInclude
-                });
-            });
-            return ok({ student: legacyStudent(student), linked: false });
+                return ok(result);
+            } catch (error) {
+                if (error instanceof StudentAssociationConflict)
+                    return err(
+                        studentIdentityConflictProblem(
+                            "O usuário ou o aluno já possui vínculo acadêmico."
+                        )
+                    );
+                throw error;
+            }
         },
         async patch(id, input) {
             const existing = await prisma.student.findUnique({ where: { id } });
@@ -331,11 +347,11 @@ export function createStudentService({
             if (validation)
                 return err(invalidStudentProfileProblem(validation.fields));
             return ok(
-                legacyStudent(
+                academicStudent(
                     await prisma.student.update({
                         where: { id },
                         data: input,
-                        include: legacyStudentInclude
+                        include: studentOwnerInclude
                     })
                 )
             );

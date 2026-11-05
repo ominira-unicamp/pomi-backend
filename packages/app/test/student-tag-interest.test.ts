@@ -5,13 +5,13 @@ import test from "node:test";
 
 test("declares private student tag interest paths", () => {
     assert.deepEqual(IO.list.meta.path, [
-        { type: "literal", value: "student" },
-        { type: "param", name: "sid" },
-        { type: "literal", value: "tag-interests" }
+        { type: "literal", value: "users" },
+        { type: "param", name: "userId" },
+        { type: "literal", value: "interests" }
     ]);
     assert.equal(
         IO.put.request.safeParse({
-            path: { sid: "7", tagId: "8" }
+            path: { userId: "7", tagId: "8" }
         }).success,
         true
     );

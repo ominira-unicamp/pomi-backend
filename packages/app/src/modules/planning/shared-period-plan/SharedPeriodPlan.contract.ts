@@ -77,11 +77,11 @@ export const sharedPeriodPlanningPagination = {
     allowAll: false
 } satisfies PaginationPolicy;
 
-const publicPath = [pathSeg.literal("shared-period-plannings")];
+const publicPath = [pathSeg.literal("shared-period-plans")];
 const studentPath = [
-    pathSeg.literal("student"),
-    pathSeg.param("sid"),
-    pathSeg.literal("shared-period-plannings")
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
+    pathSeg.literal("shared-period-plans")
 ];
 const publicFilter = resourceFilterSchema(
     { studyPeriodId: filterDefinition.id() },
@@ -111,27 +111,27 @@ const publicQuery = createPaginationQuerySchema(
     }
 )
     .strict()
-    .openapi("ListPublicSharedPeriodPlanningsQuery", {
+    .openapi("ListPublicSharedPeriodPlansQuery", {
         "x-pomi-schema": {
             kind: "input",
-            publicName: "ListPublicSharedPeriodPlanningsQuery"
+            publicName: "ListPublicSharedPeriodPlansQuery"
         }
     });
 const sidPath = z.object({
-    sid: pathParam.integer()
+    userId: pathParam.integer()
 });
 const sharePath = z.object({ shareId: z.string().uuid() });
 
 const listPublic = {
     meta: {
-        operationId: "listPublicSharedPeriodPlannings",
+        operationId: "listPublicSharedPeriodPlans",
         method: "get" as const,
         path: publicPath,
-        tags: ["shared-period-plannings"],
+        tags: ["shared-period-plans"],
         authorization: policies.public,
         queryFeatures: { filter: true, sort: true },
         sdk: {
-            resource: "sharedPeriodPlannings",
+            resource: "sharedPeriodPlans",
             action: "list" as const,
             method: "list"
         },
@@ -145,16 +145,16 @@ const listPublic = {
 
 const getPublic = {
     meta: {
-        operationId: "getPublicSharedPeriodPlanning",
+        operationId: "getPublicSharedPeriodPlan",
         sdk: {
-            resource: "sharedPeriodPlannings",
+            resource: "sharedPeriodPlans",
             method: "getPublic",
             action: "get" as const,
             pathParameters: { shareId: "shareId" }
         },
         method: "get" as const,
         path: [...publicPath, pathSeg.param("shareId")],
-        tags: ["shared-period-plannings"],
+        tags: ["shared-period-plans"],
         authorization: policies.public
     },
     request: z.object({ path: sharePath }),
@@ -168,22 +168,22 @@ const getPublic = {
         .build()
 } satisfies IO;
 
-const listForStudent = {
+const listForUser = {
     meta: {
-        operationId: "listStudentSharedPeriodPlannings",
+        operationId: "listUserSharedPeriodPlans",
         method: "get" as const,
         path: studentPath,
-        tags: ["shared-period-plannings"],
-        authorization: policies.studentAccess(
-            "sid",
+        tags: ["shared-period-plans"],
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PLANNING_READ
         ),
         queryFeatures: { filter: true, sort: true },
         sdk: {
-            resource: "studentSharedPeriodPlannings",
+            resource: "userSharedPeriodPlans",
             action: "list" as const,
             method: "list",
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
         pagination: sharedPeriodPlanningPagination
     },
@@ -194,10 +194,10 @@ const listForStudent = {
             sort: resourceSortSchema(sharedPeriodPlanningSort).optional()
         })
             .strict()
-            .openapi("ListStudentSharedPeriodPlanningsQuery", {
+            .openapi("ListUserSharedPeriodPlansQuery", {
                 "x-pomi-schema": {
                     kind: "input",
-                    publicName: "ListStudentSharedPeriodPlanningsQuery"
+                    publicName: "ListUserSharedPeriodPlansQuery"
                 }
             })
     }),
@@ -209,20 +209,20 @@ const listForStudent = {
         .build()
 } satisfies IO;
 
-const getForStudent = {
+const getForUser = {
     meta: {
-        operationId: "getStudentSharedPeriodPlanning",
+        operationId: "getUserSharedPeriodPlan",
         sdk: {
-            resource: "sharedPeriodPlannings",
-            method: "getForStudent",
+            resource: "sharedPeriodPlans",
+            method: "getForUser",
             action: "get" as const,
-            pathParameters: { sid: "studentId", shareId: "shareId" }
+            pathParameters: { userId: "userId", shareId: "shareId" }
         },
         method: "get" as const,
         path: [...studentPath, pathSeg.param("shareId")],
-        tags: ["shared-period-plannings"],
-        authorization: policies.studentAccess(
-            "sid",
+        tags: ["shared-period-plans"],
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PLANNING_READ
         )
     },
@@ -241,15 +241,15 @@ export default {
     schema: sharedPeriodPlanning,
     listPublic,
     getPublic,
-    listForStudent,
-    getForStudent,
+    listForUser,
+    getForUser,
     specsBuilder: new SpecBuilder(
         publicPath,
-        ["shared-period-plannings"],
+        ["shared-period-plans"],
         "shareId",
         {
-            resource: "sharedPeriodPlannings",
-            operationName: "PublicSharedPeriodPlannings",
+            resource: "sharedPeriodPlans",
+            operationName: "PublicSharedPeriodPlans",
             pathParameters: { shareId: "shareId" }
         }
     )

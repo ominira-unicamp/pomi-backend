@@ -6,14 +6,14 @@ import test from "node:test";
 test("validates exchange notice subscription updates", () => {
     assert.equal(
         IO.patch.request.safeParse({
-            path: { sid: "1" },
+            path: { userId: "1" },
             body: { enabled: true, placeIds: [2, 3] }
         }).success,
         true
     );
     assert.equal(
         IO.patch.request.safeParse({
-            path: { sid: "1" },
+            path: { userId: "1" },
             body: { placeIds: [2, 2] }
         }).success,
         false
@@ -25,7 +25,7 @@ test("returns disabled defaults before a student configures notifications", asyn
         prisma: {
             user: {
                 findUniqueOrThrow: async () => ({
-                    studentId: 7,
+                    id: 7,
                     legacyStudentId: 7
                 })
             },
@@ -36,7 +36,7 @@ test("returns disabled defaults before a student configures notifications", asyn
     });
 
     assert.deepEqual(await service.get(7), {
-        studentId: 7,
+        userId: 7,
         enabled: false,
         placeIds: []
     });
@@ -47,7 +47,7 @@ test("replaces the selected places when updating a subscription", async () => {
         prisma: {
             user: {
                 findUniqueOrThrow: async () => ({
-                    studentId: 7,
+                    id: 7,
                     legacyStudentId: 7
                 })
             },
@@ -93,7 +93,7 @@ test("replaces the selected places when updating a subscription", async () => {
     assert.equal(result.isOk(), true);
     if (result.isOk())
         assert.deepEqual(result.value, {
-            studentId: 7,
+            userId: 7,
             enabled: true,
             placeIds: [2, 3]
         });

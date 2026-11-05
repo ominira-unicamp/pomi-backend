@@ -11,44 +11,41 @@ import {
 } from "#/modules/planning/student-absence/StudentAbsence.problems.js";
 import { prismaStudentAbsenceSelection } from "#/modules/planning/student-absence/StudentAbsence.queries.js";
 import {
-    compileFilterWhere,
     compileSort,
     err,
+    NotFoundError,
     ok,
-    prismaWhereFor,
     resolveSort,
-    type FilterWhereBuilder,
     type Result
 } from "@pomi/api-core";
-import type { MyPrisma, PrismaClient } from "@pomi/db";
+import type { PrismaClient } from "@pomi/db";
 import z from "zod";
 import { validateAbsenceFacts } from "./StudentAbsence.rules.js";
 
 type Absence = z.infer<typeof IO.schema>;
-type CreateInput = z.infer<typeof IO.create.request>["body"];
+type CreateInput = z.infer<typeof IO.create.request>["body"] & {
+    courseAttemptId: number;
+};
 type ListInput = z.infer<typeof IO.list.request>["query"];
 type CreateProblem = Exclude<
     StudentAbsenceProblem,
     ReturnType<typeof studentAbsenceNotFoundProblem>
 >;
 
-const absenceWhere = prismaWhereFor<MyPrisma.StudentAbsenceWhereInput>();
-const absenceFilterWhere = {
-    courseAttemptId: absenceWhere.numberAt("studentCourseAttempt.id")
-} satisfies Record<
-    string,
-    FilterWhereBuilder<MyPrisma.StudentAbsenceWhereInput>
->;
-
 export type StudentAbsenceService = {
-    list(userId: number, input: ListInput): Promise<Absence[]>;
+    list(
+        userId: number,
+        input: ListInput,
+        courseAttemptId: number
+    ): Promise<Absence[]>;
     create(
         userId: number,
         input: CreateInput
     ): Promise<Result<Absence, CreateProblem>>;
     remove(
         userId: number,
-        id: number
+        id: number,
+        courseAttemptId?: number
     ): Promise<Result<void, ReturnType<typeof studentAbsenceNotFoundProblem>>>;
 };
 
@@ -58,16 +55,21 @@ export function createStudentAbsenceService({
     prisma: PrismaClient;
 }): StudentAbsenceService {
     return {
-        async list(userId, input) {
-            const filterWhere = compileFilterWhere(
-                input.filter,
-                absenceFilterWhere,
-                "user absences"
-            );
+        async list(userId, input, courseAttemptId) {
+            if (
+                !(await prisma.studentCourseAttempt.findFirst({
+                    where: { id: courseAttemptId, userId },
+                    select: { id: true }
+                }))
+            )
+                throw new NotFoundError(
+                    "Registro acadêmico não encontrado para este usuário."
+                );
             const absences = await prisma.studentAbsence.findMany({
                 ...prismaStudentAbsenceSelection,
                 where: {
-                    AND: [{ studentCourseAttempt: { userId } }, ...filterWhere]
+                    studentCourseAttemptId: courseAttemptId,
+                    studentCourseAttempt: { userId }
                 },
                 orderBy: compileSort(
                     resolveSort(input.sort, studentAbsenceSort),
@@ -102,6 +104,10 @@ export function createStudentAbsenceService({
                     select: { id: true, classId: true, dayOfWeek: true }
                 })
             ]);
+            if (!attempt)
+                throw new NotFoundError(
+                    "Registro acadêmico não encontrado para este usuário."
+                );
             const validation = validateAbsenceFacts(input, attempt, schedule);
             if (validation.isErr())
                 return err(
@@ -132,9 +138,13 @@ export function createStudentAbsenceService({
             });
             return ok(absencePresenter.build(absence));
         },
-        async remove(userId, id) {
+        async remove(userId, id, courseAttemptId) {
             const absence = await prisma.studentAbsence.findFirst({
-                where: { id, studentCourseAttempt: { userId } },
+                where: {
+                    id,
+                    studentCourseAttemptId: courseAttemptId,
+                    studentCourseAttempt: { userId }
+                },
                 select: { id: true }
             });
             if (!absence) return err(studentAbsenceNotFoundProblem());

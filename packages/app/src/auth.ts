@@ -1,17 +1,14 @@
-import { hasStudentAccess } from "#/modules/identity/Student.access.js";
+import {
+    hasStudentAccess,
+    hasUserAccess
+} from "#/modules/identity/Student.access.js";
 import type { Principal } from "#/Principal.js";
 import {
     forbiddenProblem,
     sendProblem,
     unauthenticatedProblem
 } from "@pomi/api-core";
-import {
-    canonicalIdentity,
-    canonicalIdentityInclude,
-    createCanonicalIdentity,
-    linkCanonicalStudent,
-    runIdentityTransaction
-} from "@pomi/db";
+import { canonicalIdentity, canonicalIdentityInclude } from "@pomi/db";
 import { asValue } from "awilix";
 import { NextFunction, Request, Response } from "express";
 import * as jose from "jose";
@@ -21,6 +18,7 @@ export type { Principal } from "#/Principal.js";
 import {
     AuthRoles,
     policies,
+    raFromDacEmail,
     type AuthorizationPolicy,
     type AuthRole,
     type Capability
@@ -74,28 +72,12 @@ async function verifyAccessToken(token: string): Promise<TokenPayload> {
     return payload as TokenPayload;
 }
 
-function studentIdentityFromToken(payload: TokenPayload) {
-    const email = payload.email?.trim().toLowerCase();
-    // Desativado tepmorariamente verificacao de email
-    // if (!payload.email_verified || !email) return undefined;
-    if (!email) return undefined;
-    const match = /^([a-z])([0-9]{6})@dac\.unicamp\.br$/i.exec(email);
-    if (!match) return undefined;
-    const displayName =
-        payload.name?.trim() || payload.preferred_username?.trim() || email;
-    return { email, ra: match[2], displayName };
-}
-
-export async function resolvePrincipal(
-    payload: TokenPayload,
-    req: Request,
-    options: Readonly<{ provisionStudent?: boolean }> = {}
-) {
+export async function resolvePrincipal(payload: TokenPayload, req: Request) {
     const tokenIssuer = payload.iss;
     const subject = payload.sub;
     if (!tokenIssuer || !subject) throw new ForbiddenError();
 
-    let identity = await req.prisma.authIdentity.findUnique({
+    const identity = await req.prisma.authIdentity.findUnique({
         where: { issuer_subject: { issuer: tokenIssuer, subject } },
         include: {
             ...canonicalIdentityInclude,
@@ -104,88 +86,15 @@ export async function resolvePrincipal(
         }
     });
 
-    if (!identity) {
-        const studentIdentity = studentIdentityFromToken(payload);
-        if (!studentIdentity) throw new ForbiddenError();
-        identity = await runIdentityTransaction(req.prisma, async (tx) => {
-            const existing = await tx.authIdentity.findUnique({
-                where: { issuer_subject: { issuer: tokenIssuer, subject } },
-                include: {
-                    ...canonicalIdentityInclude,
-                    roles: true,
-                    capabilities: true
-                }
-            });
-            if (existing) return existing;
-            const existingAcademic =
-                options.provisionStudent !== false
-                    ? await tx.student.findUnique({
-                          where: { ra: studentIdentity.ra },
-                          select: { id: true }
-                      })
-                    : null;
-            return createCanonicalIdentity(
-                tx,
-                {
-                    issuer: tokenIssuer,
-                    subject,
-                    studentId: existingAcademic?.id ?? null,
-                    email: studentIdentity.email,
-                    displayName: studentIdentity.displayName,
-                    roles: [{ role: AuthRoles.STUDENT }]
-                },
-                "HUMAN"
-            );
-        });
-    }
-
-    if (identity.status === "DISABLED") throw new ForbiddenError();
-
+    if (!identity || identity.status !== "ACTIVE") throw new ForbiddenError();
     const resolved = canonicalIdentity(identity);
     if (resolved.principal.status !== "ACTIVE") throw new ForbiddenError();
-
-    const studentIdentity = studentIdentityFromToken(payload);
-    if (
-        options.provisionStudent !== false &&
-        identity.legacyStudentId === null &&
-        identity.roles.some((entry) => entry.role === AuthRoles.STUDENT) &&
-        studentIdentity
-    ) {
-        identity.legacyStudentId = await runIdentityTransaction(
-            req.prisma,
-            async (tx) => {
-                const student = await tx.student.upsert({
-                    where: { ra: studentIdentity.ra },
-                    update: {},
-                    create: {
-                        ra: studentIdentity.ra,
-                        name: studentIdentity.displayName
-                    },
-                    select: { id: true }
-                });
-                const linked = await tx.authIdentity.updateMany({
-                    where: { id: identity.id, legacyStudentId: null },
-                    data: { legacyStudentId: student.id }
-                });
-                if (linked.count > 0) {
-                    await linkCanonicalStudent(tx, identity.id, student.id);
-                    return student.id;
-                }
-                const current = await tx.authIdentity.findUnique({
-                    where: { id: identity.id },
-                    select: { legacyStudentId: true }
-                });
-                return current?.legacyStudentId ?? null;
-            }
-        );
-    }
 
     return {
         principalId: resolved.principal.id,
         authIdentityId: resolved.identity.id,
         userId: resolved.principal.user?.id ?? null,
         serviceAccountId: resolved.principal.serviceAccount?.id ?? null,
-        authUserId: identity.legacyId,
         issuer: identity.issuer,
         subject: identity.subject,
         email: identity.email,
@@ -193,7 +102,7 @@ export async function resolvePrincipal(
         capabilities: new Set(
             identity.capabilities.map((entry) => entry.capability as Capability)
         ),
-        studentId: identity.legacyStudentId
+        studentId: resolved.principal.user?.studentId ?? null
     } satisfies Principal;
 }
 
@@ -270,6 +179,19 @@ class AuthRegistry {
                 return;
             throw new ForbiddenError();
         }
+        if (policy.kind === "academic-registration") {
+            const userId = Number(params.userId);
+            if (!Number.isSafeInteger(userId) || userId <= 0)
+                throw new ForbiddenError();
+            if (principal.roles.has(AuthRoles.ADMIN)) return;
+            if (
+                principal.userId === userId &&
+                principal.roles.has(AuthRoles.STUDENT) &&
+                raFromDacEmail(principal.email) === req.body?.ra
+            )
+                return;
+            throw new ForbiddenError();
+        }
         if (policy.kind === "student-registration") {
             if (
                 principal.roles.has(AuthRoles.STUDENT) &&
@@ -279,6 +201,33 @@ class AuthRegistry {
             throw new ForbiddenError();
         }
 
+        if (policy.kind === "user-access") {
+            const userId = Number(params[policy.userParam]);
+            if (!Number.isSafeInteger(userId) || userId <= 0)
+                throw new ForbiddenError();
+            if (
+                policy.ownerOnly &&
+                !principal.roles.has(AuthRoles.ADMIN) &&
+                principal.userId !== userId
+            )
+                throw new ForbiddenError();
+            if (
+                policy.ownerOnly &&
+                req.body?.authorAuthIdentityId !== undefined &&
+                req.body.authorAuthIdentityId !== principal.authIdentityId
+            )
+                throw new ForbiddenError();
+            if (
+                !(await hasUserAccess(
+                    req.prisma,
+                    principal,
+                    userId,
+                    policy.capability
+                ))
+            )
+                throw new ForbiddenError();
+            return;
+        }
         const rawStudentId = params[policy.studentParam];
         const studentId = Number(
             Array.isArray(rawStudentId) ? rawStudentId[0] : rawStudentId
@@ -319,9 +268,7 @@ class AuthRegistry {
             }
 
             try {
-                const principal = await resolvePrincipal(payload, req, {
-                    provisionStudent: policy.kind !== "student-registration"
-                });
+                const principal = await resolvePrincipal(payload, req);
                 req.user = payload;
                 req.principal = principal;
                 req.scope.register({ principal: asValue(principal) });

@@ -34,12 +34,14 @@ const studentCapabilitySchema = z
 const entity = z
     .object({
         id: z.number().int(),
-        studentId: z.number().int(),
-        botAuthUserId: z.number().int(),
+        userId: z.number().int(),
+        botAuthIdentityId: z.number().int(),
+        grantedByAuthIdentityId: z.number().int(),
+        revokedByAuthIdentityId: z.number().int().nullable(),
         capability: studentCapabilitySchema,
         createdAt: z.coerce.date(),
         revokedAt: z.coerce.date().nullable(),
-        botAuthUser: z.object({
+        botAuthIdentity: z.object({
             id: z.number().int(),
             displayName: z.string().nullable()
         })
@@ -64,10 +66,14 @@ const bot = z
         }
     });
 const path = z.object({
-    botAuthUserId: pathParam.integer()
+    userId: pathParam.positiveInteger(),
+    botAuthIdentityId: pathParam.integer()
 });
 const replaceBody = z
-    .object({ capabilities: z.array(studentCapabilitySchema) })
+    .object({
+        capabilities: z.array(studentCapabilitySchema),
+        authorAuthIdentityId: z.number().int().positive()
+    })
     .strict()
     .openapi("ReplaceBotGrantBody", {
         "x-pomi-schema": { kind: "input", publicName: "ReplaceBotGrantBody" }
@@ -114,17 +120,27 @@ const list = {
         operationId: "listBotGrants",
         sdk: {
             resource: "botGrants",
+            pathParameters: { userId: "userId" },
             method: "list",
             action: "list" as const
         },
         method: "get" as const,
-        path: [pathSeg.literal("me"), pathSeg.literal("bot-grants")],
+        path: [
+            pathSeg.literal("users"),
+            pathSeg.param("userId"),
+            pathSeg.literal("bot-grants")
+        ],
         tags: ["bot-grants"],
-        authorization: policies.authenticated,
+        authorization: policies.userAccess(
+            "userId",
+            StudentCapabilities.PROFILE_READ,
+            true
+        ),
         queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
+        path: z.object({ userId: pathParam.positiveInteger() }),
         query: createPaginationQuerySchema(unpaginatedByDefault, {
             sort: resourceSortSchema(botGrantSort).optional()
         })
@@ -140,16 +156,24 @@ const replace = {
             resource: "botGrants",
             method: "replace",
             action: "update" as const,
-            pathParameters: { botAuthUserId: "botAuthUserId" }
+            pathParameters: {
+                userId: "userId",
+                botAuthIdentityId: "botAuthIdentityId"
+            }
         },
         method: "put" as const,
         path: [
-            pathSeg.literal("me"),
+            pathSeg.literal("users"),
+            pathSeg.param("userId"),
             pathSeg.literal("bot-grants"),
-            pathSeg.param("botAuthUserId")
+            pathSeg.param("botAuthIdentityId")
         ],
         tags: ["bot-grants"],
-        authorization: policies.authenticated
+        authorization: policies.userAccess(
+            "userId",
+            StudentCapabilities.PROFILE_WRITE,
+            true
+        )
     },
     request: z.object({ path, body: replaceBody }),
     response: new OutputBuilder()

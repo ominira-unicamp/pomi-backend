@@ -11,18 +11,18 @@ import z from "zod";
 extendZodWithOpenApi(z);
 
 const path = [
-    pathSeg.literal("student"),
-    pathSeg.param("sid"),
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
     pathSeg.literal("exchange-notice-subscription")
 ];
 
 const studentPath = z.object({
-    sid: pathParam.positiveInteger()
+    userId: pathParam.positiveInteger()
 });
 
 const entity = z
     .object({
-        studentId: z.number().int().positive(),
+        userId: z.number().int().positive(),
         enabled: z.boolean(),
         placeIds: z.array(z.number().int().positive())
     })
@@ -64,13 +64,13 @@ const get = {
             resource: "exchangeNoticeSubscriptions",
             method: "get",
             action: "get" as const,
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
         method: "get" as const,
         path,
         tags: ["exchange-notice-subscriptions"],
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PROFILE_READ
         )
     },
@@ -87,13 +87,13 @@ const patch = {
             resource: "exchangeNoticeSubscriptions",
             method: "update",
             action: "update" as const,
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
         method: "patch" as const,
         path,
         tags: ["exchange-notice-subscriptions"],
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PROFILE_WRITE
         )
     },

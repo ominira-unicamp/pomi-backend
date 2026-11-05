@@ -28,11 +28,7 @@ const actions: Actions = {
                 result.total,
                 result.pagination,
                 (pagination) =>
-                    queryPath(
-                        "/shared-period-plannings",
-                        input.query,
-                        pagination
-                    )
+                    queryPath("/shared-period-plans", input.query, pagination)
             )
         );
     },
@@ -41,9 +37,9 @@ const actions: Actions = {
             await ctx.sharedPeriodPlanService.getPublic(input.path.shareId),
             ApiResponse.ok
         ),
-    listForStudent: async (ctx, input) => {
-        const result = await ctx.sharedPeriodPlanService.listForStudent(
-            await ctx.resolveLegacyUser(input.path.sid),
+    listForUser: async (ctx, input) => {
+        const result = await ctx.sharedPeriodPlanService.listForUser(
+            await ctx.resolveUserContext(input.path.userId),
             input.query
         );
         return ApiResponse.ok(
@@ -53,17 +49,17 @@ const actions: Actions = {
                 result.pagination,
                 (pagination) =>
                     queryPath(
-                        `/student/${input.path.sid}/shared-period-plannings`,
+                        `/users/${input.path.userId}/shared-period-plans`,
                         input.query,
                         pagination
                     )
             )
         );
     },
-    getForStudent: async (ctx, input) =>
+    getForUser: async (ctx, input) =>
         respond(
-            await ctx.sharedPeriodPlanService.getForStudent(
-                await ctx.resolveLegacyUser(input.path.sid),
+            await ctx.sharedPeriodPlanService.getForUser(
+                await ctx.resolveUserContext(input.path.userId),
                 input.path.shareId
             ),
             ApiResponse.ok

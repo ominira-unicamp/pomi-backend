@@ -26,25 +26,25 @@ export const studentPeoplePagination = {
 } satisfies PaginationPolicy;
 
 const peoplePath = [
-    pathSeg.literal("student"),
-    pathSeg.param("sid"),
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
     pathSeg.literal("people")
 ];
-const read = policies.studentAccess("sid", StudentCapabilities.SOCIAL_READ);
+const read = policies.userAccess("userId", StudentCapabilities.SOCIAL_READ);
 
 const listPeople = {
     meta: {
-        operationId: "listStudentPeople",
+        operationId: "listUserPeople",
         method: "get" as const,
         path: peoplePath,
         tags: ["student-social"],
         authorization: read,
         queryFeatures: { sort: true },
         sdk: {
-            resource: "studentPeople",
+            resource: "userPeople",
             action: "list" as const,
             method: "list",
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
         pagination: studentPeoplePagination
     },
@@ -57,10 +57,10 @@ const listPeople = {
     }),
     response: new OutputBuilder()
         .ok(
-            getPaginatedSchema(person).openapi("StudentPeoplePage", {
+            getPaginatedSchema(person).openapi("UserPeoplePage", {
                 "x-pomi-schema": {
                     kind: "page",
-                    publicName: "StudentPeoplePage"
+                    publicName: "UserPeoplePage"
                 }
             }),
             "Pessoas recuperadas"
@@ -69,12 +69,12 @@ const listPeople = {
 } satisfies IO;
 const getPerson = {
     meta: {
-        operationId: "getStudentPerson",
+        operationId: "getUserPerson",
         sdk: {
-            resource: "studentSocial",
+            resource: "userSocial",
             method: "getPerson",
             action: "get" as const,
-            pathParameters: { sid: "studentId", publicId: "publicId" }
+            pathParameters: { userId: "userId", publicId: "publicId" }
         },
         method: "get" as const,
         path: [...peoplePath, pathSeg.param("publicId")],

@@ -1,5 +1,5 @@
 import type { OperationTelemetry } from "#/application/OperationTelemetry.js";
-import { createLegacyUserResolver } from "#/modules/identity/LegacyStudentContext.js";
+import { createUserResolver } from "#/modules/identity/UserContext.js";
 import { requestLogger } from "@pomi/api-core";
 import { asFunction, asValue, createContainer, InjectionMode } from "awilix";
 import type { RequestHandler } from "express";
@@ -63,9 +63,9 @@ import {
     type GroupRoleService
 } from "#/modules/group/role/GroupRole.service.js";
 import {
-    createAuthUserService,
-    type AuthUserService
-} from "#/modules/identity/auth-user/AuthUser.service.js";
+    createAuthIdentityService,
+    type AuthIdentityService
+} from "#/modules/identity/auth-identity/AuthIdentity.service.js";
 import {
     createBotGrantService,
     type BotGrantService
@@ -128,7 +128,7 @@ import type { DatabaseClient } from "@pomi/db";
 export type AppCradle = {
     config: AppConfig;
     prisma: DatabaseClient;
-    resolveLegacyUser(studentId: number): Promise<number>;
+    resolveUserContext(userId: number, academic?: boolean): Promise<number>;
     clock: Clock;
     operationTelemetry: OperationTelemetry | undefined;
     principal: Principal | undefined;
@@ -145,7 +145,7 @@ export type AppCradle = {
     studentService: StudentService;
     currentUserService: CurrentUserService;
     botGrantService: BotGrantService;
-    authUserService: AuthUserService;
+    authIdentityService: AuthIdentityService;
     curriculumService: CurriculumService;
     evaluationSummaryService: EvaluationSummaryService;
     periodPlanService: PeriodPlanService;
@@ -173,8 +173,8 @@ export function createAppContainer(config: AppConfig, prisma: DatabaseClient) {
     }).register({
         config: asValue(config),
         prisma: asValue(prisma),
-        resolveLegacyUser: asFunction(({ prisma }: AppCradle) =>
-            createLegacyUserResolver(prisma)
+        resolveUserContext: asFunction(({ prisma }: AppCradle) =>
+            createUserResolver(prisma)
         ).scoped(),
         clock: asValue(systemClock),
         operationTelemetry: asValue(undefined),
@@ -212,7 +212,7 @@ export function createAppContainer(config: AppConfig, prisma: DatabaseClient) {
         studentService: asFunction(createStudentService).scoped(),
         currentUserService: asFunction(createCurrentUserService).scoped(),
         botGrantService: asFunction(createBotGrantService).scoped(),
-        authUserService: asFunction(createAuthUserService).scoped(),
+        authIdentityService: asFunction(createAuthIdentityService).scoped(),
         curriculumService: asFunction(createCurriculumService).scoped(),
         evaluationSummaryService: asFunction(
             createEvaluationSummaryService

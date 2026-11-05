@@ -1,9 +1,10 @@
 import type { AppConfig } from "#/Config.js";
+import { ForbiddenError } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import { jwtVerify } from "jose";
 
 export type ExchangeNoticeUnsubscribeService = {
-    unsubscribe(token: string): Promise<void>;
+    unsubscribe(userId: number, token: string): Promise<void>;
 };
 
 export function createExchangeNoticeUnsubscribeService({
@@ -14,20 +15,27 @@ export function createExchangeNoticeUnsubscribeService({
     prisma: PrismaClient;
 }): ExchangeNoticeUnsubscribeService {
     return {
-        async unsubscribe(token) {
+        async unsubscribe(userId, token) {
             if (!config.notifierUnsubscribeSecret)
                 throw new Error("Notifier unsubscribe is not configured");
             const { payload } = await jwtVerify(
                 token,
                 new TextEncoder().encode(config.notifierUnsubscribeSecret)
-            );
+            ).catch(() => {
+                throw new ForbiddenError(
+                    "Link de descadastro inválido ou expirado."
+                );
+            });
             if (
+                (payload.identityVersion !== undefined &&
+                    payload.identityVersion !== 1 &&
+                    payload.identityVersion !== 2) ||
                 payload.action !== "exchange-notice-unsubscribe" ||
                 typeof payload.sub !== "string" ||
                 !/^[1-9][0-9]*$/.test(payload.sub)
             )
-                throw new Error("Invalid unsubscribe token");
-            const userId =
+                throw new ForbiddenError("Link de descadastro inválido.");
+            const tokenUserId =
                 payload.identityVersion === 2
                     ? Number(payload.sub)
                     : (
@@ -36,7 +44,8 @@ export function createExchangeNoticeUnsubscribeService({
                               select: { id: true }
                           })
                       )?.id;
-            if (userId === undefined) return;
+            if (tokenUserId !== userId)
+                throw new ForbiddenError("O link não autoriza este usuário.");
             await prisma.exchangeNoticeSubscription.updateMany({
                 where: { userId },
                 data: { enabled: false }

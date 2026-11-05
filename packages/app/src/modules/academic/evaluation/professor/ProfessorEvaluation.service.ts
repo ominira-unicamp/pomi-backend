@@ -109,7 +109,13 @@ export function createProfessorEvaluationService({
                     userId_classId_professorId: context
                 },
                 include: {
-                    user: { select: { studentId: true, legacyStudentId: true } }
+                    user: {
+                        select: {
+                            id: true,
+                            studentId: true,
+                            legacyStudentId: true
+                        }
+                    }
                 }
             });
             return ok({
@@ -138,7 +144,13 @@ export function createProfessorEvaluationService({
                     userId_classId_professorId: context
                 },
                 include: {
-                    user: { select: { studentId: true, legacyStudentId: true } }
+                    user: {
+                        select: {
+                            id: true,
+                            studentId: true,
+                            legacyStudentId: true
+                        }
+                    }
                 },
                 create: { ...context, ...body },
                 update: body

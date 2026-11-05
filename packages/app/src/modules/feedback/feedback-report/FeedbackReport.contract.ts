@@ -71,13 +71,13 @@ const feedbackStatusSchema = z
 
 const feedbackPath = [pathSeg.literal("feedback-reports")];
 const studentFeedbackPath = [
-    pathSeg.literal("student"),
-    pathSeg.param("sid"),
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
     pathSeg.literal("feedback-reports")
 ];
 
 const studentPath = z.object({
-    sid: pathParam.integer()
+    userId: pathParam.integer()
 });
 
 const featureTargetDetailsSchema = z
@@ -192,7 +192,7 @@ const report = z
         sourcePath: z.string().nullable(),
         status,
         adminMessage: z.string().nullable(),
-        reporterStudentId: z.number().int().nullable(),
+        reporterUserId: z.number().int().nullable(),
         createdAt: z.string().datetime(),
         updatedAt: z.string().datetime()
     })
@@ -242,18 +242,18 @@ export const feedbackReportSort = defineSort({
 
 const listStudent = {
     meta: {
-        operationId: "listStudentFeedbackReports",
+        operationId: "listUserFeedbackReports",
         sdk: {
             resource: "feedbackReports",
-            method: "listForStudent",
+            method: "listForUser",
             action: "list" as const,
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
         method: "get" as const,
         path: studentFeedbackPath,
         tags: ["feedback-reports"],
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.FEEDBACK_READ
         ),
         queryFeatures: { sort: true },
@@ -357,20 +357,20 @@ const createAnonymous = {
         .build()
 } satisfies IO;
 
-const createForStudent = {
+const createForUser = {
     meta: {
-        operationId: "createStudentFeedbackReport",
+        operationId: "createUserFeedbackReport",
         sdk: {
             resource: "feedbackReports",
-            method: "createForStudent",
+            method: "createForUser",
             action: "create" as const,
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
         method: "post" as const,
         path: studentFeedbackPath,
         tags: ["feedback-reports"],
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.FEEDBACK_WRITE
         )
     },
@@ -396,7 +396,7 @@ const createForStudent = {
 export default {
     body,
     createAnonymous,
-    createForStudent,
+    createForUser,
     listStudent,
     listAdmin,
     patchAdmin,

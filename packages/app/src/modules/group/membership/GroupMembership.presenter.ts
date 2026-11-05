@@ -1,10 +1,11 @@
-import { requireLegacyStudentId } from "#/modules/identity/LegacyStudentContext.js";
+import { canonicalUserId } from "#/modules/identity/UserContext.js";
 import type { MyPrisma } from "@pomi/db";
 const date = (value: Date | null) => value?.toISOString() ?? null;
 export const membershipInclude = {
     user: {
         select: {
             name: true,
+            id: true,
             studentId: true,
             legacyStudentId: true,
             student: { select: { name: true } },
@@ -54,12 +55,9 @@ export function publicMember(value: Membership) {
             value.user.publicProfileEnabled &&
             value.user.principal.identities.length
                 ? (value.user.publicDisplayName ??
-                  value.user.student?.name ??
                   value.user.name ??
                   "Usuário do POMI")
-                : (value.user.student?.name ??
-                  value.user.name ??
-                  "Usuário do POMI"),
+                : (value.user.name ?? "Usuário do POMI"),
         profilePublicId:
             value.user.publicProfileEnabled &&
             value.user.principal.identities.length
@@ -75,7 +73,7 @@ export function publicMember(value: Membership) {
 export function ownMember(value: Membership) {
     return {
         ...memberBase(value),
-        studentId: requireLegacyStudentId(value.user),
+        userId: canonicalUserId(value.user),
         isPublic: value.isPublic,
         leftAt: date(value.leftAt),
         roles: value.roles.map(({ role }) => ({
@@ -94,8 +92,7 @@ export function ownMember(value: Membership) {
 export function managedMember(value: Membership) {
     return {
         ...ownMember(value),
-        studentName:
-            value.user.student?.name ?? value.user.name ?? "Usuário do POMI",
+        studentName: value.user.name ?? "Usuário do POMI",
         avatarMediaId: publicMember(value).avatarMediaId
     };
 }

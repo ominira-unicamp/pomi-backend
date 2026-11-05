@@ -26,11 +26,7 @@ export function buildPerson(
 ): Person {
     return {
         publicId: user.publicId,
-        displayName:
-            user.publicDisplayName ??
-            user.student?.name ??
-            user.name ??
-            "Usuário do POMI",
+        displayName: user.publicDisplayName ?? user.name ?? "Usuário do POMI",
         avatarMediaId: disclosure.showProfile ? user.avatarMediaId : null,
         bio: disclosure.showProfile ? user.publicBio : null,
         interests: disclosure.showProfile

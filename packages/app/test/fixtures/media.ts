@@ -17,7 +17,6 @@ export const principal: Principal = {
     authIdentityId: 9,
     userId: 9,
     serviceAccountId: null,
-    authUserId: 9,
     issuer: "test",
     subject: "student",
     email: null,

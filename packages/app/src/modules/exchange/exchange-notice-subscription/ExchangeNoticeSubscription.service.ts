@@ -1,5 +1,5 @@
 import IO from "#/modules/exchange/exchange-notice-subscription/ExchangeNoticeSubscription.contract.js";
-import { requireLegacyStudentId } from "#/modules/identity/LegacyStudentContext.js";
+import { canonicalUserId } from "#/modules/identity/UserContext.js";
 import { err, ok, ReferenceNotFoundProblem, type Result } from "@pomi/api-core";
 import type { PrismaClient } from "@pomi/db";
 import z from "zod";
@@ -10,14 +10,14 @@ type PatchInput = z.infer<typeof IO.patch.request>["body"];
 type SubscriptionProblem = ReturnType<typeof ReferenceNotFoundProblem.create>;
 
 function build(
-    studentId: number,
+    userId: number,
     subscription?: {
         enabled: boolean;
         places: ReadonlyArray<{ placeId: number }>;
     } | null
 ): Subscription {
     return {
-        studentId,
+        userId,
         enabled: subscription?.enabled ?? false,
         placeIds: subscription?.places.map(({ placeId }) => placeId) ?? []
     };
@@ -44,10 +44,14 @@ export function createExchangeNoticeSubscriptionService({
                     include: { places: { orderBy: { placeId: "asc" } } }
                 });
             return build(
-                requireLegacyStudentId(
+                canonicalUserId(
                     await prisma.user.findUniqueOrThrow({
                         where: { id: userId },
-                        select: { studentId: true, legacyStudentId: true }
+                        select: {
+                            id: true,
+                            studentId: true,
+                            legacyStudentId: true
+                        }
                     })
                 ),
                 subscription
@@ -107,10 +111,14 @@ export function createExchangeNoticeSubscriptionService({
             );
             return ok(
                 build(
-                    requireLegacyStudentId(
+                    canonicalUserId(
                         await prisma.user.findUniqueOrThrow({
                             where: { id: userId },
-                            select: { studentId: true, legacyStudentId: true }
+                            select: {
+                                id: true,
+                                studentId: true,
+                                legacyStudentId: true
+                            }
                         })
                     ),
                     subscription

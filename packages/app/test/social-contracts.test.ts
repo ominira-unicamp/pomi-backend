@@ -19,13 +19,13 @@ test("student social contracts protect reads and writes with social capabilities
     );
 
     assert.deepEqual(contracts.getProfile.meta.authorization, {
-        kind: "student-access",
-        studentParam: "sid",
+        kind: "user-access",
+        userParam: "userId",
         capability: StudentCapabilities.SOCIAL_READ
     });
     assert.deepEqual(contracts.createFriendship.meta.authorization, {
-        kind: "student-access",
-        studentParam: "sid",
+        kind: "user-access",
+        userParam: "userId",
         capability: StudentCapabilities.SOCIAL_WRITE
     });
 });
@@ -35,28 +35,28 @@ test("student social input allows directory listings and validates public ids", 
 
     assert.equal(
         contracts.listPeople.request.safeParse({
-            path: { sid: "1" },
+            path: { userId: "1" },
             query: {}
         }).success,
         true
     );
     assert.equal(
         contracts.listPeople.request.safeParse({
-            path: { sid: "1" },
+            path: { userId: "1" },
             query: { query: "ab" }
         }).success,
         true
     );
     assert.equal(
         contracts.createFriendship.request.safeParse({
-            path: { sid: "1" },
+            path: { userId: "1" },
             body: { targetPublicId: "not-a-uuid" }
         }).success,
         false
     );
     assert.equal(
         contracts.updateProfile.request.safeParse({
-            path: { sid: "1" },
+            path: { userId: "1" },
             body: {
                 enabled: true,
                 currentCoursesVisibility: "FRIENDS"
@@ -66,7 +66,7 @@ test("student social input allows directory listings and validates public ids", 
     );
     assert.equal(
         contracts.updateProfile.request.safeParse({
-            path: { sid: "1" },
+            path: { userId: "1" },
             body: { showProgram: true }
         }).success,
         false

@@ -26,10 +26,10 @@ const createAnonymous: Actions["createAnonymous"] = async (ctx, input) =>
         problemInput.body
     );
 
-const createForStudent: Actions["createForStudent"] = async (ctx, input) =>
+const createForUser: Actions["createForUser"] = async (ctx, input) =>
     respond(
-        await ctx.feedbackReportService.createForStudent(
-            await ctx.resolveLegacyUser(input.path.sid),
+        await ctx.feedbackReportService.createForUser(
+            await ctx.resolveUserContext(input.path.userId),
             input.body
         ),
         ApiResponse.created,
@@ -39,13 +39,13 @@ const createForStudent: Actions["createForStudent"] = async (ctx, input) =>
 const listStudent: Actions["listStudent"] = async (ctx, input) =>
     ApiResponse.ok(
         buildArrayPaginationResponse(
-            await ctx.feedbackReportService.listForStudent(
-                await ctx.resolveLegacyUser(input.path.sid),
+            await ctx.feedbackReportService.listForUser(
+                await ctx.resolveUserContext(input.path.userId),
                 input.query
             ),
             input.query,
             unpaginatedByDefault,
-            `/student/${input.path.sid}/feedback-reports`
+            `/users/${input.path.userId}/feedback-reports`
         )
     );
 
@@ -68,7 +68,7 @@ const patchAdmin: Actions["patchAdmin"] = async (ctx, input) =>
 
 const { router, registry, authRegistry } = createAppEndpointRegistries(
     contracts,
-    { createAnonymous, createForStudent, listStudent, listAdmin, patchAdmin }
+    { createAnonymous, createForUser, listStudent, listAdmin, patchAdmin }
 );
 
 export default { contracts, router, registry, authRegistry };

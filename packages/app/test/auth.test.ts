@@ -54,7 +54,7 @@ async function signToken(overrides: Record<string, unknown> = {}) {
     return token.sign(privateKey);
 }
 
-function authUser(overrides: Record<string, unknown> = {}) {
+function credentialFixture(overrides: Record<string, unknown> = {}) {
     return {
         id: 80,
         legacyId: 8,
@@ -115,7 +115,9 @@ test("resolves optional media authentication only when a bearer is present", asy
             method: "GET",
             path: "/media/id/avatarSmall",
             headers: authorization ? { authorization } : {},
-            prisma: { authIdentity: { findUnique: async () => authUser() } },
+            prisma: {
+                authIdentity: { findUnique: async () => credentialFixture() }
+            },
             scope: { register: () => undefined }
         }) as unknown as Request;
     let nextCount = 0;
@@ -131,7 +133,7 @@ test("resolves optional media authentication only when a bearer is present", asy
     const authenticated = makeRequest(`Bearer ${await signToken()}`);
     await registry.middleware()(authenticated, response, next);
     assert.equal(nextCount, 2);
-    assert.equal(authenticated.principal?.authUserId, 8);
+    assert.equal(authenticated.principal?.authIdentityId, 80);
 });
 
 test("rejects a token for another audience", async () => {
@@ -181,168 +183,66 @@ test("rejects a token without a subject", async () => {
     await assert.rejects(verifyAccessToken(token));
 });
 
-test("creates and links a student for an existing unlinked student identity", async () => {
-    const upserts: unknown[] = [];
-    const transactionClient = {
-        user: { update: async () => ({}) },
-        student: {
-            upsert: async (input: unknown) => {
-                upserts.push(input);
-                return { id: 12 };
+test("authentication reads a known identity without provisioning academic data", async () => {
+    let reads = 0;
+    const principal = await resolvePrincipal(
+        { iss: issuer, sub: "keycloak-user", email: "s195440@dac.unicamp.br" },
+        requestWithPrisma({
+            authIdentity: {
+                findUnique: async () => {
+                    reads++;
+                    return credentialFixture();
+                }
             }
-        },
-        authIdentity: {
-            findUniqueOrThrow: async () => authUser(),
-            update: async () => authUser(),
-            updateMany: async () => ({ count: 1 }),
-            findUnique: async () => ({ studentId: 12 })
-        }
-    };
-    const prisma = {
-        authIdentity: { findUnique: async () => authUser() },
-        $transaction: async (
-            operation: (tx: typeof transactionClient) => Promise<unknown>
-        ) => operation(transactionClient)
-    };
-
-    const principal = await resolvePrincipal(
-        {
-            iss: issuer,
-            sub: "keycloak-user",
-            email: "s195440@dac.unicamp.br",
-            name: "Samuel Rodrigues Ferreira"
-        },
-        requestWithPrisma(prisma)
+        })
     );
-
-    assert.equal(principal.studentId, 12);
-    assert.deepEqual(upserts, [
-        {
-            where: { ra: "195440" },
-            update: {},
-            create: { ra: "195440", name: "Samuel Rodrigues Ferreira" },
-            select: { id: true }
-        }
-    ]);
-});
-
-test("keeps an existing student link without starting a transaction", async () => {
-    let transactionStarted = false;
-    const prisma = {
-        authIdentity: {
-            findUnique: async () => authUser({ studentId: 21 })
-        },
-        $transaction: async () => {
-            transactionStarted = true;
-        }
-    };
-
-    const principal = await resolvePrincipal(
-        {
-            iss: issuer,
-            sub: "keycloak-user",
-            email: "s195440@dac.unicamp.br"
-        },
-        requestWithPrisma(prisma)
-    );
-
-    assert.equal(principal.studentId, 21);
-    assert.equal(transactionStarted, false);
-});
-
-test("leaves explicit student registration to the registration endpoint", async () => {
-    let transactionStarted = false;
-    const prisma = {
-        authIdentity: { findUnique: async () => authUser() },
-        $transaction: async () => {
-            transactionStarted = true;
-        }
-    };
-
-    const principal = await resolvePrincipal(
-        {
-            iss: issuer,
-            sub: "keycloak-user",
-            email: "s195440@dac.unicamp.br"
-        },
-        requestWithPrisma(prisma),
-        { provisionStudent: false }
-    );
-
+    assert.equal(reads, 1);
+    assert.equal(principal.userId, 8000);
     assert.equal(principal.studentId, null);
-    assert.equal(transactionStarted, false);
 });
 
-test("preserves a link written by a concurrent request", async () => {
-    const transactionClient = {
-        user: { update: async () => ({}) },
-        student: { upsert: async () => ({ id: 12 }) },
-        authIdentity: {
-            updateMany: async () => ({ count: 0 }),
-            findUnique: async () => ({ legacyStudentId: 23 })
+test("authentication takes the academic link from User and leaves token metadata unchanged", async () => {
+    const record = credentialFixture({
+        legacyStudentId: null,
+        principal: {
+            id: 800,
+            kind: "HUMAN",
+            status: "ACTIVE",
+            user: { id: 8000, studentId: 77 },
+            serviceAccount: null
         }
-    };
-    const prisma = {
-        authIdentity: { findUnique: async () => authUser() },
-        $transaction: async (
-            operation: (tx: typeof transactionClient) => Promise<unknown>
-        ) => operation(transactionClient)
-    };
-
+    });
     const principal = await resolvePrincipal(
         {
             iss: issuer,
             sub: "keycloak-user",
-            email: "s195440@dac.unicamp.br"
+            email: "another@example.test",
+            name: "Changed"
         },
-        requestWithPrisma(prisma)
+        requestWithPrisma({ authIdentity: { findUnique: async () => record } })
     );
-
-    assert.equal(principal.studentId, 23);
+    assert.equal(principal.studentId, 77);
+    assert.equal(principal.email, "s195440@dac.unicamp.br");
+    assert.equal(record.displayName, "Samuel Rodrigues Ferreira");
 });
 
-test("uses the username when the token has no display name", async () => {
-    let createdName: string | undefined;
-    const transactionClient = {
-        user: { update: async () => ({}) },
-        student: {
-            upsert: async (input: { create: { name: string } }) => {
-                createdName = input.create.name;
-                return { id: 12 };
-            }
-        },
-        authIdentity: {
-            findUniqueOrThrow: async () => authUser(),
-            update: async () => authUser(),
-            updateMany: async () => ({ count: 1 }),
-            findUnique: async () => ({ studentId: 12 })
-        }
-    };
-    const prisma = {
-        authIdentity: { findUnique: async () => authUser() },
-        $transaction: async (
-            operation: (tx: typeof transactionClient) => Promise<unknown>
-        ) => operation(transactionClient)
-    };
-
-    await resolvePrincipal(
-        {
-            iss: issuer,
-            sub: "keycloak-user",
-            email: "s195440@dac.unicamp.br",
-            preferred_username: "s195440"
-        },
-        requestWithPrisma(prisma)
+test("unknown credentials are rejected without a write or academic claim", async () => {
+    await assert.rejects(
+        resolvePrincipal(
+            { iss: issuer, sub: "unknown", email: "s195440@dac.unicamp.br" },
+            requestWithPrisma({
+                authIdentity: { findUnique: async () => null }
+            })
+        ),
+        /Forbidden/
     );
-
-    assert.equal(createdName, "s195440");
 });
 
 test("does not provision a disabled identity", async () => {
     let transactionStarted = false;
     const prisma = {
         authIdentity: {
-            findUnique: async () => authUser({ status: "DISABLED" })
+            findUnique: async () => credentialFixture({ status: "DISABLED" })
         },
         $transaction: async () => {
             transactionStarted = true;
@@ -369,7 +269,8 @@ test("fails closed when an existing legacy account has no canonical identity", a
             { iss: issuer, sub: "keycloak-user" },
             requestWithPrisma({
                 authIdentity: {
-                    findUnique: async () => authUser({ principal: null })
+                    findUnique: async () =>
+                        credentialFixture({ principal: null })
                 }
             })
         ),
@@ -378,7 +279,7 @@ test("fails closed when an existing legacy account has no canonical identity", a
 });
 
 test("rejects a disabled canonical principal even when the legacy account is active", async () => {
-    const account = authUser();
+    const account = credentialFixture();
     account.principal.status = "DISABLED";
     await assert.rejects(
         resolvePrincipal(
@@ -391,23 +292,27 @@ test("rejects a disabled canonical principal even when the legacy account is act
     );
 });
 
-test("keeps the public current-user representation unchanged", async () => {
+test("exposes canonical identity identifiers in current-user", async () => {
     const { createCurrentUserService } =
         await import("#/modules/identity/current-user/CurrentUser.service.js");
     const principal = await resolvePrincipal(
         { iss: issuer, sub: "keycloak-user" },
         requestWithPrisma({
             authIdentity: {
-                findUnique: async () => authUser({ studentId: 21 })
+                findUnique: async () => credentialFixture({ studentId: 21 })
             }
         })
     );
     assert.equal(principal.principalId, 800);
     assert.equal(principal.userId, 8000);
     assert.deepEqual(createCurrentUserService().get(principal), {
-        id: 8,
-        roles: ["STUDENT"],
-        capabilities: [],
-        studentId: 21
+        principalId: principal.principalId,
+        authIdentityId: principal.authIdentityId,
+        kind: "HUMAN",
+        userId: principal.userId,
+        serviceAccountId: null,
+        roles: [...principal.roles],
+        capabilities: [...principal.capabilities],
+        studentId: principal.studentId
     });
 });

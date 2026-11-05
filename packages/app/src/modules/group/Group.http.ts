@@ -21,7 +21,7 @@ export const entityMeta = (publicName: string) => ({
     } as const
 });
 export const pathId = pathParam.positiveInteger();
-export const student = [pathSeg.literal("student"), pathSeg.param("sid")];
+export const student = [pathSeg.literal("users"), pathSeg.param("userId")];
 export const listQuery = createPaginationQuerySchema(unpaginatedByDefault, {
     filter: resourceFilterSchema(
         { groupId: filterDefinition.id({ positive: true }) },
@@ -55,7 +55,7 @@ function groupMeta(definition: GroupMetadata) {
                     .filter((segment) => segment.type === "param")
                     .map((segment) => [
                         segment.name,
-                        segment.name === "sid" ? "studentId" : segment.name
+                        segment.name === "userId" ? "userId" : segment.name
                     ])
             )
         },
@@ -77,11 +77,11 @@ export function studentMeta(
 ) {
     return {
         ...groupMeta(definition),
-        authorization: policies.studentAccess("sid", definition.capability)
+        authorization: policies.userAccess("userId", definition.capability)
     };
 }
-export const sid = z.object({ sid: pathId });
-export const sidId = sid.extend({ id: pathId });
+export const userId = z.object({ userId: pathId });
+export const sidId = userId.extend({ id: pathId });
 export const publicId = z.object({ id: pathId });
 export const groupQuery = z.object({ groupId: pathId }).strict();
 

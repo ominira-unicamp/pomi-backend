@@ -49,6 +49,7 @@ test("public memberships expose profile links only for enabled active profiles",
             publicDisplayName: "Ana do Coletivo",
             avatarMediaId: "8bf172b7-6e70-47e4-ad19-353292f77d34",
             principal: { identities: [{ id: 1 }] },
+            id: 9,
             studentId: 9,
             legacyStudentId: 9,
             student: { name: "Ana" }
@@ -145,7 +146,7 @@ test("own membership includes the union of role permissions", async () => {
                             }
                         }
                     ],
-                    user: { studentId: 9, legacyStudentId: 9 }
+                    user: { id: 9, studentId: 9, legacyStudentId: 9 }
                 }
             ]
         }
@@ -173,6 +174,7 @@ test("group managers cannot discover private or inactive member avatars", async 
             publicProfileEnabled: true,
             avatarMediaId,
             principal: { identities: [{ id: 1 }] },
+            id: 9,
             studentId: 9,
             legacyStudentId: 9,
             student: { name: "Ana" }
@@ -291,11 +293,12 @@ test("managed invitations require group permission and expose recipients", async
                             avatarMediaId:
                                 "8bf172b7-6e70-47e4-ad19-353292f77d34",
                             publicId: "4c7ba34f-dc7b-48d7-90cd-e76a315ab037",
+                            id: 9,
                             studentId: 9,
                             legacyStudentId: 9,
                             student: { name: "Bia" }
                         },
-                        inviterUser: { studentId: 1, legacyStudentId: 1 }
+                        inviterUser: { id: 1, studentId: 1, legacyStudentId: 1 }
                     }
                 ];
             }
@@ -410,8 +413,8 @@ test("expired invitations have the public status and no persistence keys", async
                     expiresAt: new Date(Date.now() - 1000),
                     createdAt: new Date("2026-10-01T00:00:00.000Z"),
                     respondedAt: null,
-                    recipientUser: { studentId: 9, legacyStudentId: 9 },
-                    inviterUser: { studentId: 1, legacyStudentId: 1 }
+                    recipientUser: { id: 9, studentId: 9, legacyStudentId: 9 },
+                    inviterUser: { id: 1, studentId: 1, legacyStudentId: 1 }
                 }
             ]
         }
@@ -551,8 +554,12 @@ test("invitation representation uses the injected instant at the expiration boun
                         expiresAt: new Date("2026-11-01T00:00:01Z"),
                         createdAt: now,
                         respondedAt: null,
-                        recipientUser: { studentId: 42, legacyStudentId: 42 },
-                        inviterUser: { studentId: 9, legacyStudentId: 9 }
+                        recipientUser: {
+                            id: 42,
+                            studentId: 42,
+                            legacyStudentId: 42
+                        },
+                        inviterUser: { id: 9, studentId: 9, legacyStudentId: 9 }
                     }
                 ]
             }

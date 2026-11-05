@@ -19,7 +19,11 @@ import z from "zod";
 
 extendZodWithOpenApi(z);
 
-const basePath = [pathSeg.literal("students")];
+const basePath = [
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
+    pathSeg.literal("student")
+];
 const tags = ["students"];
 const specsBuilder = new SpecBuilder(basePath, tags, "id", {
     resource: "students",
@@ -30,7 +34,8 @@ const specsBuilder = new SpecBuilder(basePath, tags, "id", {
 const studentEntity = z
     .object({
         id: z.number().int(),
-        ra: z.string(),
+        userId: z.number().int(),
+        ra: z.string().regex(/^\d{6}$/),
         name: z.string(),
         programId: z.number().int().nullable(),
         specializationId: z.number().int().nullable(),
@@ -50,7 +55,7 @@ const studentEntity = z
 const studentBase = z
     .object({
         id: z.number().int(),
-        ra: z.string(),
+        ra: z.string().regex(/^\d{6}$/),
         name: z.string(),
         programId: z.number().int().nullable().optional(),
         specializationId: z.number().int().nullable().optional(),
@@ -67,7 +72,7 @@ export const studentSort = defineSort({
 });
 
 const createStudentBody = studentBase
-    .omit({ id: true, ra: true })
+    .omit({ id: true })
     .openapi("CreateStudentBody", {
         "x-pomi-schema": { kind: "input", publicName: "CreateStudentBody" }
     });
@@ -83,14 +88,19 @@ const patchStudentBody = studentBase
 const get = {
     meta: {
         ...specsBuilder.get(),
-        authorization: policies.studentAccess(
-            "id",
+        path: basePath,
+        sdk: {
+            ...specsBuilder.get().sdk,
+            pathParameters: { userId: "userId" }
+        },
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PROFILE_READ
         )
     },
     request: z.object({
         path: z.object({
-            id: pathParam.integer()
+            userId: pathParam.positiveInteger()
         })
     }),
     response: new OutputBuilder()
@@ -102,6 +112,7 @@ const get = {
 const list = {
     meta: {
         ...specsBuilder.list(),
+        path: [pathSeg.literal("admin"), pathSeg.literal("students")],
         authorization: policies.admin,
         queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
@@ -122,9 +133,14 @@ const list = {
 const create = {
     meta: {
         ...specsBuilder.create(),
-        authorization: policies.studentRegistration
+        sdk: {
+            ...specsBuilder.create().sdk,
+            pathParameters: { userId: "userId" }
+        },
+        authorization: policies.academicRegistration
     },
     request: z.object({
+        path: z.object({ userId: pathParam.positiveInteger() }),
         body: createStudentBody
     }),
     response: new OutputBuilder()
@@ -149,14 +165,19 @@ const create = {
 const patch = {
     meta: {
         ...specsBuilder.patch(),
-        authorization: policies.studentAccess(
-            "id",
+        path: basePath,
+        sdk: {
+            ...specsBuilder.patch().sdk,
+            pathParameters: { userId: "userId" }
+        },
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PROFILE_WRITE
         )
     },
     request: z.object({
         path: z.object({
-            id: pathParam.integer()
+            userId: pathParam.positiveInteger()
         }),
         body: patchStudentBody
     }),
@@ -177,14 +198,19 @@ const patch = {
 const remove = {
     meta: {
         ...specsBuilder.remove(),
-        authorization: policies.studentAccess(
-            "id",
+        path: basePath,
+        sdk: {
+            ...specsBuilder.remove().sdk,
+            pathParameters: { userId: "userId" }
+        },
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PROFILE_WRITE
         )
     },
     request: z.object({
         path: z.object({
-            id: pathParam.integer()
+            userId: pathParam.positiveInteger()
         }),
         body: z
             .object({

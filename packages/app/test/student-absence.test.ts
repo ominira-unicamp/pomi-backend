@@ -5,15 +5,17 @@ import test from "node:test";
 
 test("declares student absence paths and filter", () => {
     assert.deepEqual(IO.list.meta.path, [
+        { type: "literal", value: "users" },
+        { type: "param", name: "userId" },
         { type: "literal", value: "student" },
-        { type: "param", name: "sid" },
+        { type: "literal", value: "course-attempts" },
+        { type: "param", name: "attemptId" },
         { type: "literal", value: "absences" }
     ]);
     assert.equal(
         IO.create.request.safeParse({
-            path: { sid: "1" },
+            path: { userId: "1", attemptId: "2" },
             body: {
-                courseAttemptId: 2,
                 classScheduleId: 3,
                 date: "2026-08-20"
             }

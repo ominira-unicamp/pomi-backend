@@ -1,6 +1,6 @@
 import { createAppEndpointRegistries } from "#/BuildHandler.js";
 import type { AuthorizationPolicy } from "#/auth.js";
-import { type LegacyStudentContext } from "#/modules/identity/LegacyStudentContext.js";
+import { type UserContext } from "#/modules/identity/UserContext.js";
 import { ApiResponse, type EndpointActions } from "@pomi/api-core";
 import { groupId, page, profilePublicId } from "../Group.http.js";
 import { unwrapGroupMutation } from "../Group.problems.js";
@@ -9,7 +9,7 @@ import type { GroupMembershipService } from "./GroupMembership.service.js";
 
 type Context = {
     groupMembershipService: GroupMembershipService;
-} & LegacyStudentContext;
+} & UserContext;
 const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     listPublicMemberships: async (ctx, input) =>
         page(
@@ -27,23 +27,23 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     listOwnMemberships: async (ctx, input) =>
         page(
             await ctx.groupMembershipService.listOwnMemberships(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 groupId(input.query)
             ),
             input.query,
-            `/student/${input.path.sid}/group-memberships`
+            `/users/${input.path.userId}/group-memberships`
         ),
     getOwnMembership: async (ctx, input) =>
         ApiResponse.ok(
             await ctx.groupMembershipService.getOwnMembership(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.path.id
             )
         ),
     patchOwnMembership: async (ctx, input) =>
         ApiResponse.ok(
             await ctx.groupMembershipService.patchOwnMembership(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.path.id,
                 input.body.isPublic
             )
@@ -51,17 +51,17 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     listManagedMemberships: async (ctx, input) =>
         page(
             await ctx.groupMembershipService.listManagedMemberships(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 groupId(input.query)
             ),
             input.query,
-            `/student/${input.path.sid}/managed-group-memberships`
+            `/users/${input.path.userId}/managed-group-memberships`
         ),
     patchManagedMembership: async (ctx, input) =>
         ApiResponse.ok(
             unwrapGroupMutation(
                 await ctx.groupMembershipService.patchManagedMembership(
-                    await ctx.resolveLegacyUser(input.path.sid),
+                    await ctx.resolveUserContext(input.path.userId),
                     input.path.id,
                     input.body
                 )
@@ -72,8 +72,8 @@ const { router, registry, authRegistry } = createAppEndpointRegistries({
     contracts: IO,
     actions,
     createContext: (request) => ({
-        resolveLegacyUser: (studentId: number) =>
-            request.scope.cradle.resolveLegacyUser(studentId),
+        resolveUserContext: (userId: number) =>
+            request.scope.cradle.resolveUserContext(userId),
         groupMembershipService: request.scope.cradle.groupMembershipService
     })
 });

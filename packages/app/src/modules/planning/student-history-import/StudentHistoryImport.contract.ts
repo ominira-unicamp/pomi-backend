@@ -15,8 +15,9 @@ extendZodWithOpenApi(z);
 
 const specsBuilder = new SpecBuilder(
     [
+        pathSeg.literal("users"),
+        pathSeg.param("userId"),
         pathSeg.literal("student"),
-        pathSeg.param("sid"),
         pathSeg.literal("course-history")
     ],
     ["student-course-history"],
@@ -24,21 +25,21 @@ const specsBuilder = new SpecBuilder(
     {
         resource: "studentHistory",
         operationName: "StudentHistory",
-        pathParameters: { sid: "studentId" }
+        pathParameters: { userId: "userId" }
     }
 );
 
 const importHistory = {
     meta: {
         ...specsBuilder.create(),
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.HISTORY_WRITE
         )
     },
     request: z.object({
         path: z.object({
-            sid: pathParam.integer()
+            userId: pathParam.integer()
         }),
         body
     }),

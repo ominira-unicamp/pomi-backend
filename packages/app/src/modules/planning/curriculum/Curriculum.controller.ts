@@ -20,18 +20,18 @@ const actions: Actions = {
         ApiResponse.ok(
             buildArrayPaginationResponse(
                 await ctx.curriculumService.list(
-                    await ctx.resolveLegacyUser(input.path.sid),
+                    await ctx.resolveUserContext(input.path.userId),
                     input.query
                 ),
                 input.query,
                 unpaginatedByDefault,
-                `/student/${input.path.sid}/curricula`
+                `/users/${input.path.userId}/curriculums`
             )
         ),
     get: async (ctx, input) =>
         respond(
             await ctx.curriculumService.getById(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.path.id
             ),
             ApiResponse.ok
@@ -39,7 +39,7 @@ const actions: Actions = {
     create: async (ctx, input) =>
         respond(
             await ctx.curriculumService.create(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.body
             ),
             ApiResponse.created,
@@ -48,7 +48,7 @@ const actions: Actions = {
     patch: async (ctx, input) =>
         respond(
             await ctx.curriculumService.patch(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.path.id,
                 input.body
             ),
@@ -58,7 +58,7 @@ const actions: Actions = {
     remove: async (ctx, input) =>
         respond(
             await ctx.curriculumService.remove(
-                await ctx.resolveLegacyUser(input.path.sid),
+                await ctx.resolveUserContext(input.path.userId),
                 input.path.id
             ),
             () => ApiResponse.noContent()
@@ -76,7 +76,7 @@ export default {
     registry,
     authRegistry,
     paths: {
-        entity: (studentId: number, id: number) =>
-            `/student/${studentId}/curricula/${id}`
+        entity: (userId: number, id: number) =>
+            `/users/${userId}/curriculums/${id}`
     }
 };

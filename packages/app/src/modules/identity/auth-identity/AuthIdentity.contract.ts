@@ -1,6 +1,6 @@
 import { type IO, OutputBuilder } from "#/Contract.js";
 import { Capabilities, policies } from "#/auth.js";
-import { AdminIdentityManagedByCliProblem } from "#/modules/identity/auth-user/AuthUser.problems.js";
+import { AdminIdentityManagedByCliProblem } from "#/modules/identity/auth-identity/AuthIdentity.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
@@ -17,10 +17,13 @@ import z from "zod";
 extendZodWithOpenApi(z);
 
 const capabilityValues = Object.values(Capabilities) as ["ACADEMIC_WRITE"];
-const authUserStatusSchema = z
+const authIdentityStatusSchema = z
     .enum(["ACTIVE", "DISABLED"])
-    .openapi("AuthUserStatus", {
-        "x-pomi-schema": { kind: "value-object", publicName: "AuthUserStatus" }
+    .openapi("AuthIdentityStatus", {
+        "x-pomi-schema": {
+            kind: "value-object",
+            publicName: "AuthIdentityStatus"
+        }
     });
 const authCapabilitySchema = z
     .enum(capabilityValues)
@@ -30,56 +33,63 @@ const authCapabilitySchema = z
 const entity = z
     .object({
         id: z.number().int(),
+        principalId: z.number().int(),
+        userId: z.number().int().nullable(),
+        serviceAccountId: z.number().int().nullable(),
         issuer: z.string(),
         subject: z.string(),
         email: z.string().nullable(),
         displayName: z.string().nullable(),
-        status: authUserStatusSchema,
+        status: authIdentityStatusSchema,
         roles: z.array(
             z.object({
-                authUserId: z.number().int(),
+                authIdentityId: z.number().int(),
                 role: z.string()
             })
         ),
         capabilities: z.array(
             z.object({
-                authUserId: z.number().int(),
+                authIdentityId: z.number().int(),
                 capability: z.string()
             })
         )
     })
     .strict()
-    .openapi("AuthUserEntity", {
+    .openapi("AuthIdentityEntity", {
         "x-pomi-schema": {
             kind: "entity",
-            publicName: "AuthUser",
+            publicName: "AuthIdentity",
             identityFields: ["id"]
         }
     });
 const createBody = z
     .object({
+        issuer: z.url(),
         subject: z.string().min(1),
         displayName: z.string().min(1).max(200),
         capabilities: z.array(authCapabilitySchema).default([])
     })
     .strict()
-    .openapi("CreateBotAuthUserBody", {
-        "x-pomi-schema": { kind: "input", publicName: "CreateBotAuthUserBody" }
+    .openapi("CreateBotAuthIdentityBody", {
+        "x-pomi-schema": {
+            kind: "input",
+            publicName: "CreateBotAuthIdentityBody"
+        }
     });
 const patchBody = z
     .object({
-        status: authUserStatusSchema.optional(),
+        status: authIdentityStatusSchema.optional(),
         displayName: z.string().min(1).max(200).optional(),
         capabilities: z.array(authCapabilitySchema).optional()
     })
     .strict()
-    .openapi("PatchAuthUserBody", {
-        "x-pomi-schema": { kind: "input", publicName: "PatchAuthUserBody" }
+    .openapi("PatchAuthIdentityBody", {
+        "x-pomi-schema": { kind: "input", publicName: "PatchAuthIdentityBody" }
     });
 const path = z.object({
     id: pathParam.integer()
 });
-export const authUserSort = defineSort({
+export const authIdentitySort = defineSort({
     resourceName: "auth users",
     sortableFields: ["id", "displayName", "email", "status"] as const,
     defaultSort: [{ field: "id", direction: "asc" }] as const,
@@ -87,22 +97,22 @@ export const authUserSort = defineSort({
 });
 const list = {
     meta: {
-        operationId: "listAuthUsers",
+        operationId: "listAuthIdentities",
         sdk: {
-            resource: "authUsers",
+            resource: "authIdentities",
             method: "list",
             action: "list" as const
         },
         method: "get" as const,
-        path: [pathSeg.literal("admin"), pathSeg.literal("auth-users")],
-        tags: ["auth-users"],
+        path: [pathSeg.literal("admin"), pathSeg.literal("auth-identities")],
+        tags: ["auth-identities"],
         authorization: policies.admin,
         queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
         query: createPaginationQuerySchema(unpaginatedByDefault, {
-            sort: resourceSortSchema(authUserSort).optional()
+            sort: resourceSortSchema(authIdentitySort).optional()
         })
     }),
     response: new OutputBuilder()
@@ -111,15 +121,15 @@ const list = {
 } satisfies IO;
 const create = {
     meta: {
-        operationId: "createAuthUser",
+        operationId: "createAuthIdentity",
         sdk: {
-            resource: "authUsers",
+            resource: "authIdentities",
             method: "create",
             action: "create" as const
         },
         method: "post" as const,
-        path: [pathSeg.literal("admin"), pathSeg.literal("auth-users")],
-        tags: ["auth-users"],
+        path: [pathSeg.literal("admin"), pathSeg.literal("auth-identities")],
+        tags: ["auth-identities"],
         authorization: policies.admin
     },
     request: z.object({ body: createBody }),
@@ -127,20 +137,20 @@ const create = {
 } satisfies IO;
 const patch = {
     meta: {
-        operationId: "updateAuthUser",
+        operationId: "updateAuthIdentity",
         sdk: {
-            resource: "authUsers",
+            resource: "authIdentities",
             method: "update",
             action: "update" as const,
-            pathParameters: { id: "authUserId" }
+            pathParameters: { id: "authIdentityId" }
         },
         method: "patch" as const,
         path: [
             pathSeg.literal("admin"),
-            pathSeg.literal("auth-users"),
+            pathSeg.literal("auth-identities"),
             pathSeg.param("id")
         ],
-        tags: ["auth-users"],
+        tags: ["auth-identities"],
         authorization: policies.admin
     },
     request: z.object({ path, body: patchBody }),

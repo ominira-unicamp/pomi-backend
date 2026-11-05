@@ -7,6 +7,7 @@ process.env.DISABLED_AUTH = "true";
 test("rejects a student specialization from another program", async () => {
     const service = createStudentService({
         prisma: {
+            user: { findUnique: async () => ({ id: 1, studentId: null }) },
             student: {
                 findUnique: () => Promise.resolve(null),
                 create: () =>
@@ -23,27 +24,13 @@ test("rejects a student specialization from another program", async () => {
             }
         } as never
     });
-    const result = await service.create(
-        {
-            principalId: 1,
-            authIdentityId: 1,
-            userId: 1,
-            serviceAccountId: null,
-            authUserId: 1,
-            issuer: "http://keycloak/realms/pomi",
-            subject: "student",
-            email: "j123456@dac.unicamp.br",
-            roles: new Set(["STUDENT"]),
-            capabilities: new Set(),
-            studentId: null
-        } as never,
-        {
-            name: "Pessoa",
-            catalogId: 2023,
-            programId: 7,
-            specializationId: 11
-        }
-    );
+    const result = await service.create(1, {
+        name: "Pessoa",
+        ra: "123456",
+        catalogId: 2023,
+        programId: 7,
+        specializationId: 11
+    });
 
     assert.equal(
         result.isErr() && result.error.type,

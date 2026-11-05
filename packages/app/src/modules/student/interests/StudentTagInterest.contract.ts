@@ -16,15 +16,15 @@ import z from "zod";
 extendZodWithOpenApi(z);
 
 const studentPath = [
-    pathSeg.literal("student"),
-    pathSeg.param("sid"),
-    pathSeg.literal("tag-interests")
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
+    pathSeg.literal("interests")
 ];
 
 const studentTagPath = [...studentPath, pathSeg.param("tagId")];
 
 const studentId = z.object({
-    sid: pathParam.positiveInteger()
+    userId: pathParam.positiveInteger()
 });
 
 const studentTagId = studentId.extend({
@@ -39,10 +39,10 @@ const tag = z
         parentTagId: z.number().int().positive().nullable()
     })
     .strict()
-    .openapi("StudentTagInterest", {
+    .openapi("UserInterest", {
         "x-pomi-schema": {
             kind: "entity",
-            publicName: "StudentTagInterest",
+            publicName: "UserInterest",
             identityFields: ["id"]
         }
     });
@@ -55,18 +55,18 @@ export const studentTagInterestSort = defineSort({
 
 const list = {
     meta: {
-        operationId: "listStudentTagInterests",
+        operationId: "listUserInterests",
         sdk: {
-            resource: "studentTagInterests",
+            resource: "userInterests",
             method: "list",
             action: "list" as const,
-            pathParameters: { sid: "studentId" }
+            pathParameters: { userId: "userId" }
         },
         method: "get" as const,
         path: studentPath,
         tags: ["student-tag-interests"],
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PROFILE_READ
         ),
         queryFeatures: { sort: true },
@@ -85,18 +85,18 @@ const list = {
 
 const put = {
     meta: {
-        operationId: "updateStudentTagInterest",
+        operationId: "updateUserInterest",
         sdk: {
-            resource: "studentTagInterests",
+            resource: "userInterests",
             method: "update",
             action: "update" as const,
-            pathParameters: { sid: "studentId", tagId: "tagId" }
+            pathParameters: { userId: "userId", tagId: "tagId" }
         },
         method: "put" as const,
         path: studentTagPath,
         tags: ["student-tag-interests"],
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PROFILE_WRITE
         )
     },
@@ -109,18 +109,18 @@ const put = {
 
 const remove = {
     meta: {
-        operationId: "deleteStudentTagInterest",
+        operationId: "deleteUserInterest",
         sdk: {
-            resource: "studentTagInterests",
+            resource: "userInterests",
             method: "delete",
             action: "delete" as const,
-            pathParameters: { sid: "studentId", tagId: "tagId" }
+            pathParameters: { userId: "userId", tagId: "tagId" }
         },
         method: "delete" as const,
         path: studentTagPath,
         tags: ["student-tag-interests"],
-        authorization: policies.studentAccess(
-            "sid",
+        authorization: policies.userAccess(
+            "userId",
             StudentCapabilities.PROFILE_WRITE
         )
     },

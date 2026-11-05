@@ -8,7 +8,11 @@ extendZodWithOpenApi(z);
 
 const entity = z
     .object({
-        id: z.number().int(),
+        principalId: z.number().int(),
+        authIdentityId: z.number().int(),
+        kind: z.enum(["HUMAN", "SERVICE"]),
+        userId: z.number().int().nullable(),
+        serviceAccountId: z.number().int().nullable(),
         roles: z.array(z.string()),
         capabilities: z.array(z.string()),
         studentId: z.number().int().nullable()
@@ -18,7 +22,7 @@ const entity = z
         "x-pomi-schema": {
             kind: "entity",
             publicName: "CurrentUser",
-            identityFields: ["id"]
+            identityFields: ["principalId"]
         }
     });
 
