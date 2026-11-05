@@ -51,7 +51,7 @@ const programPlanningGuideDetailsSchema = z
     .object({
         catalogProgramId: z.number().int(),
         catalogProgramVariantId: z.number().int(),
-        languageId: z.number().int()
+        languageId: z.number().int().nullable()
     })
     .openapi("ProgramPlanningGuideDetails", {
         "x-pomi-schema": {
@@ -177,7 +177,7 @@ const programPlanningGuideInputDetailsSchema = z
     .object({
         catalogProgramId: z.number().int(),
         catalogProgramVariantId: z.number().int(),
-        languageId: z.number().int()
+        languageId: z.number().int().nullable()
     })
     .strict()
     .openapi("ProgramPlanningGuideInputDetails", {

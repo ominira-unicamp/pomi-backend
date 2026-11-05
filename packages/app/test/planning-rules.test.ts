@@ -13,6 +13,10 @@ import {
     validateCurriculumSelection
 } from "#/modules/planning/curriculum/Curriculum.rules.js";
 import {
+    guideInputSchema,
+    guideSchema
+} from "#/modules/planning/period-plan/PeriodPlan.contract.js";
+import {
     resolvePeriodPlanClasses,
     validatePeriodPlanClasses,
     validateProgramGuide,
@@ -28,6 +32,34 @@ import {
 import { planStudentHistoryImport } from "#/modules/planning/student-history-import/StudentHistoryImport.rules.js";
 import assert from "node:assert/strict";
 import test from "node:test";
+
+test("program guide accepts a program without an additional language", () => {
+    const program = {
+        catalogProgramId: 42,
+        catalogProgramVariantId: 7,
+        languageId: null
+    };
+    assert.equal(
+        guideInputSchema.safeParse({
+            mode: "PROGRAM",
+            manualCourseIds: [],
+            program
+        }).success,
+        true
+    );
+    assert.equal(
+        guideSchema.safeParse({ mode: "PROGRAM", manualCourseIds: [], program })
+            .success,
+        true
+    );
+    assert.ok(
+        validateProgramGuide({
+            program: true,
+            variant: true,
+            language: true
+        }).isOk()
+    );
+});
 
 test("curriculum period changes accept swaps and reject final collisions", () => {
     const periods = [

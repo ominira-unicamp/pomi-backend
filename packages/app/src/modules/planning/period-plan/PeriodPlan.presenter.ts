@@ -41,8 +41,7 @@ function buildPlanningGuide(
             periodPlanning.curriculum !== null ||
             periodPlanning.curriculumSuggestion !== null ||
             program === null ||
-            variant === null ||
-            language === null
+            variant === null
         )
             return invalid("invalid_program_variant");
         return {
@@ -51,7 +50,7 @@ function buildPlanningGuide(
             program: {
                 catalogProgramId: program.id,
                 catalogProgramVariantId: variant.id,
-                languageId: language.id
+                languageId: language?.id ?? null
             }
         };
     }
