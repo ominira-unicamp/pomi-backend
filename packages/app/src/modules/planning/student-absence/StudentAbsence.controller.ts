@@ -20,7 +20,7 @@ const list: Actions["list"] = async (ctx, input) =>
     ApiResponse.ok(
         buildArrayPaginationResponse(
             await ctx.studentAbsenceService.list(
-                await ctx.resolveUserContext(input.path.userId, true),
+                await ctx.resolveUserContext(input.path.userId),
                 input.query,
                 input.path.attemptId
             ),
@@ -33,7 +33,7 @@ const list: Actions["list"] = async (ctx, input) =>
 const create: Actions["create"] = async (ctx, input) =>
     respond(
         await ctx.studentAbsenceService.create(
-            await ctx.resolveUserContext(input.path.userId, true),
+            await ctx.resolveUserContext(input.path.userId),
             { ...input.body, courseAttemptId: input.path.attemptId }
         ),
         ApiResponse.created,
@@ -43,7 +43,7 @@ const create: Actions["create"] = async (ctx, input) =>
 const remove: Actions["remove"] = async (ctx, input) =>
     respond(
         await ctx.studentAbsenceService.remove(
-            await ctx.resolveUserContext(input.path.userId, true),
+            await ctx.resolveUserContext(input.path.userId),
             input.path.id,
             input.path.attemptId
         ),

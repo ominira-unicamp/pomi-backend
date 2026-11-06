@@ -81,6 +81,8 @@ test(
         const userIds: number[] = [];
         let groupId: number | undefined;
         let courseId: number | undefined;
+        let catalogId: number | undefined;
+        let roomId: number | undefined;
         let periodId: number | undefined;
         let classId: number | undefined;
         let professorId: number | undefined;
@@ -358,6 +360,123 @@ test(
             );
             const noAcademic = await account("no-academic", null, null);
             const noAcademicJwt = await token("no-academic");
+            const catalog = await prisma.catalog.create({
+                data: { year: period.year }
+            });
+            catalogId = catalog.id;
+            await prisma.catalogCourse.create({
+                data: {
+                    catalogId,
+                    courseId: course.id,
+                    name: course.name,
+                    evaluation: "GRADE_AND_ATTENDANCE"
+                }
+            });
+            const room = await prisma.room.create({
+                data: { code: `Room-${tag}` }
+            });
+            roomId = room.id;
+            const schedule = await prisma.classSchedule.create({
+                data: {
+                    classId: classData.id,
+                    roomId,
+                    dayOfWeek: "THURSDAY",
+                    start: "08:00",
+                    end: "10:00"
+                }
+            });
+            const attemptsPath = `/users/${noAcademic.user!.id}/student/course-attempts`;
+            const createdAttempt = await request(attemptsPath, noAcademicJwt, {
+                method: "POST",
+                body: JSON.stringify({ courseId, classId, status: "ENROLLED" })
+            });
+            assert.equal(createdAttempt.status, 201);
+            const attempt = jsonObject(await createdAttempt.json());
+            const absencePath = `${attemptsPath}/${attempt.id}/absences`;
+            const createdAbsence = await request(absencePath, noAcademicJwt, {
+                method: "POST",
+                body: JSON.stringify({
+                    classScheduleId: schedule.id,
+                    date: "2026-08-20"
+                })
+            });
+            assert.equal(createdAbsence.status, 201);
+            const absence = jsonObject(await createdAbsence.json());
+            assert.equal(
+                (await request(absencePath, noAcademicJwt)).status,
+                200
+            );
+            assert.equal(
+                (
+                    await request(
+                        `/users/${owner.user!.id}/student/course-attempts/${attempt.id}/absences`,
+                        adminJwt
+                    )
+                ).status,
+                404
+            );
+            assert.equal((await request(absencePath, otherJwt)).status, 403);
+            const importedHistory = await request(
+                `/users/${noAcademic.user!.id}/student/course-history`,
+                noAcademicJwt,
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        format: "pomi-student-history",
+                        version: 1,
+                        student: { ra: "123456" },
+                        semesters: [
+                            {
+                                year: period.year,
+                                yearPeriod: period.yearPeriod,
+                                courses: [
+                                    {
+                                        code: course.code,
+                                        name: course.name,
+                                        classCode: "A",
+                                        grade: null,
+                                        workloadHours: 60,
+                                        credits: 4,
+                                        status: "ENROLLED"
+                                    }
+                                ]
+                            }
+                        ]
+                    })
+                }
+            );
+            assert.equal(importedHistory.status, 200);
+            assert.equal(jsonObject(await importedHistory.json()).updated, 1);
+            assert.equal(
+                (
+                    await prisma.user.findUniqueOrThrow({
+                        where: { id: noAcademic.user!.id }
+                    })
+                ).studentId,
+                null
+            );
+            assert.equal(
+                (
+                    await request(
+                        `${absencePath}/${absence.id}`,
+                        noAcademicJwt,
+                        { method: "DELETE" }
+                    )
+                ).status,
+                204
+            );
+            const ownerAttempt =
+                await prisma.studentCourseAttempt.findFirstOrThrow({
+                    where: { userId: owner.user!.id }
+                });
+            const preservedAbsence = await prisma.studentAbsence.create({
+                data: {
+                    studentCourseAttemptId: ownerAttempt.id,
+                    classScheduleId: schedule.id,
+                    date: new Date("2026-08-20T00:00:00Z")
+                }
+            });
+
             assert.equal(
                 (await request(`/users/${noAcademic.user!.id}`, noAcademicJwt))
                     .status,
@@ -388,7 +507,7 @@ test(
                         noAcademicJwt
                     )
                 ).status,
-                404
+                200
             );
             assert.equal(
                 (
@@ -643,11 +762,25 @@ test(
             );
             assert.equal(preserved.legacyStudentId, studentIds[0]);
             assert.equal(preserved.publicBio, "Preserved profile");
+            assert.ok(
+                await prisma.studentAbsence.findUnique({
+                    where: { id: preservedAbsence.id }
+                })
+            );
+            assert.equal(
+                (
+                    await request(
+                        `/users/${owner.user!.id}/student/course-attempts/${ownerAttempt.id}/absences`,
+                        ownerJwt
+                    )
+                ).status,
+                200
+            );
             assert.equal(
                 await prisma.studentCourseAttempt.count({
                     where: { userId: preserved.id }
                 }),
-                0
+                1
             );
             assert.ok(
                 await prisma.curriculum.findUnique({
@@ -716,6 +849,13 @@ test(
             await prisma.student.deleteMany({
                 where: { id: { in: studentIds } }
             });
+            if (classId)
+                await prisma.classSchedule.deleteMany({ where: { classId } });
+            if (roomId) await prisma.room.delete({ where: { id: roomId } });
+            if (catalogId) {
+                await prisma.catalogCourse.deleteMany({ where: { catalogId } });
+                await prisma.catalog.delete({ where: { id: catalogId } });
+            }
             if (classId) await prisma.class.delete({ where: { id: classId } });
             if (professorId)
                 await prisma.professor.delete({ where: { id: professorId } });

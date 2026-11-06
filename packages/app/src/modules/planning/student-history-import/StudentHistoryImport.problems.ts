@@ -26,21 +26,21 @@ export const InvalidStudentHistoryImportProblem = defineProblem({
     }
 });
 
-export function studentHistoryStudentNotFoundProblem() {
+export function studentHistoryUserNotFoundProblem() {
     return ResourceNotFoundProblem.create({
-        detail: "O aluno solicitado não foi encontrado."
+        detail: "O usuário solicitado não foi encontrado."
     });
 }
 
 export function invalidStudentHistoryImportProblem(fields: ProblemField[]) {
     return InvalidStudentHistoryImportProblem.create({
-        detail: "O histórico escolar não pôde ser associado ao aluno.",
+        detail: "O histórico escolar não pôde ser associado ao usuário.",
         fields
     });
 }
 
 export type StudentHistoryImportProblem =
-    | ReturnType<typeof studentHistoryStudentNotFoundProblem>
+    | ReturnType<typeof studentHistoryUserNotFoundProblem>
     | ReturnType<typeof invalidStudentHistoryImportProblem>;
 
 export const studentHistoryImportProblemResponses = {
@@ -53,13 +53,14 @@ export const studentHistoryImportProblemResponses = {
 export function toStudentHistoryImportProblem(
     failure: ImportStudentHistoryFailure
 ): StudentHistoryImportProblem {
-    if (failure.kind === "student-not-found")
-        return studentHistoryStudentNotFoundProblem();
+    if (failure.kind === "user-not-found")
+        return studentHistoryUserNotFoundProblem();
     return invalidStudentHistoryImportProblem([
         {
             code: "INVALID_VALUE",
             path: ["student", "ra"],
-            message: "O RA do documento não corresponde ao aluno autenticado."
+            message:
+                "O RA do documento não corresponde ao vínculo acadêmico do usuário solicitado."
         }
     ]);
 }

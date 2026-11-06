@@ -2,22 +2,12 @@ import { NotFoundError } from "@pomi/api-core";
 import type { DatabaseClient } from "@pomi/db";
 
 export type UserContext = {
-    resolveUserContext(userId: number, academic?: boolean): Promise<number>;
+    resolveUserContext(userId: number): Promise<number>;
 };
 
 export function createUserResolver(prisma: Pick<DatabaseClient, "user">) {
     const resolved = new Map<number, Promise<number>>();
-    return async (userId: number, academic = false) => {
-        if (academic) {
-            const owner = await prisma.user.findUnique({
-                where: { id: userId },
-                select: { studentId: true }
-            });
-            if (owner?.studentId == null)
-                throw new NotFoundError(
-                    "O usuário não possui vínculo acadêmico."
-                );
-        }
+    return async (userId: number) => {
         let value = resolved.get(userId);
         if (!value) {
             value = prisma.user

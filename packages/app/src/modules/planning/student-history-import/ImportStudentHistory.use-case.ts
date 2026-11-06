@@ -5,7 +5,7 @@ import type { ImportStudentHistoryInput } from "./StudentHistoryImport.schemas.j
 export type { ImportStudentHistoryInput } from "./StudentHistoryImport.schemas.js";
 
 export type ImportStudentHistoryFailure =
-    | { kind: "student-not-found" }
+    | { kind: "user-not-found" }
     | { kind: "ra-mismatch" };
 
 export async function importStudentHistory(
@@ -16,11 +16,11 @@ export async function importStudentHistory(
         where: { id: userId },
         select: { student: { select: { ra: true } } }
     });
-    if (!user?.student)
+    if (!user)
         return err<never, ImportStudentHistoryFailure>({
-            kind: "student-not-found"
+            kind: "user-not-found"
         });
-    if (user.student.ra !== input.student.ra)
+    if (user.student && user.student.ra !== input.student.ra)
         return err<never, ImportStudentHistoryFailure>({ kind: "ra-mismatch" });
 
     const periodKeys = input.semesters.map((item) => ({

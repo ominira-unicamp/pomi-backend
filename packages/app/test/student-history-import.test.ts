@@ -37,7 +37,7 @@ test("accepts enrolled courses in a student history import", () => {
     );
 });
 
-test("imports an enrolled course attempt", async () => {
+test("imports an enrolled course attempt without a Student", async () => {
     let createdData: unknown;
     const transaction = {
         studentCourseAttempt: {
@@ -50,7 +50,7 @@ test("imports an enrolled course attempt", async () => {
     const service = createStudentHistoryImportService({
         prisma: {
             user: {
-                findUnique: async () => ({ student: { ra: "123456" } })
+                findUnique: async () => ({ student: null })
             },
             studyPeriod: {
                 findMany: async () => [
@@ -108,12 +108,16 @@ test("imports an enrolled course attempt", async () => {
 test("history failures remain local and translate to the existing public problems", async () => {
     const { toStudentHistoryImportProblem } =
         await import("#/modules/planning/student-history-import/StudentHistoryImport.problems.js");
-    for (const [student, kind, type] of [
-        [null, "student-not-found", "resource-not-found"],
-        [{ ra: "654321" }, "ra-mismatch", "invalid-student-history-import"]
+    for (const [user, kind, type] of [
+        [null, "user-not-found", "resource-not-found"],
+        [
+            { student: { ra: "654321" } },
+            "ra-mismatch",
+            "invalid-student-history-import"
+        ]
     ] as const) {
         const service = createStudentHistoryImportService({
-            prisma: { user: { findUnique: async () => ({ student }) } } as never
+            prisma: { user: { findUnique: async () => user } } as never
         });
         const failure = (
             await service.import(1, enrolledHistory)
@@ -127,7 +131,7 @@ test("history failures remain local and translate to the existing public problem
                     code: "INVALID_VALUE",
                     path: ["student", "ra"],
                     message:
-                        "O RA do documento não corresponde ao aluno autenticado."
+                        "O RA do documento não corresponde ao vínculo acadêmico do usuário solicitado."
                 }
             ]);
     }

@@ -201,6 +201,21 @@ test(
                 )._unsafeUnwrapErr(),
                 { kind: "ra-mismatch" }
             );
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { studentId: null }
+            });
+            const withoutStudent = (
+                await importStudentHistory(
+                    { prisma },
+                    {
+                        userId: user.id,
+                        input: { ...input, student: { ra: "123456" } }
+                    }
+                )
+            )._unsafeUnwrap();
+            assert.equal(withoutStudent.updated, 2);
+            assert.equal(withoutStudent.created, 0);
         } finally {
             await prisma.studentCourseAttempt.deleteMany({
                 where: { userId: user.id }

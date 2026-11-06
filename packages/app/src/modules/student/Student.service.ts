@@ -374,13 +374,6 @@ export function createStudentService({
                     ])
                 );
             await prisma.$transaction(async (tx) => {
-                const owner = await tx.user.findUniqueOrThrow({
-                    where: { studentId: id },
-                    select: { id: true }
-                });
-                await tx.studentCourseAttempt.deleteMany({
-                    where: { userId: owner.id }
-                });
                 await tx.authIdentity.updateMany({
                     where: { legacyStudentId: id },
                     data: { legacyStudentId: null }

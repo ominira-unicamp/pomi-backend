@@ -20,7 +20,7 @@ const importHistory: Actions["importHistory"] = async (ctx, input) =>
     respond(
         (
             await ctx.studentHistoryImportService.import(
-                await ctx.resolveUserContext(input.path.userId, true),
+                await ctx.resolveUserContext(input.path.userId),
                 input.body
             )
         ).mapErr(toStudentHistoryImportProblem),

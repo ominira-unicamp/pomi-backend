@@ -125,6 +125,7 @@ test("canonical user HTTP keeps its target and effects for authorized human, adm
                 return project(target, select);
             }
         },
+        studentCourseAttempt: { findMany: async () => [] },
         botGrant: {
             findFirst: async ({
                 where
@@ -226,7 +227,7 @@ test("canonical user HTTP keeps its target and effects for authorized human, adm
         );
         assert.equal(
             (await call("owner", "/users/117/student/course-attempts")).status,
-            404
+            200
         );
         const me = (await (await call("owner", "/me")).json()) as Record<
             string,
