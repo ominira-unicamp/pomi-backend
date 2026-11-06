@@ -26,7 +26,7 @@ const list: Actions["list"] = async (ctx, input) =>
             ),
             input.query,
             unpaginatedByDefault,
-            `/users/${input.path.userId}/student/course-attempts/${input.path.attemptId}/absences`
+            `/users/${input.path.userId}/course-attempts/${input.path.attemptId}/absences`
         )
     );
 
@@ -62,8 +62,8 @@ export default {
     authRegistry,
     paths: {
         entity: (userId: number, courseAttemptId: number, id: number) =>
-            `/users/${userId}/student/course-attempts/${courseAttemptId}/absences/${id}`,
+            `/users/${userId}/course-attempts/${courseAttemptId}/absences/${id}`,
         list: (userId: number, courseAttemptId: number) =>
-            `/users/${userId}/student/course-attempts/${courseAttemptId}/absences`
+            `/users/${userId}/course-attempts/${courseAttemptId}/absences`
     }
 };

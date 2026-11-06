@@ -25,7 +25,6 @@ extendZodWithOpenApi(z);
 const basePath = [
     pathSeg.literal("users"),
     pathSeg.param("userId"),
-    pathSeg.literal("student"),
     pathSeg.literal("course-attempts"),
     pathSeg.param("attemptId"),
     pathSeg.literal("absences")

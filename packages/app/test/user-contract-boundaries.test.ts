@@ -10,12 +10,13 @@ test("all canonical person routes declare an explicit user path and retired alia
     assert.ok(paths["/users/{userId}"]);
     assert.ok(paths["/users/{userId}/profile"]);
     assert.ok(paths["/users/{userId}/student"]);
-    assert.ok(
-        paths["/users/{userId}/student/course-attempts/{attemptId}/absences"]
-    );
+    assert.ok(paths["/users/{userId}/course-attempts"]);
+    assert.ok(paths["/users/{userId}/course-history"]);
+    assert.ok(paths["/users/{userId}/course-attempts/{attemptId}/absences"]);
     assert.ok(paths["/admin/auth-identities"]);
     for (const [path, item] of Object.entries(paths)) {
         assert.equal(path.startsWith("/student/"), false, path);
+        assert.equal(path.startsWith("/users/{userId}/student/"), false, path);
         assert.equal(path.startsWith("/students"), false, path);
         assert.equal(path.startsWith("/me/"), false, path);
         assert.equal(path.startsWith("/admin/auth-users"), false, path);

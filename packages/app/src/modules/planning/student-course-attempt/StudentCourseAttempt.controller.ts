@@ -25,7 +25,7 @@ const list: Actions["list"] = async (ctx, input) =>
             ),
             input.query,
             unpaginatedByDefault,
-            `/users/${input.path.userId}/student/course-attempts`
+            `/users/${input.path.userId}/course-attempts`
         )
     );
 
@@ -86,6 +86,6 @@ export default {
     authRegistry,
     paths: {
         entity: (userId: number, id: number) =>
-            `/users/${userId}/student/course-attempts/${id}`
+            `/users/${userId}/course-attempts/${id}`
     }
 };

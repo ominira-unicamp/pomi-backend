@@ -17,7 +17,6 @@ const specsBuilder = new SpecBuilder(
     [
         pathSeg.literal("users"),
         pathSeg.param("userId"),
-        pathSeg.literal("student"),
         pathSeg.literal("course-history")
     ],
     ["student-course-history"],

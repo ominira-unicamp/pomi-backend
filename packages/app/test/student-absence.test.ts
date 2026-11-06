@@ -7,7 +7,6 @@ test("declares student absence paths and filter", () => {
     assert.deepEqual(IO.list.meta.path, [
         { type: "literal", value: "users" },
         { type: "param", name: "userId" },
-        { type: "literal", value: "student" },
         { type: "literal", value: "course-attempts" },
         { type: "param", name: "attemptId" },
         { type: "literal", value: "absences" }

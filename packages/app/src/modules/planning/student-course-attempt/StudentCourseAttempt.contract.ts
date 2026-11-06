@@ -26,7 +26,6 @@ extendZodWithOpenApi(z);
 const basePath = [
     pathSeg.literal("users"),
     pathSeg.param("userId"),
-    pathSeg.literal("student"),
     pathSeg.literal("course-attempts")
 ];
 const tags = ["student-course-attempts"];

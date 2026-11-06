@@ -385,7 +385,27 @@ test(
                     end: "10:00"
                 }
             });
-            const attemptsPath = `/users/${noAcademic.user!.id}/student/course-attempts`;
+            const attemptsPath = `/users/${noAcademic.user!.id}/course-attempts`;
+            assert.equal(
+                (
+                    await request(
+                        `/users/${noAcademic.user!.id}/student/course-attempts`,
+                        noAcademicJwt
+                    )
+                ).status,
+                404
+            );
+            assert.equal(
+                (
+                    await request(
+                        `/users/${noAcademic.user!.id}/student/course-history`,
+                        noAcademicJwt,
+                        { method: "POST", body: "{}" }
+                    )
+                ).status,
+                404
+            );
+
             const createdAttempt = await request(attemptsPath, noAcademicJwt, {
                 method: "POST",
                 body: JSON.stringify({ courseId, classId, status: "ENROLLED" })
@@ -409,7 +429,7 @@ test(
             assert.equal(
                 (
                     await request(
-                        `/users/${owner.user!.id}/student/course-attempts/${attempt.id}/absences`,
+                        `/users/${owner.user!.id}/course-attempts/${attempt.id}/absences`,
                         adminJwt
                     )
                 ).status,
@@ -417,7 +437,7 @@ test(
             );
             assert.equal((await request(absencePath, otherJwt)).status, 403);
             const importedHistory = await request(
-                `/users/${noAcademic.user!.id}/student/course-history`,
+                `/users/${noAcademic.user!.id}/course-history`,
                 noAcademicJwt,
                 {
                     method: "POST",
@@ -503,7 +523,7 @@ test(
             assert.equal(
                 (
                     await request(
-                        `/users/${noAcademic.user!.id}/student/course-attempts`,
+                        `/users/${noAcademic.user!.id}/course-attempts`,
                         noAcademicJwt
                     )
                 ).status,
@@ -770,7 +790,7 @@ test(
             assert.equal(
                 (
                     await request(
-                        `/users/${owner.user!.id}/student/course-attempts/${ownerAttempt.id}/absences`,
+                        `/users/${owner.user!.id}/course-attempts/${ownerAttempt.id}/absences`,
                         ownerJwt
                     )
                 ).status,

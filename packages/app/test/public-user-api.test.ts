@@ -226,7 +226,7 @@ test("canonical user HTTP keeps its target and effects for authorized human, adm
             200
         );
         assert.equal(
-            (await call("owner", "/users/117/student/course-attempts")).status,
+            (await call("owner", "/users/117/course-attempts")).status,
             200
         );
         const me = (await (await call("owner", "/me")).json()) as Record<
