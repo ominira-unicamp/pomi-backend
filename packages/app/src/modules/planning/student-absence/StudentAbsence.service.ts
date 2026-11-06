@@ -11,14 +11,17 @@ import {
 } from "#/modules/planning/student-absence/StudentAbsence.problems.js";
 import { prismaStudentAbsenceSelection } from "#/modules/planning/student-absence/StudentAbsence.queries.js";
 import {
+    compileFilterWhere,
     compileSort,
     err,
     NotFoundError,
     ok,
+    prismaWhereFor,
     resolveSort,
+    type FilterWhereBuilder,
     type Result
 } from "@pomi/api-core";
-import type { PrismaClient } from "@pomi/db";
+import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 import { validateAbsenceFacts } from "./StudentAbsence.rules.js";
 
@@ -32,12 +35,16 @@ type CreateProblem = Exclude<
     ReturnType<typeof studentAbsenceNotFoundProblem>
 >;
 
+const absenceWhere = prismaWhereFor<MyPrisma.StudentAbsenceWhereInput>();
+const absenceFilterWhere = {
+    courseAttemptId: absenceWhere.numberAt("studentCourseAttemptId")
+} satisfies Record<
+    string,
+    FilterWhereBuilder<MyPrisma.StudentAbsenceWhereInput>
+>;
+
 export type StudentAbsenceService = {
-    list(
-        userId: number,
-        input: ListInput,
-        courseAttemptId: number
-    ): Promise<Absence[]>;
+    list(userId: number, input: ListInput): Promise<Absence[]>;
     create(
         userId: number,
         input: CreateInput
@@ -55,21 +62,16 @@ export function createStudentAbsenceService({
     prisma: PrismaClient;
 }): StudentAbsenceService {
     return {
-        async list(userId, input, courseAttemptId) {
-            if (
-                !(await prisma.studentCourseAttempt.findFirst({
-                    where: { id: courseAttemptId, userId },
-                    select: { id: true }
-                }))
-            )
-                throw new NotFoundError(
-                    "Registro acadêmico não encontrado para este usuário."
-                );
+        async list(userId, input) {
+            const filterWhere = compileFilterWhere(
+                input.filter,
+                absenceFilterWhere,
+                "student absences"
+            );
             const absences = await prisma.studentAbsence.findMany({
                 ...prismaStudentAbsenceSelection,
                 where: {
-                    studentCourseAttemptId: courseAttemptId,
-                    studentCourseAttempt: { userId }
+                    AND: [{ studentCourseAttempt: { userId } }, ...filterWhere]
                 },
                 orderBy: compileSort(
                     resolveSort(input.sort, studentAbsenceSort),

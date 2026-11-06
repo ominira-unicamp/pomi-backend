@@ -21,12 +21,11 @@ const list: Actions["list"] = async (ctx, input) =>
         buildArrayPaginationResponse(
             await ctx.studentAbsenceService.list(
                 await ctx.resolveUserContext(input.path.userId),
-                input.query,
-                input.path.attemptId
+                input.query
             ),
             input.query,
             unpaginatedByDefault,
-            `/users/${input.path.userId}/course-attempts/${input.path.attemptId}/absences`
+            `/users/${input.path.userId}/absences`
         )
     );
 
@@ -63,7 +62,6 @@ export default {
     paths: {
         entity: (userId: number, courseAttemptId: number, id: number) =>
             `/users/${userId}/course-attempts/${courseAttemptId}/absences/${id}`,
-        list: (userId: number, courseAttemptId: number) =>
-            `/users/${userId}/course-attempts/${courseAttemptId}/absences`
+        list: (userId: number) => `/users/${userId}/absences`
     }
 };

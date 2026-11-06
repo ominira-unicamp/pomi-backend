@@ -3,14 +3,21 @@ import { createStudentAbsenceService } from "#/modules/planning/student-absence/
 import assert from "node:assert/strict";
 import test from "node:test";
 
-test("declares student absence paths and filter", () => {
+test("declares user absence listing and attempt-scoped write paths", () => {
     assert.deepEqual(IO.list.meta.path, [
         { type: "literal", value: "users" },
         { type: "param", name: "userId" },
-        { type: "literal", value: "course-attempts" },
-        { type: "param", name: "attemptId" },
         { type: "literal", value: "absences" }
     ]);
+    assert.equal(
+        IO.list.request.safeParse({
+            path: { userId: "1" },
+            query: {
+                filter: { courseAttemptId: { in: ["2", "3"] } }
+            }
+        }).success,
+        true
+    );
     assert.equal(
         IO.create.request.safeParse({
             path: { userId: "1", attemptId: "2" },

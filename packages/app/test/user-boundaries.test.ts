@@ -57,24 +57,29 @@ test("unsubscribe proof authorizes the explicit path user and never selects anot
     assert.equal(changes, 2);
 });
 
-test("nested absences reject an attempt outside the explicit user before reading records", async () => {
+test("deleting an absence rejects an attempt outside the explicit user", async () => {
     const service = createStudentAbsenceService({
         prisma: {
-            studentCourseAttempt: {
+            studentAbsence: {
                 findFirst: async ({
                     where
                 }: {
-                    where: { id: number; userId: number };
+                    where: {
+                        id: number;
+                        studentCourseAttemptId: number;
+                        studentCourseAttempt: { userId: number };
+                    };
                 }) => {
-                    assert.deepEqual(where, { id: 41, userId: 117 });
+                    assert.deepEqual(where, {
+                        id: 17,
+                        studentCourseAttemptId: 41,
+                        studentCourseAttempt: { userId: 117 }
+                    });
                     return null;
                 }
-            },
-            studentAbsence: {
-                findMany: async () =>
-                    assert.fail("must not read foreign absences")
             }
         } as never
     });
-    await assert.rejects(service.list(117, {}, 41), /não encontrado/);
+    const result = await service.remove(117, 17, 41);
+    assert.equal(result.isErr(), true);
 });

@@ -6,10 +6,12 @@ import {
     createPaginationQuerySchema,
     DayOfWeekSchema,
     defineSort,
+    filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
     ReferenceNotFoundProblemSchema,
+    resourceFilterSchema,
     ResourceNotFoundProblemSchema,
     resourceSortSchema,
     SpecBuilder,
@@ -29,6 +31,11 @@ const basePath = [
     pathSeg.param("attemptId"),
     pathSeg.literal("absences")
 ];
+const userAbsencesPath = [
+    pathSeg.literal("users"),
+    pathSeg.param("userId"),
+    pathSeg.literal("absences")
+];
 const specsBuilder = new SpecBuilder(basePath, ["student-absences"], "id", {
     resource: "studentAbsences",
     operationName: "StudentAbsences",
@@ -38,6 +45,16 @@ const specsBuilder = new SpecBuilder(basePath, ["student-absences"], "id", {
         id: "studentAbsenceId"
     }
 });
+const userAbsencesSpecsBuilder = new SpecBuilder(
+    userAbsencesPath,
+    ["student-absences"],
+    "id",
+    {
+        resource: "studentAbsences",
+        operationName: "UserAbsences",
+        pathParameters: { userId: "userId" }
+    }
+);
 
 const dayOfWeekSchema = DayOfWeekSchema;
 
@@ -82,13 +99,22 @@ const absenceBody = z
         }
     });
 
-const studentPath = z.object({
-    userId: pathParam.integer(),
+const userPath = z.object({
+    userId: pathParam.integer()
+});
+const attemptPath = userPath.extend({
     attemptId: pathParam.positiveInteger()
 });
-const entityPath = studentPath.extend({
+const entityPath = attemptPath.extend({
     id: pathParam.integer()
 });
+
+const attemptFilter = resourceFilterSchema(
+    { courseAttemptId: filterDefinition.id({ positive: true }) },
+    "student absences",
+    "Filtre pelo ID da tentativa usando eq ou in.",
+    { courseAttemptId: 123 }
+);
 
 export type StudentAbsenceFilter = Filter;
 export const studentAbsenceSort = defineSort({
@@ -106,17 +132,18 @@ export const studentAbsenceSort = defineSort({
 
 const list = {
     meta: {
-        ...specsBuilder.list(),
+        ...userAbsencesSpecsBuilder.list(),
         authorization: policies.userAccess(
             "userId",
             StudentCapabilities.HISTORY_READ
         ),
-        queryFeatures: { sort: true },
+        queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
     },
     request: z.object({
-        path: studentPath,
+        path: userPath,
         query: createPaginationQuerySchema(unpaginatedByDefault, {
+            filter: attemptFilter.optional(),
             sort: resourceSortSchema(studentAbsenceSort).optional()
         })
             .strict()
@@ -145,7 +172,7 @@ const create = {
             StudentCapabilities.HISTORY_WRITE
         )
     },
-    request: z.object({ path: studentPath, body: absenceBody }),
+    request: z.object({ path: attemptPath, body: absenceBody }),
     response: new OutputBuilder()
         .created(absenceEntity, "Falta registrada com sucesso")
         .problem(
