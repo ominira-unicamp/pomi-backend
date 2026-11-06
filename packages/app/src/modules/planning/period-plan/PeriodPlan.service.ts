@@ -120,17 +120,19 @@ async function guideFields(
                 },
                 select: { id: true }
             }),
-            prisma.catalogLanguage.findFirst({
-                where: { languageId, catalogProgramId },
-                select: { languageId: true }
-            })
+            languageId === null
+                ? Promise.resolve(null)
+                : prisma.catalogLanguage.findFirst({
+                      where: { languageId, catalogProgramId },
+                      select: { languageId: true }
+                  })
         ]);
         fields.push(
             ...planningIssues(
                 validateProgramGuide({
                     program: !!program,
                     variant: !!variant,
-                    language: !!language
+                    language: languageId === null || !!language
                 })
             )
         );
@@ -215,7 +217,7 @@ function guideUpdateData(guide: GuideInput) {
                 ? { disconnect: true }
                 : { connect: { id: program.catalogProgramVariantId } },
         language:
-            program === null
+            program === null || program.languageId === null
                 ? { disconnect: true }
                 : { connect: { id: program.languageId } },
         manualCourses: {
