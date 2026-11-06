@@ -107,6 +107,50 @@ test(
                 }
             });
         try {
+            const newcomerToken = await new SignJWT({
+                azp: "pomi-frontend",
+                name: "New person",
+                email: "new@example.test"
+            })
+                .setProtectedHeader({ alg: "RS256", kid: jwk.kid })
+                .setSubject("new-person")
+                .setIssuer(issuer)
+                .setAudience("pomi-api")
+                .setIssuedAt()
+                .setExpirationTime("5m")
+                .sign(keys.privateKey);
+            const newcomerResponse = await request("/me", newcomerToken);
+            assert.equal(newcomerResponse.status, 200);
+            const newcomer = jsonObject(await newcomerResponse.json());
+            assert.equal(typeof newcomer.userId, "number");
+            assert.equal(typeof newcomer.principalId, "number");
+            principalIds.push(newcomer.principalId as number);
+            userIds.push(newcomer.userId as number);
+            assert.equal(newcomer.studentId, null);
+            assert.deepEqual(newcomer.roles, []);
+            const accountResponse = await request(
+                `/users/${newcomer.userId}`,
+                newcomerToken
+            );
+            assert.equal(accountResponse.status, 200);
+            assert.equal(
+                jsonObject(await accountResponse.json()).name,
+                "New person"
+            );
+            const repeated = jsonObject(
+                await (await request("/me", newcomerToken)).json()
+            );
+            assert.equal(repeated.authIdentityId, newcomer.authIdentityId);
+            assert.equal(
+                await prisma.authIdentity.count({
+                    where: { issuer, subject: "new-person" }
+                }),
+                1
+            );
+            assert.equal(
+                (await request("/admin/students", newcomerToken)).status,
+                403
+            );
             const baseId = randomInt(7000000, 8000000);
             const ra = String(randomInt(100000, 899998));
             for (const [index, name] of [

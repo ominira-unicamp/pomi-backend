@@ -387,7 +387,7 @@ test(
 );
 
 test(
-    "concurrent unknown logins do not create canonical or academic records",
+    "concurrent unknown human logins create one canonical user without claiming academic records",
     { skip: !databaseUrl },
     async () => {
         process.env.DISABLED_AUTH = "true";
@@ -400,20 +400,31 @@ test(
         const payload = {
             iss: issuer,
             sub: "new-person",
+            azp: "pomi-frontend",
             email: `s${ra}@dac.unicamp.br`,
             name: "Login fixture"
         };
         try {
-            const results = await Promise.allSettled([
+            const results = await Promise.all([
                 resolvePrincipal(payload, { prisma } as never),
                 resolvePrincipal(payload, { prisma } as never)
             ]);
-            assert.ok(results.every((result) => result.status === "rejected"));
+            assert.equal(results[0].userId, results[1].userId);
+            assert.equal(results[0].authIdentityId, results[1].authIdentityId);
+            assert.equal(results[0].studentId, null);
+            assert.equal(results[0].roles.size, 0);
+            assert.equal(results[0].capabilities.size, 0);
             assert.equal(
                 await prisma.authIdentity.count({ where: { issuer } }),
-                0
+                1
             );
             assert.equal(await prisma.student.count({ where: { ra } }), 0);
+            assert.equal(
+                await prisma.user.count({
+                    where: { principal: { identities: { some: { issuer } } } }
+                }),
+                1
+            );
         } finally {
             const identities = await prisma.authIdentity.findMany({
                 where: { issuer }
@@ -425,6 +436,99 @@ test(
             });
             await prisma.principal.deleteMany({ where: { id: { in: ids } } });
             await prisma.student.deleteMany({ where: { ra } });
+            await prisma.$disconnect();
+        }
+    }
+);
+
+test(
+    "automatic admission does not recover an existing academic user by matching email or RA",
+    { skip: !databaseUrl },
+    async () => {
+        process.env.DISABLED_AUTH = "true";
+        const { resolvePrincipal } = await import("#/auth.js");
+        const prisma = createDatabaseClient(
+            localIdentityDatabaseUrl(databaseUrl)
+        );
+        const issuer = `https://admission.invalid/${randomUUID()}`;
+        const email = "s990003@dac.unicamp.br";
+        let originalPrincipalId: number | undefined;
+        let studentId: number | undefined;
+        try {
+            const student = await prisma.student.create({
+                data: { ra: "990003", name: "Academic fixture" }
+            });
+            studentId = student.id;
+            const original = await prisma.principal.create({
+                data: {
+                    kind: "HUMAN",
+                    user: {
+                        create: {
+                            name: "Existing person",
+                            studentId,
+                            emails: { create: { email } }
+                        }
+                    }
+                },
+                include: { user: true }
+            });
+            originalPrincipalId = original.id;
+            const payload = {
+                iss: issuer,
+                sub: "new-credential",
+                azp: "pomi-frontend",
+                email,
+                email_verified: true
+            };
+            const admitted = await resolvePrincipal(payload, {
+                prisma
+            } as never);
+            assert.notEqual(admitted.userId, original.user!.id);
+            assert.notEqual(admitted.principalId, original.id);
+            assert.equal(admitted.studentId, null);
+            assert.equal(
+                await prisma.authIdentity.count({
+                    where: { principalId: original.id }
+                }),
+                0
+            );
+            assert.equal(
+                (
+                    await prisma.user.findUniqueOrThrow({
+                        where: { id: original.user!.id }
+                    })
+                ).studentId,
+                student.id
+            );
+            const contact = await prisma.userEmail.findUniqueOrThrow({
+                where: { userId_email: { userId: admitted.userId!, email } }
+            });
+            assert.equal(contact.verifiedAt, null);
+            await prisma.principal.update({
+                where: { id: admitted.principalId },
+                data: { status: "DISABLED" }
+            });
+            await assert.rejects(
+                resolvePrincipal(payload, { prisma } as never),
+                /Forbidden/
+            );
+            assert.equal(
+                await prisma.authIdentity.count({ where: { issuer } }),
+                1
+            );
+        } finally {
+            const identities = await prisma.authIdentity.findMany({
+                where: { issuer }
+            });
+            const ids = identities.map(({ principalId }) => principalId);
+            if (originalPrincipalId) ids.push(originalPrincipalId);
+            await prisma.authIdentity.deleteMany({ where: { issuer } });
+            await prisma.user.deleteMany({
+                where: { principalId: { in: ids } }
+            });
+            await prisma.principal.deleteMany({ where: { id: { in: ids } } });
+            if (studentId)
+                await prisma.student.delete({ where: { id: studentId } });
             await prisma.$disconnect();
         }
     }

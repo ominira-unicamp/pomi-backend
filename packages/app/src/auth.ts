@@ -8,11 +8,17 @@ import {
     sendProblem,
     unauthenticatedProblem
 } from "@pomi/api-core";
-import { canonicalIdentity, canonicalIdentityInclude } from "@pomi/db";
+import {
+    canonicalIdentity,
+    canonicalIdentityInclude,
+    createCanonicalIdentity,
+    runIdentityTransaction
+} from "@pomi/db";
 import { asValue } from "awilix";
 import { NextFunction, Request, Response } from "express";
 import * as jose from "jose";
 import { match } from "path-to-regexp";
+import z from "zod";
 export type { Principal } from "#/Principal.js";
 
 import {
@@ -30,6 +36,12 @@ const disabled = process.env.DISABLED_AUTH === "true";
 const isProduction = process.env.NODE_ENV === "production";
 const issuer = process.env.KEYCLOAK_ISSUER?.replace(/\/$/, "");
 const audience = process.env.KEYCLOAK_AUDIENCE;
+const humanClients = new Set(
+    (process.env.KEYCLOAK_HUMAN_CLIENT_IDS ?? "pomi-frontend,pomi-token-cli")
+        .split(",")
+        .map((client) => client.trim())
+        .filter(Boolean)
+);
 
 if (isProduction && disabled) {
     throw new Error("DISABLED_AUTH cannot be enabled in production.");
@@ -48,6 +60,7 @@ const keySet = issuer
     : undefined;
 
 type TokenPayload = jose.JWTPayload & {
+    azp?: string;
     email?: string;
     email_verified?: boolean;
     name?: string;
@@ -77,7 +90,7 @@ export async function resolvePrincipal(payload: TokenPayload, req: Request) {
     const subject = payload.sub;
     if (!tokenIssuer || !subject) throw new ForbiddenError();
 
-    const identity = await req.prisma.authIdentity.findUnique({
+    let identity = await req.prisma.authIdentity.findUnique({
         where: { issuer_subject: { issuer: tokenIssuer, subject } },
         include: {
             ...canonicalIdentityInclude,
@@ -86,7 +99,43 @@ export async function resolvePrincipal(payload: TokenPayload, req: Request) {
         }
     });
 
-    if (!identity || identity.status !== "ACTIVE") throw new ForbiddenError();
+    if (!identity) {
+        if (!payload.azp || !humanClients.has(payload.azp))
+            throw new ForbiddenError();
+        const emailInput =
+            typeof payload.email === "string"
+                ? payload.email.trim().toLowerCase()
+                : undefined;
+        const email = z.email().max(320).safeParse(emailInput);
+        const displayName =
+            [payload.name, payload.preferred_username]
+                .find((value) => typeof value === "string" && value.trim())
+                ?.trim() || null;
+        identity = await runIdentityTransaction(req.prisma, async (tx) => {
+            const existing = await tx.authIdentity.findUnique({
+                where: { issuer_subject: { issuer: tokenIssuer, subject } },
+                include: {
+                    ...canonicalIdentityInclude,
+                    roles: true,
+                    capabilities: true
+                }
+            });
+            if (existing) return existing;
+            return createCanonicalIdentity(
+                tx,
+                {
+                    issuer: tokenIssuer,
+                    subject,
+                    displayName,
+                    email: email.success ? email.data : null,
+                    roles: []
+                },
+                "HUMAN"
+            );
+        });
+    }
+
+    if (identity.status !== "ACTIVE") throw new ForbiddenError();
     const resolved = canonicalIdentity(identity);
     if (resolved.principal.status !== "ACTIVE") throw new ForbiddenError();
 

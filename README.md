@@ -63,6 +63,16 @@ Com autenticação habilitada, configure `KEYCLOAK_ISSUER` e
 `KEYCLOAK_AUDIENCE=pomi-api`. `DISABLED_AUTH=true` é aceito somente fora de
 produção.
 
+A primeira requisição autenticada de uma credencial humana desconhecida admite
+automaticamente Principal, User e AuthIdentity, sem criar Student. Os clientes
+humanos elegíveis são definidos por `KEYCLOAK_HUMAN_CLIENT_IDS` (lista separada
+por vírgulas, padrão `pomi-frontend,pomi-token-cli`), comparada ao claim assinado
+`azp`. Inclua somente clientes sem emissão de credenciais de serviço. Nome e
+contato inicial vêm do token, sem associação por e-mail nem atualização automática
+posterior. E-mail válido é normalizado e cadastrado como contato não verificado.
+Uma lista vazia desabilita novas admissões; contas já cadastradas continuam
+sujeitas aos bloqueios e permissões existentes.
+
 ## Executando o Projeto
 
 Para iniciar o ambiente de desenvolvimento em um ambiente com docker:

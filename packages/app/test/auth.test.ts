@@ -226,7 +226,7 @@ test("authentication takes the academic link from User and leaves token metadata
     assert.equal(record.displayName, "Samuel Rodrigues Ferreira");
 });
 
-test("unknown credentials are rejected without a write or academic claim", async () => {
+test("unknown credentials without an approved human client are rejected without writes", async () => {
     await assert.rejects(
         resolvePrincipal(
             { iss: issuer, sub: "unknown", email: "s195440@dac.unicamp.br" },
@@ -315,4 +315,184 @@ test("exposes canonical identity identifiers in current-user", async () => {
         capabilities: [...principal.capabilities],
         studentId: principal.studentId
     });
+});
+
+function admissionRequest() {
+    const creations: Array<{
+        issuer: string;
+        subject: string;
+        email: string | null;
+        displayName: string | null;
+        roles: { create: unknown[] };
+        principal: {
+            create: {
+                kind: string;
+                user: {
+                    create: {
+                        studentId: null;
+                        name: string | null;
+                        emails?: { create: { email: string } };
+                    };
+                };
+            };
+        };
+    }> = [];
+    let record: ReturnType<typeof credentialFixture> | null = null;
+    const tx = {
+        authIdentity: {
+            findUnique: async () => record,
+            create: async ({ data }: { data: (typeof creations)[number] }) => {
+                creations.push(data);
+                record = credentialFixture({
+                    issuer: data.issuer,
+                    subject: data.subject,
+                    email: data.email,
+                    displayName: data.displayName,
+                    roles: [],
+                    capabilities: []
+                });
+                return record;
+            }
+        }
+    };
+    return {
+        creations,
+        request: requestWithPrisma({
+            ...tx,
+            $transaction: async (
+                work: (client: typeof tx) => Promise<unknown>
+            ) => work(tx)
+        })
+    };
+}
+
+test("automatically admits an external human once without academic privileges or token synchronization", async () => {
+    const { request, creations } = admissionRequest();
+    const payload = {
+        iss: issuer,
+        sub: "new-person",
+        azp: "pomi-frontend",
+        email: " Person@Example.test ",
+        name: " Person "
+    };
+    const first = await resolvePrincipal(payload, request);
+    const again = await resolvePrincipal(
+        { ...payload, name: "Changed", email: "other@example.test" },
+        request
+    );
+    assert.equal(first.userId, again.userId);
+    assert.equal(first.studentId, null);
+    assert.equal(first.serviceAccountId, null);
+    assert.deepEqual([...first.roles], []);
+    assert.deepEqual([...first.capabilities], []);
+    assert.equal(creations.length, 1);
+    const data = creations[0]!;
+    assert.equal(data.principal.create.kind, "HUMAN");
+    assert.equal(data.principal.create.user.create.studentId, null);
+    assert.equal(data.principal.create.user.create.name, "Person");
+    assert.deepEqual(data.principal.create.user.create.emails, {
+        create: { email: "person@example.test" }
+    });
+    assert.equal(again.email, "person@example.test");
+});
+
+test("admits a human without email or name and ignores invalid contact claims", async () => {
+    for (const email of [undefined, "invalid", 123]) {
+        const { request, creations } = admissionRequest();
+        await resolvePrincipal(
+            { iss: issuer, sub: "new", azp: "pomi-token-cli", email } as never,
+            request
+        );
+        assert.equal(creations[0]!.email, null);
+        assert.equal(
+            creations[0]!.principal.create.user.create.emails,
+            undefined
+        );
+        assert.equal(creations[0]!.principal.create.user.create.name, null);
+    }
+});
+
+test("does not admit unknown service clients or accept token roles as privileges", async () => {
+    for (const azp of [undefined, "automation-client", "pomi-api"]) {
+        await assert.rejects(
+            resolvePrincipal(
+                { iss: issuer, sub: "service", azp },
+                requestWithPrisma({
+                    authIdentity: { findUnique: async () => null }
+                })
+            ),
+            /Forbidden/
+        );
+    }
+    const { request, creations } = admissionRequest();
+    await resolvePrincipal(
+        {
+            iss: issuer,
+            sub: "human",
+            azp: "pomi-frontend",
+            realm_access: { roles: ["ADMIN", "BOT"] }
+        },
+        request
+    );
+    assert.deepEqual(creations[0]!.roles, { create: [] });
+});
+
+test("checks a concurrently discovered disabled credential instead of creating or reactivating it", async () => {
+    await assert.rejects(
+        resolvePrincipal(
+            { iss: issuer, sub: "blocked", azp: "pomi-frontend" },
+            requestWithPrisma({
+                authIdentity: { findUnique: async () => null },
+                $transaction: async (
+                    work: (client: object) => Promise<unknown>
+                ) =>
+                    work({
+                        authIdentity: {
+                            findUnique: async () =>
+                                credentialFixture({ status: "DISABLED" })
+                        }
+                    })
+            })
+        ),
+        /Forbidden/
+    );
+});
+
+test("a first signed HTTP request admits a human before authorization, including a denied operation", async () => {
+    const { AuthRegistry, policies } = await import("#/auth.js");
+    const registry = new AuthRegistry();
+    registry.addPolicy("GET", "/me", policies.authenticated);
+    registry.addPolicy("GET", "/admin/students", policies.admin);
+    for (const path of ["/me", "/admin/students"]) {
+        const { request, creations } = admissionRequest();
+        Object.assign(request, {
+            method: "GET",
+            path,
+            headers: {
+                authorization: `Bearer ${await signToken({ azp: "pomi-frontend" })}`
+            },
+            scope: { register: () => undefined }
+        });
+        let nextCount = 0;
+        let status: number | undefined;
+        const response = {
+            status(value: number) {
+                status = value;
+                return this;
+            },
+            type() {
+                return this;
+            },
+            json() {
+                return this;
+            }
+        } as unknown as Response;
+        await registry.middleware()(request, response, () => {
+            nextCount++;
+        });
+        assert.equal(creations.length, 1);
+        assert.equal(request.principal?.studentId, null);
+        assert.equal(nextCount, path === "/me" ? 1 : 0);
+        assert.equal(status, path === "/me" ? undefined : 403);
+    }
 });
