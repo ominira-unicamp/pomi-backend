@@ -155,9 +155,46 @@ test("groups keep public reads separate from student-scoped management", () => {
     assert.ok(managedInvitation.properties?.recipientPublicId);
     assert.ok(document.paths["/groups"]?.get);
     assert.ok(document.paths["/users/{userId}/groups"]?.post);
-    assert.ok(document.paths["/users/{userId}/groups/{id}"]?.patch);
+    assert.ok(document.paths["/users/{userId}/groups/{groupId}"]?.patch);
     assert.ok(document.paths["/users/{userId}/group-memberships"]?.get);
-    assert.ok(document.paths["/users/{userId}/managed-group-invitations"]?.get);
+    assert.ok(
+        document.paths["/users/{userId}/groups/{groupId}/invitations"]?.get
+    );
+    assert.ok(
+        document.paths["/users/{userId}/groups/{groupId}/memberships"]?.get
+    );
+    assert.ok(document.paths["/users/{userId}/groups/{groupId}/events"]?.get);
+    assert.ok(document.paths["/users/{userId}/groups/{groupId}/roles"]?.get);
+    assert.ok(
+        document.paths[
+            "/users/{userId}/groups/{groupId}/memberships/{membershipId}"
+        ]?.patch
+    );
+    assert.ok(
+        document.paths["/users/{userId}/groups/{groupId}/roles/{roleId}"]?.patch
+    );
+    assert.ok(
+        document.paths["/users/{userId}/groups/{groupId}/events/{eventId}"]
+            ?.patch
+    );
+    assert.equal(
+        document.paths["/users/{userId}/managed-group-invitations"],
+        undefined
+    );
+    assert.equal(document.paths["/users/{userId}/group-roles"], undefined);
+    assert.equal(
+        document.paths["/users/{userId}/managed-group-events"],
+        undefined
+    );
+    assert.equal(
+        document.paths["/users/{userId}/managed-group-memberships"],
+        undefined
+    );
+    assert.equal(document.paths["/users/{userId}/group-events"], undefined);
+    assert.equal(
+        document.paths["/users/{userId}/group-invitations"]?.post,
+        undefined
+    );
     assert.ok(document.paths["/group-events"]?.get);
     const memberships = document.paths["/group-memberships"]?.get;
     assert.ok(memberships);
@@ -177,12 +214,14 @@ test("groups keep public reads separate from student-scoped management", () => {
     assert.equal(document.paths["/groups/{id}/members"], undefined);
 });
 
-test("group authorization scope comes from path and query", () => {
+test("group authorization scope comes from explicit path parameters", () => {
     const document = generateAppOpenApiDocument();
     const operations = [
-        ["/users/{userId}/group-invitations", "post"],
-        ["/users/{userId}/group-roles", "post"],
-        ["/users/{userId}/group-events", "post"]
+        ["/users/{userId}/groups/{groupId}/invitations", "post"],
+        ["/users/{userId}/groups/{groupId}/roles", "post"],
+        ["/users/{userId}/groups/{groupId}/events", "post"],
+        ["/users/{userId}/groups/{groupId}/memberships", "get"],
+        ["/users/{userId}/groups/{groupId}/invitations", "get"]
     ] as const;
 
     for (const [path, method] of operations) {
@@ -193,10 +232,10 @@ test("group authorization scope comes from path and query", () => {
                 (parameter) =>
                     "name" in parameter &&
                     parameter.name === "groupId" &&
-                    parameter.in === "query" &&
+                    parameter.in === "path" &&
                     parameter.required
             ),
-            `${method.toUpperCase()} ${path} requires query groupId`
+            `${method.toUpperCase()} ${path} requires path groupId`
         );
     }
 });
@@ -227,7 +266,7 @@ test("media contracts declare multipart upload, binary reads and transport failu
 test("media contract exposes only avatars and removes group headers", () => {
     const document = generateAppOpenApiDocument();
     assert.equal(
-        document.paths["/users/{userId}/groups/{id}/banner"],
+        document.paths["/users/{userId}/groups/{groupId}/banner"],
         undefined
     );
     const group = document.components?.schemas?.Group;

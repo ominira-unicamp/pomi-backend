@@ -48,7 +48,7 @@ const actor: Principal = {
     capabilities: new Set(),
     studentId: 42
 };
-const input = { path: { userId: 42, id: 7 } };
+const input = { path: { userId: 42, groupId: 7 } };
 const transport = {
     request: Object.assign(Readable.from(["image"]), {
         headers: { "content-type": "multipart/form-data; boundary=test" }
@@ -98,7 +98,7 @@ test("image definitions preserve operation keys, validated paths and resource ta
         userId: 42
     });
     assert.equal(
-        groupAvatarEndpoints.pathSchema.safeParse({ userId: -1, id: 7 })
+        groupAvatarEndpoints.pathSchema.safeParse({ userId: -1, groupId: 7 })
             .success,
         false
     );

@@ -378,7 +378,7 @@ test("published event requires a start date", async () => {
     } as unknown as PrismaClient;
 
     await assert.rejects(
-        createGroupEventService({ prisma }).publishEvent(9, 15),
+        createGroupEventService({ prisma }).publishEvent(9, 42, 15),
         ConflictError
     );
 });
@@ -396,6 +396,49 @@ test("private memberships have no public detail", async () => {
 
     await assert.rejects(
         createGroupMembershipService({ prisma }).getPublicMembership(4),
+        NotFoundError
+    );
+});
+test("managed group resources are hidden when they do not belong to the path group", async () => {
+    const prisma = {
+        groupRole: {
+            findUnique: async () => ({ id: 3, groupId: 42 })
+        },
+        groupMembership: {
+            findUnique: async () => ({ id: 4, groupId: 42 })
+        },
+        groupEvent: {
+            findUnique: async () => ({ id: 5, groupId: 42 })
+        }
+    } as unknown as PrismaClient;
+
+    await assert.rejects(
+        createGroupRoleService({ prisma }).patchRole(9, 99, 3, {}),
+        NotFoundError
+    );
+    await assert.rejects(
+        createGroupRoleService({ prisma }).deleteRole(9, 99, 3),
+        NotFoundError
+    );
+    await assert.rejects(
+        createGroupMembershipService({ prisma }).patchManagedMembership(
+            9,
+            99,
+            4,
+            {}
+        ),
+        NotFoundError
+    );
+    await assert.rejects(
+        createGroupEventService({ prisma }).patchEvent(9, 99, 5, {}),
+        NotFoundError
+    );
+    await assert.rejects(
+        createGroupEventService({ prisma }).publishEvent(9, 99, 5),
+        NotFoundError
+    );
+    await assert.rejects(
+        createGroupEventService({ prisma }).cancelEvent(9, 99, 5),
         NotFoundError
     );
 });
@@ -448,12 +491,13 @@ test("removing the last manager role is rejected before changing assignments", a
         groupPosition: { count: async () => 0 }
     };
     const prisma = {
+        groupMembership: tx.groupMembership,
         $transaction: async (work: (tx: unknown) => Promise<unknown>) =>
             work(tx)
     } as unknown as PrismaClient;
     const result = await createGroupMembershipService({
         prisma
-    }).patchManagedMembership(9, 4, { roles: { remove: [2] } });
+    }).patchManagedMembership(9, 42, 4, { roles: { remove: [2] } });
     assert.deepEqual(result._unsafeUnwrapErr(), {
         kind: "conflict",
         message: "O grupo precisa manter um gestor de roles."
@@ -484,7 +528,7 @@ test("role mutations reject repeated and opposing permissions before writes", as
         service.createRole(7, 42, "Gestor", ["ROLE_MANAGE", "ROLE_MANAGE"]),
         ConflictError
     );
-    const result = await service.patchRole(7, 3, {
+    const result = await service.patchRole(7, 42, 3, {
         permissions: { add: ["ROLE_MANAGE"], remove: ["ROLE_MANAGE"] }
     });
     assert.deepEqual(result._unsafeUnwrapErr(), {
@@ -505,13 +549,19 @@ test("group mutations translate Prisma and adapter serialization conflicts witho
         { cause: { kind: "TransactionWriteConflict", originalCode: "40001" } }
     ]) {
         const prisma = {
+            groupRole: {
+                findUnique: async () => ({ id: 3, groupId: 42 })
+            },
+            groupMembership: {
+                findUnique: async () => ({ id: 3, groupId: 42 })
+            },
             $transaction: async () => {
                 throw failure;
             }
         } as unknown as PrismaClient;
         assert.deepEqual(
             (
-                await createGroupRoleService({ prisma }).patchRole(7, 3, {})
+                await createGroupRoleService({ prisma }).patchRole(7, 42, 3, {})
             )._unsafeUnwrapErr(),
             {
                 kind: "concurrent-change",
@@ -522,19 +572,22 @@ test("group mutations translate Prisma and adapter serialization conflicts witho
             (
                 await createGroupMembershipService({
                     prisma
-                }).patchManagedMembership(7, 3, {})
+                }).patchManagedMembership(7, 42, 3, {})
             )._unsafeUnwrapErr().kind,
             "concurrent-change"
         );
     }
     const failure = new Error("technical error");
     const prisma = {
+        groupRole: {
+            findUnique: async () => ({ id: 3, groupId: 42 })
+        },
         $transaction: async () => {
             throw failure;
         }
     } as unknown as PrismaClient;
     await assert.rejects(
-        createGroupRoleService({ prisma }).patchRole(7, 3, {}),
+        createGroupRoleService({ prisma }).patchRole(7, 42, 3, {}),
         (error) => error === failure
     );
 });

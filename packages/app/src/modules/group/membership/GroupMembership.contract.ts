@@ -12,6 +12,7 @@ import {
     base,
     entityMeta,
     groupPermission,
+    groupResourceQuery,
     id,
     listQuery,
     publicId,
@@ -19,6 +20,9 @@ import {
     sidId,
     studentBase,
     studentMeta,
+    userGroupBase,
+    userGroupMembershipPath,
+    userGroupPath,
     userId
 } from "../Group.http.js";
 import { memberPatch } from "./GroupMembership.schemas.js";
@@ -159,14 +163,14 @@ export const listManagedMemberships = {
         ...studentMeta({
             operationId: "listManagedGroupMemberships",
             method: "get",
-            path: studentBase("managed-group-memberships"),
+            path: userGroupBase("memberships"),
             sdkAction: "list",
-            queryFeatures: { filter: true },
+            queryFeatures: { filter: false },
             capability: "STUDENT_PROFILE_READ"
         }),
         pagination: unpaginatedByDefault
     },
-    request: z.object({ path: userId, query: listQuery }),
+    request: z.object({ path: userGroupPath, query: groupResourceQuery }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(managedMembership), "Membros gerenciados")
         .build()
@@ -175,15 +179,12 @@ export const patchManagedMembership = {
     meta: studentMeta({
         operationId: "updateManagedGroupMembership",
         method: "patch",
-        path: [
-            ...studentBase("managed-group-memberships"),
-            pathSeg.param("id")
-        ],
+        path: [...userGroupBase("memberships"), pathSeg.param("membershipId")],
         sdkAction: "update",
         queryFeatures: { filter: false },
         capability: "STUDENT_PROFILE_WRITE"
     }),
-    request: z.object({ path: sidId, body: memberPatch }),
+    request: z.object({ path: userGroupMembershipPath, body: memberPatch }),
     response: new OutputBuilder()
         .ok(managedMembership, "Membro atualizado")
         .notFound()

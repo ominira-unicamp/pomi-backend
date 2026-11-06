@@ -23,16 +23,16 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         page(
             await ctx.groupInvitationService.listManagedInvitations(
                 await ctx.resolveUserContext(input.path.userId),
-                groupId(input.query)
+                input.path.groupId
             ),
             input.query,
-            `/users/${input.path.userId}/managed-group-invitations`
+            `/users/${input.path.userId}/groups/${input.path.groupId}/invitations`
         ),
     createInvitation: async (ctx, input) =>
         ApiResponse.created(
             await ctx.groupInvitationService.createInvitation(
                 await ctx.resolveUserContext(input.path.userId),
-                input.query.groupId,
+                input.path.groupId,
                 input.body.recipientPublicId
             )
         ),

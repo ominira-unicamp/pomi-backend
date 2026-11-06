@@ -99,8 +99,15 @@ export function createGroupEventService({ prisma }: { prisma: PrismaClient }) {
             });
             return managedEvent(value);
         },
-        async patchEvent(userId: number, id: number, input: EventPatch) {
+        async patchEvent(
+            userId: number,
+            groupId: number,
+            id: number,
+            input: EventPatch
+        ) {
             const value = await loadEvent(prisma, id);
+            if (value.groupId !== groupId)
+                throw new NotFoundError("Evento não encontrado.");
             await requirePermission(
                 prisma,
                 value.groupId,
@@ -128,8 +135,10 @@ export function createGroupEventService({ prisma }: { prisma: PrismaClient }) {
             });
             return managedEvent(await loadEvent(prisma, id));
         },
-        async publishEvent(userId: number, id: number) {
+        async publishEvent(userId: number, groupId: number, id: number) {
             const value = await loadEvent(prisma, id);
+            if (value.groupId !== groupId)
+                throw new NotFoundError("Evento não encontrado.");
             await requirePermission(
                 prisma,
                 value.groupId,
@@ -143,8 +152,10 @@ export function createGroupEventService({ prisma }: { prisma: PrismaClient }) {
             });
             return managedEvent(await loadEvent(prisma, id));
         },
-        async cancelEvent(userId: number, id: number) {
+        async cancelEvent(userId: number, groupId: number, id: number) {
             const value = await loadEvent(prisma, id);
+            if (value.groupId !== groupId)
+                throw new NotFoundError("Evento não encontrado.");
             await requirePermission(
                 prisma,
                 value.groupId,

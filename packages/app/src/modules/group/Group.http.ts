@@ -35,6 +35,14 @@ export const studentBase = (name: string) => [
     ...student,
     pathSeg.literal(name)
 ];
+export const userGroupBase = (name: string) => [
+    ...student,
+    pathSeg.literal("groups"),
+    pathSeg.param("groupId"),
+    pathSeg.literal(name)
+];
+export const groupResourceQuery =
+    createPaginationQuerySchema(unpaginatedByDefault);
 type GroupMetadata = {
     operationId: string;
     method: "get" | "post" | "patch" | "delete";
@@ -81,9 +89,14 @@ export function studentMeta(
     };
 }
 export const userId = z.object({ userId: pathId });
+export const userGroupPath = userId.extend({ groupId: pathId });
+export const userGroupMembershipPath = userGroupPath.extend({
+    membershipId: pathId
+});
+export const userGroupRolePath = userGroupPath.extend({ roleId: pathId });
+export const userGroupEventPath = userGroupPath.extend({ eventId: pathId });
 export const sidId = userId.extend({ id: pathId });
 export const publicId = z.object({ id: pathId });
-export const groupQuery = z.object({ groupId: pathId }).strict();
 
 export const page = <T>(
     items: T[],

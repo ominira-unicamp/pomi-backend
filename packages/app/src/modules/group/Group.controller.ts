@@ -22,7 +22,7 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
             )
         ),
     get: async (ctx, input) =>
-        ApiResponse.ok(await ctx.groupService.get(input.path.id)),
+        ApiResponse.ok(await ctx.groupService.get(input.path.groupId)),
     create: async (ctx, input) =>
         ApiResponse.created(
             await ctx.groupService.create(
@@ -34,14 +34,14 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         ApiResponse.ok(
             await ctx.groupService.patch(
                 await ctx.resolveUserContext(input.path.userId),
-                input.path.id,
+                input.path.groupId,
                 input.body
             )
         ),
     archive: async (ctx, input) => {
         await ctx.groupService.archive(
             await ctx.resolveUserContext(input.path.userId),
-            input.path.id
+            input.path.groupId
         );
         return ApiResponse.noContent();
     }

@@ -85,15 +85,25 @@ export function createGroupRoleService({
                 })
             );
         },
-        patchRole(userId: number, id: number, input: RolePatch) {
+        async patchRole(
+            userId: number,
+            groupId: number,
+            id: number,
+            input: RolePatch
+        ) {
+            const value = await loadRole(prisma, id);
+            if (value.groupId !== groupId)
+                throw new NotFoundError("Role não encontrada.");
             return observeOperation(
                 "group.role.patch",
                 () => patchGroupRole({ prisma }, { userId, id, input }),
                 operationTelemetry
             );
         },
-        async deleteRole(userId: number, id: number) {
+        async deleteRole(userId: number, groupId: number, id: number) {
             const value = await loadRole(prisma, id);
+            if (value.groupId !== groupId)
+                throw new NotFoundError("Role não encontrada.");
             await requirePermission(
                 prisma,
                 value.groupId,

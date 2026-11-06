@@ -7,12 +7,14 @@ import {
 import z from "zod";
 import {
     entityMeta,
-    groupQuery,
+    groupResourceQuery,
     id,
     listQuery,
     sidId,
     studentBase,
     studentMeta,
+    userGroupBase,
+    userGroupPath,
     userId
 } from "../Group.http.js";
 import { ownMembership } from "../membership/GroupMembership.contract.js";
@@ -66,14 +68,14 @@ export const listManagedInvitations = {
         ...studentMeta({
             operationId: "listManagedGroupInvitations",
             method: "get",
-            path: studentBase("managed-group-invitations"),
+            path: userGroupBase("invitations"),
             sdkAction: "list",
-            queryFeatures: { filter: true },
+            queryFeatures: { filter: false },
             capability: "STUDENT_PROFILE_READ"
         }),
         pagination: unpaginatedByDefault
     },
-    request: z.object({ path: userId, query: listQuery }),
+    request: z.object({ path: userGroupPath, query: groupResourceQuery }),
     response: new OutputBuilder()
         .ok(
             getPaginatedSchema(managedInvitation),
@@ -85,14 +87,13 @@ export const createInvitation = {
     meta: studentMeta({
         operationId: "createGroupInvitation",
         method: "post",
-        path: studentBase("group-invitations"),
+        path: userGroupBase("invitations"),
         sdkAction: "create",
         queryFeatures: { filter: false },
         capability: "STUDENT_PROFILE_WRITE"
     }),
     request: z.object({
-        path: userId,
-        query: groupQuery,
+        path: userGroupPath,
         body: z.object({ recipientPublicId: z.string().uuid() }).strict()
     }),
     response: new OutputBuilder().created(invitation, "Convite criado").build()

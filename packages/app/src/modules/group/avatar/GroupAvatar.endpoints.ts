@@ -16,7 +16,7 @@ import {
 
 const pathSchema = z.object({
     userId: pathParam.positiveInteger(),
-    id: pathParam.positiveInteger()
+    groupId: pathParam.positiveInteger()
 });
 export const groupAvatarEndpoints = {
     resource: groupAvatarResource,
@@ -24,11 +24,11 @@ export const groupAvatarEndpoints = {
         pathSeg.literal("users"),
         pathSeg.param("userId"),
         pathSeg.literal("groups"),
-        pathSeg.param("id"),
+        pathSeg.param("groupId"),
         pathSeg.literal("avatar")
     ],
     pathSchema,
-    target: ({ path }) => ({ userId: path.userId, groupId: path.id }),
+    target: ({ path }) => ({ userId: path.userId, groupId: path.groupId }),
     authorization: policies.userAccess(
         "userId",
         StudentCapabilities.PROFILE_WRITE
@@ -40,7 +40,7 @@ export const groupAvatarEndpoints = {
     tags: ["media"],
     sdk: {
         resource: "media",
-        pathParameters: { userId: "userId", id: "groupId" }
+        pathParameters: { userId: "userId", groupId: "groupId" }
     }
 } satisfies ImageEndpointsDefinition<GroupAvatarTarget, typeof pathSchema>;
 

@@ -115,7 +115,7 @@ const studentBase = [
     pathSeg.param("userId"),
     pathSeg.literal("groups")
 ];
-const groupPath = z.object({ id: pathParam.positiveInteger() });
+const groupPath = z.object({ groupId: pathParam.positiveInteger() });
 const studentGroupPath = groupPath.extend({
     userId: pathParam.positiveInteger()
 });
@@ -144,10 +144,10 @@ const get = {
             resource: "groups",
             method: "get",
             action: "get" as const,
-            pathParameters: { id: "groupId" }
+            pathParameters: { groupId: "groupId" }
         },
         method: "get" as const,
-        path: [...base, pathSeg.param("id")],
+        path: [...base, pathSeg.param("groupId")],
         tags: ["groups"],
         authorization: policies.public
     },
@@ -194,10 +194,10 @@ const patch = {
             resource: "groups",
             method: "update",
             action: "update" as const,
-            pathParameters: { userId: "userId", id: "groupId" }
+            pathParameters: { userId: "userId", groupId: "groupId" }
         },
         method: "patch" as const,
-        path: [...studentBase, pathSeg.param("id")],
+        path: [...studentBase, pathSeg.param("groupId")],
         tags: ["groups"],
         authorization: policies.userAccess(
             "userId",
@@ -223,10 +223,14 @@ const archive = {
             resource: "groups",
             method: "archive",
             action: "update" as const,
-            pathParameters: { userId: "userId", id: "groupId" }
+            pathParameters: { userId: "userId", groupId: "groupId" }
         },
         method: "post" as const,
-        path: [...studentBase, pathSeg.param("id"), pathSeg.literal("archive")],
+        path: [
+            ...studentBase,
+            pathSeg.param("groupId"),
+            pathSeg.literal("archive")
+        ],
         tags: ["groups"],
         authorization: policies.userAccess(
             "userId",

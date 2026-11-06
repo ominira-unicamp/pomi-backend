@@ -2,7 +2,7 @@ import { createAppEndpointRegistries } from "#/BuildHandler.js";
 import type { AuthorizationPolicy } from "#/auth.js";
 import { type UserContext } from "#/modules/identity/UserContext.js";
 import { ApiResponse, type EndpointActions } from "@pomi/api-core";
-import { groupId, page } from "../Group.http.js";
+import { page } from "../Group.http.js";
 import { unwrapGroupMutation } from "../Group.problems.js";
 import IO from "./GroupRole.contract.js";
 import type { GroupRoleService } from "./GroupRole.service.js";
@@ -13,16 +13,16 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         page(
             await ctx.groupRoleService.listRoles(
                 await ctx.resolveUserContext(input.path.userId),
-                groupId(input.query)
+                input.path.groupId
             ),
             input.query,
-            `/users/${input.path.userId}/group-roles`
+            `/users/${input.path.userId}/groups/${input.path.groupId}/roles`
         ),
     createRole: async (ctx, input) =>
         ApiResponse.created(
             await ctx.groupRoleService.createRole(
                 await ctx.resolveUserContext(input.path.userId),
-                input.query.groupId,
+                input.path.groupId,
                 input.body.name,
                 input.body.permissions ?? []
             )
@@ -32,7 +32,8 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
             unwrapGroupMutation(
                 await ctx.groupRoleService.patchRole(
                     await ctx.resolveUserContext(input.path.userId),
-                    input.path.id,
+                    input.path.groupId,
+                    input.path.roleId,
                     input.body
                 )
             )
@@ -40,7 +41,8 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     deleteRole: async (ctx, input) => {
         await ctx.groupRoleService.deleteRole(
             await ctx.resolveUserContext(input.path.userId),
-            input.path.id
+            input.path.groupId,
+            input.path.roleId
         );
         return ApiResponse.noContent();
     }

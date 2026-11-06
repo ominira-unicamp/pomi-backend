@@ -8,17 +8,17 @@ import z from "zod";
 import {
     base,
     entityMeta,
-    groupQuery,
+    groupResourceQuery,
     id,
     listQuery,
     operations,
     publicId,
     publicMeta,
     publicTag,
-    sidId,
-    studentBase,
     studentMeta,
-    userId
+    userGroupBase,
+    userGroupEventPath,
+    userGroupPath
 } from "../Group.http.js";
 
 export const eventBase = z
@@ -93,14 +93,14 @@ export const listManagedEvents = {
         ...studentMeta({
             operationId: "listManagedGroupEvents",
             method: "get",
-            path: studentBase("managed-group-events"),
+            path: userGroupBase("events"),
             sdkAction: "list",
-            queryFeatures: { filter: true },
+            queryFeatures: { filter: false },
             capability: "STUDENT_PROFILE_READ"
         }),
         pagination: unpaginatedByDefault
     },
-    request: z.object({ path: userId, query: listQuery }),
+    request: z.object({ path: userGroupPath, query: groupResourceQuery }),
     response: new OutputBuilder()
         .ok(getPaginatedSchema(managedEvent), "Eventos gerenciados")
         .build()
@@ -109,24 +109,24 @@ export const createEvent = {
     meta: studentMeta({
         operationId: "createGroupEvent",
         method: "post",
-        path: studentBase("group-events"),
+        path: userGroupBase("events"),
         sdkAction: "create",
         queryFeatures: { filter: false },
         capability: "STUDENT_PROFILE_WRITE"
     }),
-    request: z.object({ path: userId, query: groupQuery, body: eventBody }),
+    request: z.object({ path: userGroupPath, body: eventBody }),
     response: new OutputBuilder().created(managedEvent, "Evento criado").build()
 } satisfies IO;
 export const patchEvent = {
     meta: studentMeta({
         operationId: "updateGroupEvent",
         method: "patch",
-        path: [...studentBase("group-events"), pathSeg.param("id")],
+        path: [...userGroupBase("events"), pathSeg.param("eventId")],
         sdkAction: "update",
         queryFeatures: { filter: false },
         capability: "STUDENT_PROFILE_WRITE"
     }),
-    request: z.object({ path: sidId, body: eventPatch }),
+    request: z.object({ path: userGroupEventPath, body: eventPatch }),
     response: new OutputBuilder()
         .ok(managedEvent, "Evento atualizado")
         .notFound()
@@ -137,15 +137,15 @@ export const publishEvent = {
         operationId: "publishGroupEvent",
         method: "post",
         path: [
-            ...studentBase("group-events"),
-            pathSeg.param("id"),
+            ...userGroupBase("events"),
+            pathSeg.param("eventId"),
             pathSeg.literal("publish")
         ],
         sdkAction: "create",
         queryFeatures: { filter: false },
         capability: "STUDENT_PROFILE_WRITE"
     }),
-    request: z.object({ path: sidId }),
+    request: z.object({ path: userGroupEventPath }),
     response: new OutputBuilder()
         .ok(managedEvent, "Evento publicado")
         .notFound()
@@ -156,15 +156,15 @@ export const cancelEvent = {
         operationId: "cancelGroupEvent",
         method: "post",
         path: [
-            ...studentBase("group-events"),
-            pathSeg.param("id"),
+            ...userGroupBase("events"),
+            pathSeg.param("eventId"),
             pathSeg.literal("cancel")
         ],
         sdkAction: "create",
         queryFeatures: { filter: false },
         capability: "STUDENT_PROFILE_WRITE"
     }),
-    request: z.object({ path: sidId }),
+    request: z.object({ path: userGroupEventPath }),
     response: new OutputBuilder()
         .ok(managedEvent, "Evento cancelado")
         .notFound()

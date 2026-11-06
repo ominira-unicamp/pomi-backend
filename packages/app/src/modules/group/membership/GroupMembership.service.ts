@@ -112,7 +112,15 @@ export function createGroupMembershipService({
                 })
             ).map(managedMember);
         },
-        patchManagedMembership(userId: number, id: number, input: MemberPatch) {
+        async patchManagedMembership(
+            userId: number,
+            groupId: number,
+            id: number,
+            input: MemberPatch
+        ) {
+            const value = await loadMember(prisma, id);
+            if (value.groupId !== groupId)
+                throw new NotFoundError("Membro não encontrado.");
             return observeOperation(
                 "group.membership.patch",
                 () =>

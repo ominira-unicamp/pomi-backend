@@ -52,17 +52,18 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         page(
             await ctx.groupMembershipService.listManagedMemberships(
                 await ctx.resolveUserContext(input.path.userId),
-                groupId(input.query)
+                input.path.groupId
             ),
             input.query,
-            `/users/${input.path.userId}/managed-group-memberships`
+            `/users/${input.path.userId}/groups/${input.path.groupId}/memberships`
         ),
     patchManagedMembership: async (ctx, input) =>
         ApiResponse.ok(
             unwrapGroupMutation(
                 await ctx.groupMembershipService.patchManagedMembership(
                     await ctx.resolveUserContext(input.path.userId),
-                    input.path.id,
+                    input.path.groupId,
+                    input.path.membershipId,
                     input.body
                 )
             )

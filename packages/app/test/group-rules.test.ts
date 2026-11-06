@@ -175,12 +175,13 @@ test("mixed membership patches require both permissions within the transaction",
         }
     };
     const prisma = {
+        groupMembership: tx.groupMembership,
         $transaction: async (work: (tx: unknown) => Promise<unknown>) =>
             work(tx)
     } as unknown as PrismaClient;
     const result = await createGroupMembershipService({
         prisma
-    }).patchManagedMembership(42, 1, {
+    }).patchManagedMembership(42, 7, 1, {
         roles: { add: [1] },
         positions: { add: [{ title: "Cargo" }] }
     });

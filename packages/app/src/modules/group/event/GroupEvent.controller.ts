@@ -22,16 +22,16 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         page(
             await ctx.groupEventService.listManagedEvents(
                 await ctx.resolveUserContext(input.path.userId),
-                groupId(input.query)
+                input.path.groupId
             ),
             input.query,
-            `/users/${input.path.userId}/managed-group-events`
+            `/users/${input.path.userId}/groups/${input.path.groupId}/events`
         ),
     createEvent: async (ctx, input) =>
         ApiResponse.created(
             await ctx.groupEventService.createEvent(
                 await ctx.resolveUserContext(input.path.userId),
-                input.query.groupId,
+                input.path.groupId,
                 input.body
             )
         ),
@@ -39,7 +39,8 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         ApiResponse.ok(
             await ctx.groupEventService.patchEvent(
                 await ctx.resolveUserContext(input.path.userId),
-                input.path.id,
+                input.path.groupId,
+                input.path.eventId,
                 input.body
             )
         ),
@@ -47,14 +48,16 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         ApiResponse.ok(
             await ctx.groupEventService.publishEvent(
                 await ctx.resolveUserContext(input.path.userId),
-                input.path.id
+                input.path.groupId,
+                input.path.eventId
             )
         ),
     cancelEvent: async (ctx, input) =>
         ApiResponse.ok(
             await ctx.groupEventService.cancelEvent(
                 await ctx.resolveUserContext(input.path.userId),
-                input.path.id
+                input.path.groupId,
+                input.path.eventId
             )
         )
 };

@@ -29,7 +29,7 @@ const controllers = [
     ],
     [
         "groupRoleService",
-        "/users/42/group-roles",
+        "/users/42/groups/10/roles",
         (await import("#/modules/group/role/GroupRole.controller.js")).default,
         "listRoles"
     ],
@@ -100,13 +100,13 @@ test("group mutation controllers preserve public failure status, type and detail
     for (const [dependency, path, controller, method] of [
         [
             "groupRoleService",
-            "/users/42/group-roles/3",
+            "/users/42/groups/10/roles/3",
             controllers[3][2],
             "patchRole"
         ],
         [
             "groupMembershipService",
-            "/users/42/managed-group-memberships/3",
+            "/users/42/groups/10/memberships/3",
             controllers[1][2],
             "patchManagedMembership"
         ]
