@@ -1,6 +1,3 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-
 import {
     curriculumInputProblem,
     curriculumProblemResponses
@@ -16,6 +13,8 @@ import {
     periodPlanProblemResponses
 } from "#/modules/planning/period-plan/PeriodPlan.problems.js";
 import { createPeriodPlanService } from "#/modules/planning/period-plan/PeriodPlan.service.js";
+import assert from "node:assert/strict";
+import test from "node:test";
 
 test("curriculum service returns a domain problem when the plan does not exist", async () => {
     const service = createCurriculumService({
@@ -145,7 +144,7 @@ test("period plan creation does not use update-only manual course operations", a
                         name: "Planejamento",
                         studyPeriodId: 39,
                         userId: 1,
-                        user: { studentId: 1, legacyStudentId: 1 },
+                        user: { studentId: 1 },
                         guideMode: "NONE",
                         curriculumSource: null,
                         visibility: "PRIVATE",
@@ -186,7 +185,7 @@ function curriculumEntityFixture(selection: {
     return {
         id: 42,
         userId: 7,
-        user: { studentId: 7, legacyStudentId: 7 },
+        user: { studentId: 7 },
         name: "Planejamento",
         favoriteForUser: null,
         catalogProgramId: selection.catalogProgramId,

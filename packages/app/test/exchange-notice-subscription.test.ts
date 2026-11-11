@@ -25,8 +25,7 @@ test("returns disabled defaults before a student configures notifications", asyn
         prisma: {
             user: {
                 findUniqueOrThrow: async () => ({
-                    id: 7,
-                    legacyStudentId: 7
+                    id: 7
                 })
             },
             exchangeNoticeSubscription: {
@@ -47,8 +46,7 @@ test("replaces the selected places when updating a subscription", async () => {
         prisma: {
             user: {
                 findUniqueOrThrow: async () => ({
-                    id: 7,
-                    legacyStudentId: 7
+                    id: 7
                 })
             },
             exchangePlace: {

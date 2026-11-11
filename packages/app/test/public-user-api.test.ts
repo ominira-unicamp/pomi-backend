@@ -52,11 +52,9 @@ test("canonical user HTTP keeps its target and effects for authorized human, adm
         { id: 74, subject: "bot", role: "BOT", userId: null }
     ].map((identity) => ({
         ...identity,
-        legacyId: 999 + identity.id,
         issuer,
         email: `${identity.subject}@example.test`,
         status: "ACTIVE",
-        legacyStudentId: null,
         roles: [{ role: identity.role }],
         capabilities: [],
         principal: {
@@ -138,7 +136,7 @@ test("canonical user HTTP keeps its target and effects for authorized human, adm
             }) =>
                 where.userId === target.id &&
                 where.botAuthIdentityId === 74 &&
-                ["STUDENT_PROFILE_READ", "STUDENT_PROFILE_WRITE"].includes(
+                ["USER_PROFILE_READ", "USER_PROFILE_WRITE"].includes(
                     where.capability
                 )
                     ? { id: 1 }

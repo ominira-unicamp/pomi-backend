@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { OutputBuilder } from "#/Contract.js";
 import { InvalidPeriodPlanProblem } from "#/modules/planning/period-plan/PeriodPlan.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
@@ -390,7 +390,7 @@ const get = periodPlannings.get({
     operationId: "getPeriodPlans",
     authorization: policies.userAccess(
         "userId",
-        StudentCapabilities.PLANNING_READ
+        UserCapabilities.PLANNING_READ
     ),
     request: z.object({
         path: z.object({
@@ -408,7 +408,7 @@ const list = periodPlannings.list({
     operationId: "listPeriodPlans",
     authorization: policies.userAccess(
         "userId",
-        StudentCapabilities.PLANNING_READ
+        UserCapabilities.PLANNING_READ
     ),
     item: periodPlanningEntity,
     pagination: unpaginatedByDefault,
@@ -448,7 +448,7 @@ const create = periodPlannings.create({
     operationId: "createPeriodPlans",
     authorization: policies.userAccess(
         "userId",
-        StudentCapabilities.PLANNING_WRITE
+        UserCapabilities.PLANNING_WRITE
     ),
     request: z.object({
         path: z.object({
@@ -521,7 +521,7 @@ const patch = periodPlannings.update({
     operationId: "updatePeriodPlans",
     authorization: policies.userAccess(
         "userId",
-        StudentCapabilities.PLANNING_WRITE
+        UserCapabilities.PLANNING_WRITE
     ),
     request: z.object({
         path: z.object({
@@ -552,7 +552,7 @@ const remove = periodPlannings.delete({
     operationId: "deletePeriodPlans",
     authorization: policies.userAccess(
         "userId",
-        StudentCapabilities.PLANNING_WRITE
+        UserCapabilities.PLANNING_WRITE
     ),
     request: z.object({
         path: z.object({

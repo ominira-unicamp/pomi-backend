@@ -89,7 +89,6 @@ export function mediaFixture(
         authIdentity: {
             findUnique: async () => ({
                 id: 9,
-                legacyId: 9,
                 issuer: "test",
                 subject: "student",
                 principal: {
@@ -103,7 +102,6 @@ export function mediaFixture(
                     serviceAccount: null
                 },
                 status: state.userStatus,
-                legacyStudentId: state.userStudentId,
                 roles: state.userRoles.map((role) => ({ role }))
             })
         },

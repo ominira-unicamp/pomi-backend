@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { OutputBuilder, type IO } from "#/Contract.js";
 import { InvalidStudentAbsenceProblem } from "#/modules/planning/student-absence/StudentAbsence.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
@@ -135,7 +135,7 @@ const list = {
         ...userAbsencesSpecsBuilder.list(),
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.HISTORY_READ
+            UserCapabilities.HISTORY_READ
         ),
         queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
@@ -169,7 +169,7 @@ const create = {
         ...specsBuilder.create(),
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.HISTORY_WRITE
+            UserCapabilities.HISTORY_WRITE
         )
     },
     request: z.object({ path: attemptPath, body: absenceBody }),
@@ -197,7 +197,7 @@ const remove = {
         ...specsBuilder.remove(),
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.HISTORY_WRITE
+            UserCapabilities.HISTORY_WRITE
         )
     },
     request: z.object({ path: entityPath }),

@@ -57,13 +57,11 @@ async function signToken(overrides: Record<string, unknown> = {}) {
 function credentialFixture(overrides: Record<string, unknown> = {}) {
     return {
         id: 80,
-        legacyId: 8,
         issuer,
         subject: "keycloak-user",
         email: "s195440@dac.unicamp.br",
         displayName: "Samuel Rodrigues Ferreira",
         status: "ACTIVE",
-        legacyStudentId: overrides.studentId ?? null,
         principal: {
             id: 800,
             kind: "HUMAN",
@@ -203,7 +201,6 @@ test("authentication reads a known identity without provisioning academic data",
 
 test("authentication takes the academic link from User and leaves token metadata unchanged", async () => {
     const record = credentialFixture({
-        legacyStudentId: null,
         principal: {
             id: 800,
             kind: "HUMAN",

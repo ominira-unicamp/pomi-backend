@@ -8,7 +8,6 @@ export function buildProfessorEvaluation(
         user: {
             id: number;
             studentId: number | null;
-            legacyStudentId: number | null;
         };
     }
 ): z.infer<typeof IO.schema> {

@@ -1,9 +1,5 @@
 import { type IO, OutputBuilder } from "#/Contract.js";
-import {
-    policies,
-    StudentCapabilities,
-    type StudentCapability
-} from "#/auth.js";
+import { policies, UserCapabilities, type UserCapability } from "#/auth.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
@@ -18,19 +14,16 @@ import {
 import z from "zod";
 
 extendZodWithOpenApi(z);
-
-const capabilities = Object.values(StudentCapabilities) as [
-    StudentCapability,
-    ...StudentCapability[]
+const capabilities = Object.values(UserCapabilities) as [
+    UserCapability,
+    ...UserCapability[]
 ];
-const studentCapabilitySchema = z
-    .enum(capabilities)
-    .openapi("StudentCapability", {
-        "x-pomi-schema": {
-            kind: "value-object",
-            publicName: "StudentCapability"
-        }
-    });
+const userCapabilitySchema = z.enum(capabilities).openapi("UserCapability", {
+    "x-pomi-schema": {
+        kind: "value-object",
+        publicName: "UserCapability"
+    }
+});
 const entity = z
     .object({
         id: z.number().int(),
@@ -38,7 +31,7 @@ const entity = z
         botAuthIdentityId: z.number().int(),
         grantedByAuthIdentityId: z.number().int(),
         revokedByAuthIdentityId: z.number().int().nullable(),
-        capability: studentCapabilitySchema,
+        capability: userCapabilitySchema,
         createdAt: z.coerce.date(),
         revokedAt: z.coerce.date().nullable(),
         botAuthIdentity: z.object({
@@ -71,7 +64,7 @@ const path = z.object({
 });
 const replaceBody = z
     .object({
-        capabilities: z.array(studentCapabilitySchema),
+        capabilities: z.array(userCapabilitySchema),
         authorAuthIdentityId: z.number().int().positive()
     })
     .strict()
@@ -133,7 +126,7 @@ const list = {
         tags: ["bot-grants"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PROFILE_READ,
+            UserCapabilities.PROFILE_READ,
             true
         ),
         queryFeatures: { sort: true },
@@ -171,7 +164,7 @@ const replace = {
         tags: ["bot-grants"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PROFILE_WRITE,
+            UserCapabilities.PROFILE_WRITE,
             true
         )
     },

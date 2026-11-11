@@ -49,8 +49,7 @@ export function createExchangeNoticeSubscriptionService({
                         where: { id: userId },
                         select: {
                             id: true,
-                            studentId: true,
-                            legacyStudentId: true
+                            studentId: true
                         }
                     })
                 ),
@@ -116,8 +115,7 @@ export function createExchangeNoticeSubscriptionService({
                             where: { id: userId },
                             select: {
                                 id: true,
-                                studentId: true,
-                                legacyStudentId: true
+                                studentId: true
                             }
                         })
                     ),

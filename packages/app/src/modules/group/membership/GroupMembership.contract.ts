@@ -116,7 +116,7 @@ export const listOwnMemberships = {
             path: studentBase("group-memberships"),
             sdkAction: "list",
             queryFeatures: { filter: true },
-            capability: "STUDENT_PROFILE_READ"
+            capability: "USER_PROFILE_READ"
         }),
         pagination: unpaginatedByDefault
     },
@@ -132,7 +132,7 @@ export const getOwnMembership = {
         path: [...studentBase("group-memberships"), pathSeg.param("id")],
         sdkAction: "get",
         queryFeatures: { filter: false },
-        capability: "STUDENT_PROFILE_READ"
+        capability: "USER_PROFILE_READ"
     }),
     request: z.object({ path: sidId }),
     response: new OutputBuilder()
@@ -147,7 +147,7 @@ export const patchOwnMembership = {
         path: [...studentBase("group-memberships"), pathSeg.param("id")],
         sdkAction: "update",
         queryFeatures: { filter: false },
-        capability: "STUDENT_PROFILE_WRITE"
+        capability: "USER_PROFILE_WRITE"
     }),
     request: z.object({
         path: sidId,
@@ -166,7 +166,7 @@ export const listManagedMemberships = {
             path: userGroupBase("memberships"),
             sdkAction: "list",
             queryFeatures: { filter: false },
-            capability: "STUDENT_PROFILE_READ"
+            capability: "USER_PROFILE_READ"
         }),
         pagination: unpaginatedByDefault
     },
@@ -182,7 +182,7 @@ export const patchManagedMembership = {
         path: [...userGroupBase("memberships"), pathSeg.param("membershipId")],
         sdkAction: "update",
         queryFeatures: { filter: false },
-        capability: "STUDENT_PROFILE_WRITE"
+        capability: "USER_PROFILE_WRITE"
     }),
     request: z.object({ path: userGroupMembershipPath, body: memberPatch }),
     response: new OutputBuilder()

@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { type IO, OutputBuilder } from "#/Contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
@@ -71,7 +71,7 @@ const get = {
         tags: ["exchange-notice-subscriptions"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PROFILE_READ
+            UserCapabilities.PROFILE_READ
         )
     },
     request: z.object({ path: studentPath }),
@@ -94,7 +94,7 @@ const patch = {
         tags: ["exchange-notice-subscriptions"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PROFILE_WRITE
+            UserCapabilities.PROFILE_WRITE
         )
     },
     request: z.object({ path: studentPath, body: patchBody }),

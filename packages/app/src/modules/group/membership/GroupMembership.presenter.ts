@@ -7,7 +7,6 @@ export const membershipInclude = {
             name: true,
             id: true,
             studentId: true,
-            legacyStudentId: true,
             student: { select: { name: true } },
             publicId: true,
             publicProfileEnabled: true,

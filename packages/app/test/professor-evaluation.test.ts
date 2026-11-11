@@ -165,7 +165,7 @@ test("upserts an evaluation for an eligible student", async () => {
                     return {
                         id: 4,
                         userId: 1,
-                        user: { userId: 1, legacyStudentId: 1 },
+                        user: { userId: 1 },
                         classId: 2,
                         professorId: 3,
                         ...body,

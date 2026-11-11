@@ -36,14 +36,10 @@ export function canonicalIdentity(identity: CanonicalIdentityRecord) {
     const principal = identity.principal;
     if (
         !principal ||
-        !Number.isSafeInteger(identity.legacyId) ||
-        identity.legacyId <= 0 ||
         (principal.kind === "HUMAN" &&
             (!principal.user || principal.serviceAccount)) ||
         (principal.kind === "SERVICE" &&
-            (!principal.serviceAccount || principal.user)) ||
-        (identity.legacyStudentId !== null &&
-            principal.user?.studentId !== identity.legacyStudentId)
+            (!principal.serviceAccount || principal.user))
     )
         throw new IdentityConsistencyError();
     return { identity, principal };
@@ -97,7 +93,6 @@ export async function createCanonicalIdentity(
             subject: input.subject,
             email: input.email,
             displayName: input.displayName,
-            legacyStudentId: studentId,
             roles: { create: input.roles.map(({ role }) => ({ role })) },
             capabilities: {
                 create: input.capabilities?.map(({ capability }) => ({
@@ -115,7 +110,6 @@ export async function createCanonicalIdentity(
                                         create: {
                                             name: input.displayName,
                                             studentId,
-                                            legacyStudentId: studentId,
                                             emails: email
                                                 ? { create: { email } }
                                                 : undefined
@@ -143,37 +137,6 @@ export async function createCanonicalIdentity(
             update: {}
         });
     return identity;
-}
-
-export async function linkCanonicalStudent(
-    tx: MyPrisma.TransactionClient,
-    authIdentityId: number,
-    studentId: number
-) {
-    const identity = await tx.authIdentity.findUniqueOrThrow({
-        where: { id: authIdentityId },
-        include: canonicalIdentityInclude
-    });
-    const { principal } = canonicalIdentity({
-        ...identity,
-        legacyStudentId: null
-    });
-    if (
-        !principal.user ||
-        (principal.user.studentId !== null &&
-            principal.user.studentId !== studentId)
-    )
-        throw new IdentityConsistencyError(
-            "Student association conflicts with canonical user."
-        );
-    await tx.user.update({
-        where: { id: principal.user.id },
-        data: { studentId, legacyStudentId: studentId }
-    });
-    await tx.authIdentity.update({
-        where: { id: authIdentityId },
-        data: { legacyStudentId: studentId }
-    });
 }
 
 export async function runIdentityTransaction<T>(

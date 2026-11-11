@@ -46,7 +46,6 @@ function buildReport(report: {
     reporterUserId: number | null;
     reporterUser: {
         studentId: number | null;
-        legacyStudentId: number | null;
     } | null;
     createdAt: Date;
     updatedAt: Date;
@@ -142,7 +141,7 @@ const reportSelection = {
     adminMessage: true,
     reporterUserId: true,
     reporterUser: {
-        select: { id: true, studentId: true, legacyStudentId: true }
+        select: { id: true, studentId: true }
     },
     createdAt: true,
     updatedAt: true

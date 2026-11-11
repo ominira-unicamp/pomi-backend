@@ -1,4 +1,4 @@
-import { AuthRoles, type StudentCapability } from "#/auth.js";
+import { AuthRoles, type UserCapability } from "#/auth.js";
 import IO, {
     botGrantSort,
     botIdentitySort
@@ -20,7 +20,7 @@ export type BotGrantService = {
     replace(
         userId: number,
         botAuthIdentityId: number,
-        capabilities: StudentCapability[],
+        capabilities: UserCapability[],
         authorAuthIdentityId: number
     ): Promise<Result<void, ReturnType<typeof botNotFoundProblem>>>;
 };

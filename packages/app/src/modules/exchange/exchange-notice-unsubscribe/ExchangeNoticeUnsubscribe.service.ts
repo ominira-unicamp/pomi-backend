@@ -27,23 +27,13 @@ export function createExchangeNoticeUnsubscribeService({
                 );
             });
             if (
-                (payload.identityVersion !== undefined &&
-                    payload.identityVersion !== 1 &&
-                    payload.identityVersion !== 2) ||
+                payload.identityVersion !== 2 ||
                 payload.action !== "exchange-notice-unsubscribe" ||
                 typeof payload.sub !== "string" ||
                 !/^[1-9][0-9]*$/.test(payload.sub)
             )
                 throw new ForbiddenError("Link de descadastro inválido.");
-            const tokenUserId =
-                payload.identityVersion === 2
-                    ? Number(payload.sub)
-                    : (
-                          await prisma.user.findUnique({
-                              where: { legacyStudentId: Number(payload.sub) },
-                              select: { id: true }
-                          })
-                      )?.id;
+            const tokenUserId = Number(payload.sub);
             if (tokenUserId !== userId)
                 throw new ForbiddenError("O link não autoriza este usuário.");
             await prisma.exchangeNoticeSubscription.updateMany({

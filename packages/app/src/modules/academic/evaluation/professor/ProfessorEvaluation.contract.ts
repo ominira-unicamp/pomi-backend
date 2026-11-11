@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { OutputBuilder, type IO } from "#/Contract.js";
 import { InvalidProfessorEvaluationProblem } from "#/modules/academic/evaluation/professor/ProfessorEvaluation.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
@@ -186,7 +186,7 @@ const get = {
         tags: ["professor-evaluations"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.HISTORY_READ
+            UserCapabilities.HISTORY_READ
         )
     },
     request: z.object({ path }),
@@ -214,7 +214,7 @@ const put = {
         tags: ["professor-evaluations"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.HISTORY_WRITE
+            UserCapabilities.HISTORY_WRITE
         )
     },
     request: z.object({ path, body: evaluationBody }),
@@ -238,7 +238,7 @@ const listPending = {
         tags: ["professor-evaluations"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.HISTORY_READ
+            UserCapabilities.HISTORY_READ
         ),
         queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault

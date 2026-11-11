@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { type IO, OutputBuilder } from "#/Contract.js";
 import { InvalidStudentProfileProblem } from "#/modules/student/Student.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
@@ -95,7 +95,7 @@ const get = {
         },
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PROFILE_READ
+            UserCapabilities.PROFILE_READ
         )
     },
     request: z.object({
@@ -172,7 +172,7 @@ const patch = {
         },
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PROFILE_WRITE
+            UserCapabilities.PROFILE_WRITE
         )
     },
     request: z.object({
@@ -205,7 +205,7 @@ const remove = {
         },
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PROFILE_WRITE
+            UserCapabilities.PROFILE_WRITE
         )
     },
     request: z.object({

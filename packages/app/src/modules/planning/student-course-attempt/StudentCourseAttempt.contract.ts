@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { OutputBuilder, type IO } from "#/Contract.js";
 import { InvalidStudentCourseAttemptProblem } from "#/modules/planning/student-course-attempt/StudentCourseAttempt.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
@@ -217,7 +217,7 @@ const get = {
         },
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.HISTORY_READ
+            UserCapabilities.HISTORY_READ
         )
     },
     request: z.object({
@@ -248,7 +248,7 @@ const list = {
         },
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.HISTORY_READ
+            UserCapabilities.HISTORY_READ
         ),
         queryFeatures: { filter: true, sort: true },
         pagination: unpaginatedByDefault
@@ -289,7 +289,7 @@ const create = {
         },
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.HISTORY_WRITE
+            UserCapabilities.HISTORY_WRITE
         )
     },
     request: z.object({
@@ -328,7 +328,7 @@ const patch = {
         },
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.HISTORY_WRITE
+            UserCapabilities.HISTORY_WRITE
         )
     },
     request: z.object({
@@ -382,7 +382,7 @@ const remove = {
         },
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.HISTORY_WRITE
+            UserCapabilities.HISTORY_WRITE
         )
     },
     request: z.object({

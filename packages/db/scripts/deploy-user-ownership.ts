@@ -88,7 +88,14 @@ try {
         if (repeated.createdUsers || repeated.copiedProfiles)
             throw new Error("Backfill did not reach an idempotent state.");
     }
-    deploy(migrations);
+    if (expected && staged) {
+        await cp(resolve(migrations, contract), resolve(staged, contract), {
+            recursive: true
+        });
+        deploy(staged);
+    } else {
+        deploy(migrations);
+    }
     const preserved = await inspectUserOwnershipState(prisma);
     if (
         expected &&
@@ -107,6 +114,7 @@ try {
     `;
     if (invalid.length)
         throw new Error("Unexpected foreign keys still reference Student.");
+    if (expected) deploy(migrations);
     console.log(
         JSON.stringify({
             phase: "user-ownership-complete",

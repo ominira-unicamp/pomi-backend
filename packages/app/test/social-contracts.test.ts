@@ -14,19 +14,20 @@ async function loadContracts() {
 }
 
 test("student social contracts protect reads and writes with social capabilities", async () => {
-    const [{ default: contracts }, { StudentCapabilities }] = await Promise.all(
-        [loadContracts(), import("#/Authorization.js")]
-    );
+    const [{ default: contracts }, { UserCapabilities }] = await Promise.all([
+        loadContracts(),
+        import("#/Authorization.js")
+    ]);
 
     assert.deepEqual(contracts.getProfile.meta.authorization, {
         kind: "user-access",
         userParam: "userId",
-        capability: StudentCapabilities.SOCIAL_READ
+        capability: UserCapabilities.SOCIAL_READ
     });
     assert.deepEqual(contracts.createFriendship.meta.authorization, {
         kind: "user-access",
         userParam: "userId",
-        capability: StudentCapabilities.SOCIAL_WRITE
+        capability: UserCapabilities.SOCIAL_WRITE
     });
 });
 

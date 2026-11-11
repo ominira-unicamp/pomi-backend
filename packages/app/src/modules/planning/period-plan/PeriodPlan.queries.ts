@@ -2,7 +2,7 @@ import { type MyPrisma, selectIdCode, selectIdName } from "@pomi/db";
 
 export const prismaPeriodPlanningFieldSelection = {
     include: {
-        user: { select: { id: true, studentId: true, legacyStudentId: true } },
+        user: { select: { id: true, studentId: true } },
         studyPeriod: {
             select: { id: true, year: true, yearPeriod: true }
         },

@@ -12,7 +12,6 @@ test("unsubscribe proof authorizes the explicit path user and never selects anot
     const service = createExchangeNoticeUnsubscribeService({
         config: { notifierUnsubscribeSecret: secret } as never,
         prisma: {
-            user: { findUnique: async () => ({ id: 117 }) },
             exchangeNoticeSubscription: {
                 updateMany: async ({
                     where
@@ -41,7 +40,7 @@ test("unsubscribe proof authorizes the explicit path user and never selects anot
     );
     await assert.rejects(
         service.unsubscribe(118, await proof()),
-        /Forbidden|autoriza/
+        /Forbidden|inválido/
     );
     await assert.rejects(
         service.unsubscribe(117, "invalid"),
@@ -53,8 +52,15 @@ test("unsubscribe proof authorizes the explicit path user and never selects anot
     );
     assert.equal(changes, 0);
     await service.unsubscribe(117, await proof(2));
-    await service.unsubscribe(117, await proof());
-    assert.equal(changes, 2);
+    await assert.rejects(
+        service.unsubscribe(117, await proof()),
+        /Forbidden|inválido/
+    );
+    await assert.rejects(
+        service.unsubscribe(117, await proof(1)),
+        /Forbidden|inválido/
+    );
+    assert.equal(changes, 1);
 });
 
 test("deleting an absence rejects an attempt outside the explicit user", async () => {

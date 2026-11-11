@@ -52,7 +52,8 @@ test(
             await import("#/Container.js");
         const { loadAppConfig } = await import("#/Config.js");
         const { appControllers } = await import("#/Controllers.js");
-        const { errorHandler } = await import("@pomi/api-core");
+        const { errorHandler, parseStructuredQuery } =
+            await import("@pomi/api-core");
         const express = (await import("express")).default;
         const container = createAppContainer(
             loadAppConfig({
@@ -65,6 +66,7 @@ test(
             prisma
         );
         const application = express();
+        application.set("query parser", parseStructuredQuery);
         application.use(express.json());
         application.use(appScopeMiddleware(container));
         application.use(appControllers.authRegistry.middleware());
@@ -184,13 +186,6 @@ test(
                         roles: role ? [{ role }] : []
                     })
                 );
-                const legacyId = baseId + 10000000 + principalIds.length;
-                await prisma.authIdentity.update({
-                    where: { id: auth.id },
-                    data: { legacyId }
-                });
-                auth.legacyId = legacyId;
-                assert.notEqual(auth.legacyId, auth.id);
                 const principal = auth.principal;
                 principalIds.push(principal.id);
                 const user = await prisma.user.findUnique({
@@ -211,7 +206,6 @@ test(
                         create: {
                             name: "Dormant canonical user",
                             studentId: studentIds[2],
-                            legacyStudentId: studentIds[2],
                             publicBio: "Preserved unclaimed profile"
                         }
                     }
@@ -330,7 +324,7 @@ test(
                 data: {
                     userId: owner.user!.id,
                     botAuthIdentityId: bot.auth.id,
-                    capability: "STUDENT_PLANNING_READ",
+                    capability: "USER_PLANNING_READ",
                     grantedByAuthIdentityId: owner.auth.id
                 }
             });
@@ -423,19 +417,33 @@ test(
             assert.equal(createdAbsence.status, 201);
             const absence = jsonObject(await createdAbsence.json());
             assert.equal(
-                (await request(absencePath, noAcademicJwt)).status,
+                (
+                    await request(
+                        `/users/${noAcademic.user!.id}/absences?filter[courseAttemptId][eq]=${attempt.id}`,
+                        noAcademicJwt
+                    )
+                ).status,
                 200
             );
             assert.equal(
                 (
                     await request(
-                        `/users/${owner.user!.id}/course-attempts/${attempt.id}/absences`,
-                        adminJwt
+                        `/users/${owner.user!.id}/course-attempts/${attempt.id}/absences/${absence.id}`,
+                        adminJwt,
+                        { method: "DELETE" }
                     )
                 ).status,
                 404
             );
-            assert.equal((await request(absencePath, otherJwt)).status, 403);
+            assert.equal(
+                (
+                    await request(
+                        `/users/${noAcademic.user!.id}/absences`,
+                        otherJwt
+                    )
+                ).status,
+                403
+            );
             const importedHistory = await request(
                 `/users/${noAcademic.user!.id}/course-history`,
                 noAcademicJwt,
@@ -723,7 +731,7 @@ test(
                     await request(grantPath, adminJwt, {
                         method: "PUT",
                         body: JSON.stringify({
-                            capabilities: ["STUDENT_PLANNING_READ"],
+                            capabilities: ["USER_PLANNING_READ"],
                             authorAuthIdentityId: administrator.auth.id
                         })
                     })
@@ -780,7 +788,6 @@ test(
                 await prisma.student.count({ where: { id: studentIds[0] } }),
                 0
             );
-            assert.equal(preserved.legacyStudentId, studentIds[0]);
             assert.equal(preserved.publicBio, "Preserved profile");
             assert.ok(
                 await prisma.studentAbsence.findUnique({
@@ -790,7 +797,7 @@ test(
             assert.equal(
                 (
                     await request(
-                        `/users/${owner.user!.id}/course-attempts/${ownerAttempt.id}/absences`,
+                        `/users/${owner.user!.id}/absences?filter[courseAttemptId][eq]=${ownerAttempt.id}`,
                         ownerJwt
                     )
                 ).status,
@@ -823,14 +830,6 @@ test(
                     where: { userId: preserved.id }
                 }),
                 1
-            );
-            assert.equal(
-                (
-                    await prisma.authIdentity.findUniqueOrThrow({
-                        where: { id: owner.auth.id }
-                    })
-                ).legacyStudentId,
-                null
             );
         } finally {
             await new Promise<void>((resolve) => server.close(() => resolve()));

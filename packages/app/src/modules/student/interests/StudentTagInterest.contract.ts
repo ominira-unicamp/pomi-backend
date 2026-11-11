@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { type IO, OutputBuilder } from "#/Contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
@@ -67,7 +67,7 @@ const list = {
         tags: ["student-tag-interests"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PROFILE_READ
+            UserCapabilities.PROFILE_READ
         ),
         queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
@@ -97,7 +97,7 @@ const put = {
         tags: ["student-tag-interests"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PROFILE_WRITE
+            UserCapabilities.PROFILE_WRITE
         )
     },
     request: z.object({ path: studentTagId }),
@@ -121,7 +121,7 @@ const remove = {
         tags: ["student-tag-interests"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PROFILE_WRITE
+            UserCapabilities.PROFILE_WRITE
         )
     },
     request: z.object({ path: studentTagId }),

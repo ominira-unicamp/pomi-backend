@@ -48,7 +48,6 @@ const selection = {
             select: {
                 id: true,
                 studentId: true,
-                legacyStudentId: true,
                 publicId: true,
                 publicProfileEnabled: true,
                 publicDisplayName: true,

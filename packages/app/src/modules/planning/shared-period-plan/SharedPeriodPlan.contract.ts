@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { OutputBuilder, type IO } from "#/Contract.js";
 import { periodPlanningClass } from "#/modules/planning/period-plan/PeriodPlan.contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
@@ -176,7 +176,7 @@ const listForUser = {
         tags: ["shared-period-plans"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PLANNING_READ
+            UserCapabilities.PLANNING_READ
         ),
         queryFeatures: { filter: true, sort: true },
         sdk: {
@@ -223,7 +223,7 @@ const getForUser = {
         tags: ["shared-period-plans"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PLANNING_READ
+            UserCapabilities.PLANNING_READ
         )
     },
     request: z.object({ path: sidPath.extend(sharePath.shape) }),

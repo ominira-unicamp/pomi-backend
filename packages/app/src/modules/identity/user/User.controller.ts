@@ -1,6 +1,6 @@
 import {
     policies,
-    StudentCapabilities,
+    UserCapabilities,
     type AuthorizationPolicy
 } from "#/Authorization.js";
 import { createAppEndpointRegistries } from "#/BuildHandler.js";
@@ -57,10 +57,10 @@ const metadata = (
     authorization: policies.userAccess(
         "userId",
         method === "get"
-            ? StudentCapabilities.PROFILE_READ
+            ? UserCapabilities.PROFILE_READ
             : preference
-              ? StudentCapabilities.PLANNING_WRITE
-              : StudentCapabilities.PROFILE_WRITE
+              ? UserCapabilities.PLANNING_WRITE
+              : UserCapabilities.PROFILE_WRITE
     )
 });
 const contracts = {

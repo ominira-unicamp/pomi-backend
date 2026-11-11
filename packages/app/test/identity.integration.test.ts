@@ -3,7 +3,6 @@ import {
     canonicalIdentityInclude,
     createCanonicalIdentity,
     createDatabaseClient,
-    linkCanonicalStudent,
     localIdentityDatabaseUrl,
     runIdentityTransaction
 } from "@pomi/db";
@@ -14,7 +13,7 @@ import test from "node:test";
 const databaseUrl = process.env.POMI_IAM_TEST_DATABASE_URL;
 
 test(
-    "multiple canonical credentials preserve individual privileges, aliases and blocking",
+    "multiple canonical credentials preserve individual privileges and blocking",
     { skip: !databaseUrl },
     async () => {
         process.env.DISABLED_AUTH = "true";
@@ -134,7 +133,10 @@ test(
                     const student = await tx.student.create({
                         data: { ra: suffix, name: "Rollback fixture" }
                     });
-                    await linkCanonicalStudent(tx, left.id, student.id);
+                    await tx.user.update({
+                        where: { id: left.principal.user!.id },
+                        data: { studentId: student.id }
+                    });
                     throw new Error("Abort association");
                 }),
                 /Abort association/
@@ -156,7 +158,10 @@ test(
             });
             studentId = student.id;
             await runIdentityTransaction(prisma, async (tx) => {
-                await linkCanonicalStudent(tx, left.id, student.id);
+                await tx.user.update({
+                    where: { id: left.principal.user!.id },
+                    data: { studentId: student.id }
+                });
             });
             const linked = await prisma.authIdentity.findUniqueOrThrow({
                 where: { id: left.id },
@@ -299,7 +304,7 @@ test(
 );
 
 test(
-    "explicit student registration and deletion synchronize both identity models",
+    "academic registration and deletion update User without changing credentials",
     { skip: !databaseUrl },
     async () => {
         process.env.DISABLED_AUTH = "true";
@@ -339,7 +344,6 @@ test(
                 where: { id },
                 include: canonicalIdentityInclude
             });
-            assert.equal(linked.legacyStudentId, null);
             assert.equal(
                 canonicalIdentity(linked).principal.user?.studentId,
                 studentId
@@ -349,7 +353,7 @@ test(
                 where: { id },
                 include: canonicalIdentityInclude
             });
-            assert.equal(removed.legacyStudentId, null);
+            assert.equal(removed.principal.user?.studentId, null);
             assert.equal(
                 canonicalIdentity(removed).principal.user?.studentId,
                 null

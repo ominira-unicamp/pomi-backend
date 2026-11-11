@@ -1,5 +1,5 @@
 import { defineImageResource, imageProfiles } from "#/media/public.js";
-import { hasUserAccess } from "#/modules/identity/Student.access.js";
+import { hasUserAccess } from "#/modules/identity/User.access.js";
 import { ForbiddenError, NotFoundError } from "@pomi/api-core";
 
 export type GroupAvatarTarget = { groupId: number; userId: number };
@@ -17,7 +17,7 @@ export const groupAvatarResource = defineImageResource<
                 db,
                 actor,
                 target.userId,
-                "STUDENT_PROFILE_WRITE"
+                "USER_PROFILE_WRITE"
             ))
         )
             throw new ForbiddenError("Acesso não permitido.");

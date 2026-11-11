@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { type IO, OutputBuilder } from "#/Contract.js";
 import { InvalidCurriculumProblem } from "#/modules/planning/curriculum/Curriculum.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
@@ -165,7 +165,7 @@ const get = {
         ...specBuilder.get(),
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PLANNING_READ
+            UserCapabilities.PLANNING_READ
         )
     },
     request: z.object({ path: pathWithId }),
@@ -180,7 +180,7 @@ const list = {
         ...specBuilder.list(),
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PLANNING_READ
+            UserCapabilities.PLANNING_READ
         ),
         queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
@@ -217,7 +217,7 @@ const create = {
         ...specBuilder.create(),
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PLANNING_WRITE
+            UserCapabilities.PLANNING_WRITE
         )
     },
     request: z.object({
@@ -244,7 +244,7 @@ const patch = {
         ...specBuilder.patch(),
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PLANNING_WRITE
+            UserCapabilities.PLANNING_WRITE
         )
     },
     request: z.object({
@@ -270,7 +270,7 @@ const remove = {
         ...specBuilder.remove(),
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.PLANNING_WRITE
+            UserCapabilities.PLANNING_WRITE
         )
     },
     request: z.object({ path: pathWithId }),

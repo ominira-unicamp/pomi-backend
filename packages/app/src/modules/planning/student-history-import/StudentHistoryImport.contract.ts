@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { type IO, OutputBuilder } from "#/Contract.js";
 import { InvalidStudentHistoryImportProblem } from "#/modules/planning/student-history-import/StudentHistoryImport.problems.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
@@ -33,7 +33,7 @@ const importHistory = {
         ...specsBuilder.create(),
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.HISTORY_WRITE
+            UserCapabilities.HISTORY_WRITE
         )
     },
     request: z.object({

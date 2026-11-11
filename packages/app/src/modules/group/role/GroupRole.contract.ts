@@ -35,7 +35,7 @@ export const listRoles = {
             path: userGroupBase("roles"),
             sdkAction: "list",
             queryFeatures: { filter: false },
-            capability: "STUDENT_PROFILE_READ"
+            capability: "USER_PROFILE_READ"
         }),
         pagination: unpaginatedByDefault
     },
@@ -51,7 +51,7 @@ export const createRole = {
         path: userGroupBase("roles"),
         sdkAction: "create",
         queryFeatures: { filter: false },
-        capability: "STUDENT_PROFILE_WRITE"
+        capability: "USER_PROFILE_WRITE"
     }),
     request: z.object({
         path: userGroupPath,
@@ -71,7 +71,7 @@ export const patchRole = {
         path: [...userGroupBase("roles"), pathSeg.param("roleId")],
         sdkAction: "update",
         queryFeatures: { filter: false },
-        capability: "STUDENT_PROFILE_WRITE"
+        capability: "USER_PROFILE_WRITE"
     }),
     request: z.object({ path: userGroupRolePath, body: rolePatch }),
     response: new OutputBuilder().ok(role, "Role atualizada").notFound().build()
@@ -83,7 +83,7 @@ export const deleteRole = {
         path: [...userGroupBase("roles"), pathSeg.param("roleId")],
         sdkAction: "delete",
         queryFeatures: { filter: false },
-        capability: "STUDENT_PROFILE_WRITE"
+        capability: "USER_PROFILE_WRITE"
     }),
     request: z.object({ path: userGroupRolePath }),
     response: new OutputBuilder().noContent("Role removida").notFound().build()

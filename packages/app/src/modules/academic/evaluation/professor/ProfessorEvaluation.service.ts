@@ -112,8 +112,7 @@ export function createProfessorEvaluationService({
                     user: {
                         select: {
                             id: true,
-                            studentId: true,
-                            legacyStudentId: true
+                            studentId: true
                         }
                     }
                 }
@@ -147,8 +146,7 @@ export function createProfessorEvaluationService({
                     user: {
                         select: {
                             id: true,
-                            studentId: true,
-                            legacyStudentId: true
+                            studentId: true
                         }
                     }
                 },

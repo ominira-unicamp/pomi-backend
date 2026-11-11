@@ -1,8 +1,7 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-
 import sharedPeriodPlanContracts from "#/modules/planning/shared-period-plan/SharedPeriodPlan.contract.js";
 import { createSharedPeriodPlanService } from "#/modules/planning/shared-period-plan/SharedPeriodPlan.service.js";
+import assert from "node:assert/strict";
+import test from "node:test";
 
 test("shared period plan contracts expose public and student routes", () => {
     assert.equal(
@@ -86,7 +85,6 @@ test("shared plan author avatar disappears when the profile becomes private", as
         studyPeriod: { id: 1, year: 2026, yearPeriod: "FIRST_SEMESTER" },
         user: {
             studentId: 7,
-            legacyStudentId: 7,
             id: 7,
             publicId: "8bf172b7-6e70-47e4-ad19-353292f77d34",
             publicProfileEnabled: true,

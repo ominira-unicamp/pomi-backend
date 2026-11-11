@@ -8,12 +8,10 @@ export function invitation(
         recipientUser: {
             id: number;
             studentId: number | null;
-            legacyStudentId: number | null;
         };
         inviterUser: {
             id: number;
             studentId: number | null;
-            legacyStudentId: number | null;
         };
         status: "PENDING" | "ACCEPTED" | "DECLINED" | "CANCELLED" | "EXPIRED";
         expiresAt: Date;
@@ -39,7 +37,6 @@ export const invitationInclude = {
         select: {
             id: true,
             studentId: true,
-            legacyStudentId: true,
             name: true,
             student: { select: { name: true } },
             publicId: true,
@@ -59,6 +56,6 @@ export const invitationInclude = {
         }
     },
     inviterUser: {
-        select: { id: true, studentId: true, legacyStudentId: true }
+        select: { id: true, studentId: true }
     }
 } as const;

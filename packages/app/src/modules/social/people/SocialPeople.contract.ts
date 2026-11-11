@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { OutputBuilder, type IO } from "#/Contract.js";
 import {
     createPaginationQuerySchema,
@@ -30,7 +30,7 @@ const peoplePath = [
     pathSeg.param("userId"),
     pathSeg.literal("people")
 ];
-const read = policies.userAccess("userId", StudentCapabilities.SOCIAL_READ);
+const read = policies.userAccess("userId", UserCapabilities.SOCIAL_READ);
 
 const listPeople = {
     meta: {

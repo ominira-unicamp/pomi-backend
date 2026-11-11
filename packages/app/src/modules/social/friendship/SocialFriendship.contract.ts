@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { OutputBuilder, type IO } from "#/Contract.js";
 import {
     createPaginationQuerySchema,
@@ -38,8 +38,8 @@ const friendshipsPath = [
     pathSeg.param("userId"),
     pathSeg.literal("friendships")
 ];
-const read = policies.userAccess("userId", StudentCapabilities.SOCIAL_READ);
-const write = policies.userAccess("userId", StudentCapabilities.SOCIAL_WRITE);
+const read = policies.userAccess("userId", UserCapabilities.SOCIAL_READ);
+const write = policies.userAccess("userId", UserCapabilities.SOCIAL_WRITE);
 
 const listFriendships = {
     meta: {

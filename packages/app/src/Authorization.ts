@@ -9,21 +9,20 @@ export const Capabilities = {
     ACADEMIC_WRITE: "ACADEMIC_WRITE"
 } as const;
 export type Capability = (typeof Capabilities)[keyof typeof Capabilities];
-
-export const StudentCapabilities = {
-    PROFILE_READ: "STUDENT_PROFILE_READ",
-    PROFILE_WRITE: "STUDENT_PROFILE_WRITE",
-    HISTORY_READ: "STUDENT_HISTORY_READ",
-    HISTORY_WRITE: "STUDENT_HISTORY_WRITE",
-    PLANNING_READ: "STUDENT_PLANNING_READ",
-    PLANNING_WRITE: "STUDENT_PLANNING_WRITE",
-    SOCIAL_READ: "STUDENT_SOCIAL_READ",
-    SOCIAL_WRITE: "STUDENT_SOCIAL_WRITE",
-    FEEDBACK_READ: "STUDENT_FEEDBACK_READ",
-    FEEDBACK_WRITE: "STUDENT_FEEDBACK_WRITE"
+export const UserCapabilities = {
+    PROFILE_READ: "USER_PROFILE_READ",
+    PROFILE_WRITE: "USER_PROFILE_WRITE",
+    HISTORY_READ: "USER_HISTORY_READ",
+    HISTORY_WRITE: "USER_HISTORY_WRITE",
+    PLANNING_READ: "USER_PLANNING_READ",
+    PLANNING_WRITE: "USER_PLANNING_WRITE",
+    SOCIAL_READ: "USER_SOCIAL_READ",
+    SOCIAL_WRITE: "USER_SOCIAL_WRITE",
+    FEEDBACK_READ: "USER_FEEDBACK_READ",
+    FEEDBACK_WRITE: "USER_FEEDBACK_WRITE"
 } as const;
-export type StudentCapability =
-    (typeof StudentCapabilities)[keyof typeof StudentCapabilities];
+export type UserCapability =
+    (typeof UserCapabilities)[keyof typeof UserCapabilities];
 
 export function raFromDacEmail(email: string | null): string | undefined {
     if (!email) return undefined;
@@ -39,18 +38,12 @@ export type AuthorizationPolicy =
     | { kind: "admin" }
     | { kind: "capability"; capability: Capability }
     | {
-          kind: "student-access";
-          studentParam: string;
-          capability: StudentCapability;
-      }
-    | {
           kind: "user-access";
           userParam: string;
-          capability: StudentCapability;
+          capability: UserCapability;
           ownerOnly?: boolean;
       }
-    | { kind: "academic-registration" }
-    | { kind: "student-registration" };
+    | { kind: "academic-registration" };
 
 export const policies = {
     public: { kind: "public" } as const,
@@ -61,17 +54,9 @@ export const policies = {
         kind: "capability",
         capability
     }),
-    studentAccess: (
-        studentParam: string,
-        capability: StudentCapability
-    ): AuthorizationPolicy => ({
-        kind: "student-access",
-        studentParam,
-        capability
-    }),
     userAccess: (
         userParam: string,
-        capability: StudentCapability,
+        capability: UserCapability,
         ownerOnly = false
     ): AuthorizationPolicy => ({
         kind: "user-access",
@@ -79,6 +64,5 @@ export const policies = {
         capability,
         ...(ownerOnly ? { ownerOnly: true } : {})
     }),
-    academicRegistration: { kind: "academic-registration" } as const,
-    studentRegistration: { kind: "student-registration" } as const
+    academicRegistration: { kind: "academic-registration" } as const
 };

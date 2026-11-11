@@ -14,6 +14,10 @@ import {
     canonicalIdentity,
     canonicalIdentityInclude
 } from "../src/identity.js";
+import {
+    inspectIdentityCleanup,
+    migrateUserCapabilities
+} from "../src/identityCleanup.js";
 import { createDatabaseClient } from "../src/PrismaClient.js";
 
 config({ path: resolve(import.meta.dirname, "../../../.env"), quiet: true });
@@ -37,14 +41,36 @@ function run(args: string[], env = process.env) {
             `Identity migration subprocess failed with status ${result.status}.`
         );
 }
-function deploy() {
-    run([
-        prismaCommand,
-        "migrate",
-        "deploy",
-        "--config",
-        resolve(import.meta.dirname, "../prisma.config.ts")
-    ]);
+function deploy(path = migrations) {
+    run(
+        [
+            prismaCommand,
+            "migrate",
+            "deploy",
+            "--config",
+            resolve(import.meta.dirname, "../prisma.config.ts")
+        ],
+        { ...process.env, POMI_PRISMA_MIGRATIONS_PATH: path }
+    );
+}
+
+async function deployThrough(last: string) {
+    const directory = await mkdtemp(resolve(tmpdir(), "pomi-identity-stage-"));
+    try {
+        const entries = await readdir(migrations);
+        if (!entries.includes(last))
+            throw new Error(`Missing migration boundary: ${last}`);
+        for (const entry of entries)
+            if (entry === "migration_lock.toml" || entry <= last)
+                await cp(
+                    resolve(migrations, entry),
+                    resolve(directory, entry),
+                    { recursive: true }
+                );
+        deploy(directory);
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
 }
 
 try {
@@ -118,33 +144,92 @@ try {
         if (repeated.semanticDigest !== expected.semanticDigest)
             throw new Error("Credential backfill was not idempotent.");
     }
-    deploy();
-    if (expected) {
-        const [sequence] = await prisma.$queryRaw<
-            Array<{ name: string }>
-        >`SELECT pg_get_serial_sequence('app."AuthIdentity"', 'legacyId') AS name`;
-        if (!sequence?.name)
-            throw new Error("Credential alias sequence is missing.");
-        await prisma.$executeRaw(Prisma.sql`
+    const [compatibility] = await prisma.$queryRaw<Array<{ aliases: boolean }>>`
+        SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='app'
+            AND table_name='AuthIdentity' AND column_name='legacyId') AS aliases
+    `;
+    if (compatibility!.aliases) {
+        await deployThrough(contract);
+        if (expected) {
+            const [sequence] = await prisma.$queryRaw<
+                Array<{ name: string }>
+            >`SELECT pg_get_serial_sequence('app."AuthIdentity"', 'legacyId') AS name`;
+            if (!sequence?.name)
+                throw new Error("Credential alias sequence is missing.");
+            await prisma.$executeRaw(Prisma.sql`
             SELECT setval(${sequence.name}::regclass,
                 GREATEST(COALESCE((SELECT MAX("legacyId") FROM app."AuthIdentity"),0), ${expected.legacyIdHighWater}) + 1, false)
         `);
-    }
-    const current = await inspectAuthUserMigration(prisma);
-    const application = await inspectOtherApplicationData(prisma);
-    if (
-        (expected && expected.semanticDigest !== current.semanticDigest) ||
-        (preserved &&
-            preserved.applicationDataDigest !==
-                application.applicationDataDigest)
-    )
-        throw new Error(
-            "Post-contraction credential/application preservation audit failed."
-        );
-    const legacy = await prisma.$queryRaw<Array<{ tablename: string }>>`
+        }
+        const current = await inspectAuthUserMigration(prisma);
+        const application = await inspectOtherApplicationData(prisma);
+        if (
+            (expected && expected.semanticDigest !== current.semanticDigest) ||
+            (preserved &&
+                preserved.applicationDataDigest !==
+                    application.applicationDataDigest)
+        )
+            throw new Error(
+                "Post-contraction credential/application preservation audit failed."
+            );
+        const legacy = await prisma.$queryRaw<Array<{ tablename: string }>>`
         SELECT tablename FROM pg_tables WHERE schemaname='app' AND tablename IN ('AuthUser','AuthUserRole','AuthUserCapability')
     `;
-    if (legacy.length) throw new Error("Legacy credential tables still exist.");
+        if (legacy.length)
+            throw new Error("Legacy credential tables still exist.");
+        const [position] = await prisma.$queryRaw<
+            Array<{ next: bigint; maximum: number }>
+        >`
+        SELECT CASE WHEN is_called THEN last_value+1 ELSE last_value END AS next,
+            (SELECT COALESCE(MAX("legacyId"),0) FROM app."AuthIdentity") AS maximum
+        FROM app.authidentity_legacyid_seq
+    `;
+        if (position!.next <= BigInt(position!.maximum))
+            throw new Error(
+                "Credential alias sequence would reuse existing identifiers."
+            );
+        console.log(
+            JSON.stringify({
+                phase: "authuser-complete",
+                ...current,
+                ...application,
+                legacyTables: 0,
+                aliasSequenceValid: true
+            })
+        );
+    }
+    const [cleanup] = await prisma.$queryRaw<
+        Array<{ pending: boolean; populated: boolean }>
+    >`
+        SELECT to_regtype('app."StudentCapability"') IS NOT NULL AS pending,
+            EXISTS (SELECT 1 FROM app."AuthIdentity") OR EXISTS (SELECT 1 FROM app."User") OR EXISTS (SELECT 1 FROM app."BotGrant") AS populated
+    `;
+    if (
+        cleanup!.pending &&
+        cleanup!.populated &&
+        process.env.POMI_AUTHUSER_WRITERS_STOPPED !== "1"
+    )
+        throw new Error(
+            "Stop all writers and set POMI_AUTHUSER_WRITERS_STOPPED=1 before identity cleanup."
+        );
+    for (const identity of await prisma.authIdentity.findMany({
+        include: canonicalIdentityInclude
+    }))
+        canonicalIdentity(identity);
+    const beforeCleanup = await inspectIdentityCleanup(prisma);
+    if (cleanup!.pending) {
+        await deployThrough("20261111021511_expand_user_capabilities");
+        console.log(
+            JSON.stringify({
+                phase: "user-capabilities",
+                ...(await migrateUserCapabilities(prisma))
+            })
+        );
+    }
+    deploy();
+    const afterCleanup = await inspectIdentityCleanup(prisma);
+    if (beforeCleanup.digest !== afterCleanup.digest)
+        throw new Error("Post-cleanup application preservation audit failed.");
     for (const identity of await prisma.authIdentity.findMany({
         include: canonicalIdentityInclude
     }))
@@ -153,21 +238,19 @@ try {
         Array<{ next: bigint; maximum: number }>
     >`
         SELECT CASE WHEN is_called THEN last_value+1 ELSE last_value END AS next,
-            (SELECT COALESCE(MAX("legacyId"),0) FROM app."AuthIdentity") AS maximum
-        FROM app.authidentity_legacyid_seq
+            (SELECT COALESCE(MAX(id),0) FROM app."AuthIdentity") AS maximum
+        FROM app."AuthIdentity_id_seq"
     `;
     if (position!.next <= BigInt(position!.maximum))
         throw new Error(
-            "Credential alias sequence would reuse existing identifiers."
+            "Credential sequence would reuse existing identifiers."
         );
     console.log(
         JSON.stringify({
-            phase: "authuser-complete",
-            ...current,
-            ...application,
-            legacyTables: 0,
+            phase: "identity-cleanup-complete",
+            ...afterCleanup,
             canonicalIdentitiesValid: true,
-            aliasSequenceValid: true
+            identitySequenceValid: true
         })
     );
 } finally {

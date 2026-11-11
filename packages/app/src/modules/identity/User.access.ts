@@ -3,19 +3,17 @@ import {
     canonicalIdentity,
     canonicalIdentityInclude,
     type MyPrisma,
-    type StudentCapability
+    type UserCapability
 } from "@pomi/db";
-
 type AccessDatabase = Pick<
     MyPrisma.TransactionClient,
-    "authIdentity" | "botGrant" | "user"
+    "authIdentity" | "botGrant"
 >;
-
 export async function hasUserAccess(
     db: AccessDatabase,
     actor: Principal | undefined,
     userId: number,
-    capability: StudentCapability
+    capability: UserCapability
 ) {
     if (!actor) return false;
     const credential = await db.authIdentity.findUnique({
@@ -37,17 +35,4 @@ export async function hasUserAccess(
         },
         select: { id: true }
     }));
-}
-
-export async function hasStudentAccess(
-    db: AccessDatabase,
-    actor: Principal | undefined,
-    studentId: number,
-    capability: StudentCapability
-) {
-    const owner = await db.user.findUnique({
-        where: { studentId },
-        select: { id: true }
-    });
-    return !!owner && hasUserAccess(db, actor, owner.id, capability);
 }

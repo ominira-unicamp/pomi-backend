@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { OutputBuilder, type IO } from "#/Contract.js";
 import { pathSeg, ResourceNotFoundProblemSchema } from "@pomi/api-core";
 import z from "zod";
@@ -9,8 +9,8 @@ const profilePath = [
     pathSeg.param("userId"),
     pathSeg.literal("profile")
 ];
-const read = policies.userAccess("userId", StudentCapabilities.SOCIAL_READ);
-const write = policies.userAccess("userId", StudentCapabilities.SOCIAL_WRITE);
+const read = policies.userAccess("userId", UserCapabilities.SOCIAL_READ);
+const write = policies.userAccess("userId", UserCapabilities.SOCIAL_WRITE);
 
 const getProfile = {
     meta: {

@@ -107,11 +107,15 @@ test(
             );
             const identities = await prisma.authIdentity.findMany({
                 where: { issuer },
-                orderBy: { legacyId: "asc" },
+                orderBy: { subject: "asc" },
                 include: { roles: true, capabilities: true }
             });
             assert.deepEqual(
-                identities.map((x) => x.legacyId),
+                (
+                    await prisma.$queryRaw<
+                        Array<{ legacyId: number }>
+                    >`SELECT "legacyId" FROM app."AuthIdentity" WHERE issuer=${issuer} ORDER BY "legacyId"`
+                ).map((x) => x.legacyId),
                 [base, base + 1, base + 2]
             );
             assert.deepEqual(
@@ -126,9 +130,14 @@ test(
                 identities.map((x) => x.capabilities.map((c) => c.capability)),
                 [[], ["ACADEMIC_WRITE"], []]
             );
-            const grant = await prisma.botGrant.findFirstOrThrow({
-                where: { userId: user.id }
-            });
+            const [grant] = await prisma.$queryRaw<
+                Array<{
+                    botAuthIdentityId: number;
+                    grantedByAuthIdentityId: number;
+                    revokedByAuthIdentityId: number;
+                }>
+            >`SELECT "botAuthIdentityId", "grantedByAuthIdentityId", "revokedByAuthIdentityId" FROM app."BotGrant" WHERE "userId"=${user.id}`;
+            assert.ok(grant);
             assert.equal(grant.botAuthIdentityId, base + 102);
             assert.equal(grant.grantedByAuthIdentityId, base + 101);
             assert.equal(grant.revokedByAuthIdentityId, base + 100);

@@ -229,9 +229,13 @@ export async function backfillUserOwnership(
             let createdUsers = 0;
             let copiedProfiles = 0;
             for (const student of students) {
-                let user = await tx.user.findUnique({
-                    where: { studentId: student.id }
-                });
+                let [user] = await tx.$queryRaw<
+                    Array<{
+                        id: number;
+                        publicId: string;
+                        legacyStudentId: number | null;
+                    }>
+                >`SELECT id, "publicId", "legacyStudentId" FROM app."User" WHERE "studentId"=${student.id}`;
                 if (!user) {
                     createdUsers++;
                     if (options.apply) {
@@ -247,7 +251,14 @@ export async function backfillUserOwnership(
                             },
                             include: { user: true }
                         });
-                        user = principal.user!;
+                        const [created] = await tx.$queryRaw<
+                            Array<{
+                                id: number;
+                                publicId: string;
+                                legacyStudentId: number | null;
+                            }>
+                        >`SELECT id, "publicId", "legacyStudentId" FROM app."User" WHERE id=${principal.user!.id}`;
+                        user = created;
                     }
                 }
                 if (
@@ -265,8 +276,9 @@ export async function backfillUserOwnership(
                         );
                         await tx.user.update({
                             where: { id: user.id },
-                            data: { ...profile, legacyStudentId: student.id }
+                            data: profile
                         });
+                        await tx.$executeRaw`UPDATE app."User" SET "legacyStudentId"=${student.id} WHERE id=${user.id}`;
                     }
                 }
             }

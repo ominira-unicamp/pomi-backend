@@ -54,7 +54,7 @@ export const listInvitations = {
             path: studentBase("group-invitations"),
             sdkAction: "list",
             queryFeatures: { filter: true },
-            capability: "STUDENT_PROFILE_READ"
+            capability: "USER_PROFILE_READ"
         }),
         pagination: unpaginatedByDefault
     },
@@ -71,7 +71,7 @@ export const listManagedInvitations = {
             path: userGroupBase("invitations"),
             sdkAction: "list",
             queryFeatures: { filter: false },
-            capability: "STUDENT_PROFILE_READ"
+            capability: "USER_PROFILE_READ"
         }),
         pagination: unpaginatedByDefault
     },
@@ -90,7 +90,7 @@ export const createInvitation = {
         path: userGroupBase("invitations"),
         sdkAction: "create",
         queryFeatures: { filter: false },
-        capability: "STUDENT_PROFILE_WRITE"
+        capability: "USER_PROFILE_WRITE"
     }),
     request: z.object({
         path: userGroupPath,
@@ -109,7 +109,7 @@ export const acceptInvitation = {
         ],
         sdkAction: "create",
         queryFeatures: { filter: false },
-        capability: "STUDENT_PROFILE_WRITE"
+        capability: "USER_PROFILE_WRITE"
     }),
     request: z.object({ path: sidId }),
     response: new OutputBuilder()
@@ -128,7 +128,7 @@ export const declineInvitation = {
         ],
         sdkAction: "create",
         queryFeatures: { filter: false },
-        capability: "STUDENT_PROFILE_WRITE"
+        capability: "USER_PROFILE_WRITE"
     }),
     request: z.object({ path: sidId }),
     response: new OutputBuilder()

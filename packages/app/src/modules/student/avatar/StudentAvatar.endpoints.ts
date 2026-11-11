@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { createAppEndpointRegistries } from "#/BuildHandler.js";
 import {
     createImageActions,
@@ -26,7 +26,7 @@ export const studentAvatarEndpoints = {
     target: ({ path }) => ({ userId: path.userId }),
     authorization: policies.userAccess(
         "userId",
-        StudentCapabilities.PROFILE_WRITE
+        UserCapabilities.PROFILE_WRITE
     ),
     operations: {
         replace: "putUserAvatar",

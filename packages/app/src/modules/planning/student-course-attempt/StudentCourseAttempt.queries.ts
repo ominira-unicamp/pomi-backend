@@ -2,7 +2,7 @@ import { type MyPrisma, selectIdCode } from "@pomi/db";
 
 export const prismaStudentCourseFieldSelection = {
     include: {
-        user: { select: { id: true, studentId: true, legacyStudentId: true } },
+        user: { select: { id: true, studentId: true } },
         course: {
             select: {
                 id: true,

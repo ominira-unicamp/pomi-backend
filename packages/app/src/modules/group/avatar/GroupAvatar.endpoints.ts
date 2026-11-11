@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { createAppEndpointRegistries } from "#/BuildHandler.js";
 import {
     createImageActions,
@@ -31,7 +31,7 @@ export const groupAvatarEndpoints = {
     target: ({ path }) => ({ userId: path.userId, groupId: path.groupId }),
     authorization: policies.userAccess(
         "userId",
-        StudentCapabilities.PROFILE_WRITE
+        UserCapabilities.PROFILE_WRITE
     ),
     operations: {
         replace: "putGroupAvatar",

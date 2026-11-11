@@ -80,7 +80,7 @@ export function publicMeta(definition: GroupMetadata & { method: "get" }) {
 
 export function studentMeta(
     definition: GroupMetadata & {
-        capability: "STUDENT_PROFILE_READ" | "STUDENT_PROFILE_WRITE";
+        capability: "USER_PROFILE_READ" | "USER_PROFILE_WRITE";
     }
 ) {
     return {

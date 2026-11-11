@@ -28,8 +28,7 @@ test(
                 kind: "HUMAN",
                 user: {
                     create: {
-                        studentId: student.id,
-                        legacyStudentId: student.id
+                        studentId: student.id
                     }
                 }
             },

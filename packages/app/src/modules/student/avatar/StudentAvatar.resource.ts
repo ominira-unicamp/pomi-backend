@@ -1,5 +1,5 @@
 import { defineImageResource, imageProfiles } from "#/media/public.js";
-import { hasUserAccess } from "#/modules/identity/Student.access.js";
+import { hasUserAccess } from "#/modules/identity/User.access.js";
 import { ForbiddenError, NotFoundError } from "@pomi/api-core";
 
 export type StudentAvatarTarget = { userId: number };
@@ -17,7 +17,7 @@ export const studentAvatarResource = defineImageResource<
                 db,
                 actor,
                 target.userId,
-                "STUDENT_PROFILE_WRITE"
+                "USER_PROFILE_WRITE"
             ))
         )
             throw new ForbiddenError("Acesso não permitido.");
@@ -65,7 +65,7 @@ export const studentAvatarResource = defineImageResource<
     async authorizeRead({ db, actor, owner }) {
         return (
             owner.publicProfileEnabled ||
-            hasUserAccess(db, actor, owner.id, "STUDENT_PROFILE_READ")
+            hasUserAccess(db, actor, owner.id, "USER_PROFILE_READ")
         );
     }
 });

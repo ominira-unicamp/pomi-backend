@@ -1,4 +1,4 @@
-import { policies, StudentCapabilities } from "#/Authorization.js";
+import { policies, UserCapabilities } from "#/Authorization.js";
 import { type IO, OutputBuilder } from "#/Contract.js";
 import {
     FeedbackRateLimitProblem,
@@ -254,7 +254,7 @@ const listStudent = {
         tags: ["feedback-reports"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.FEEDBACK_READ
+            UserCapabilities.FEEDBACK_READ
         ),
         queryFeatures: { sort: true },
         pagination: unpaginatedByDefault
@@ -371,7 +371,7 @@ const createForUser = {
         tags: ["feedback-reports"],
         authorization: policies.userAccess(
             "userId",
-            StudentCapabilities.FEEDBACK_WRITE
+            UserCapabilities.FEEDBACK_WRITE
         )
     },
     request: z.object({ path: studentPath, body }),

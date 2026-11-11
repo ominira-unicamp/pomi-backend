@@ -96,7 +96,7 @@ export const listManagedEvents = {
             path: userGroupBase("events"),
             sdkAction: "list",
             queryFeatures: { filter: false },
-            capability: "STUDENT_PROFILE_READ"
+            capability: "USER_PROFILE_READ"
         }),
         pagination: unpaginatedByDefault
     },
@@ -112,7 +112,7 @@ export const createEvent = {
         path: userGroupBase("events"),
         sdkAction: "create",
         queryFeatures: { filter: false },
-        capability: "STUDENT_PROFILE_WRITE"
+        capability: "USER_PROFILE_WRITE"
     }),
     request: z.object({ path: userGroupPath, body: eventBody }),
     response: new OutputBuilder().created(managedEvent, "Evento criado").build()
@@ -124,7 +124,7 @@ export const patchEvent = {
         path: [...userGroupBase("events"), pathSeg.param("eventId")],
         sdkAction: "update",
         queryFeatures: { filter: false },
-        capability: "STUDENT_PROFILE_WRITE"
+        capability: "USER_PROFILE_WRITE"
     }),
     request: z.object({ path: userGroupEventPath, body: eventPatch }),
     response: new OutputBuilder()
@@ -143,7 +143,7 @@ export const publishEvent = {
         ],
         sdkAction: "create",
         queryFeatures: { filter: false },
-        capability: "STUDENT_PROFILE_WRITE"
+        capability: "USER_PROFILE_WRITE"
     }),
     request: z.object({ path: userGroupEventPath }),
     response: new OutputBuilder()
@@ -162,7 +162,7 @@ export const cancelEvent = {
         ],
         sdkAction: "create",
         queryFeatures: { filter: false },
-        capability: "STUDENT_PROFILE_WRITE"
+        capability: "USER_PROFILE_WRITE"
     }),
     request: z.object({ path: userGroupEventPath }),
     response: new OutputBuilder()

@@ -63,7 +63,7 @@ test("lists a student's feedback reports", async () => {
                         status: "OPEN",
                         adminMessage: null,
                         reporterUserId: 7,
-                        reporterUser: { studentId: 7, legacyStudentId: 7 },
+                        reporterUser: { studentId: 7 },
                         createdAt: new Date("2026-09-01T12:00:00.000Z"),
                         updatedAt: new Date("2026-09-01T12:00:00.000Z")
                     }
@@ -106,7 +106,7 @@ test("updates a report status and administrative message", async () => {
                         status: "CLOSED",
                         adminMessage: "A solicitação foi encerrada.",
                         reporterUserId: 7,
-                        reporterUser: { studentId: 7, legacyStudentId: 7 },
+                        reporterUser: { studentId: 7 },
                         createdAt: new Date("2026-09-01T12:00:00.000Z"),
                         updatedAt: new Date("2026-09-02T12:00:00.000Z")
                     };

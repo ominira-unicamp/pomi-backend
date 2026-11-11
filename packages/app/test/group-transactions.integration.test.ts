@@ -69,8 +69,7 @@ async function fixture(prisma: PrismaClient) {
                     user: {
                         create: {
                             name: student.name,
-                            studentId: student.id,
-                            legacyStudentId: student.id
+                            studentId: student.id
                         }
                     }
                 },

@@ -1,7 +1,12 @@
 import {
-    hasStudentAccess,
-    hasUserAccess
-} from "#/modules/identity/Student.access.js";
+    AuthRoles,
+    policies,
+    raFromDacEmail,
+    type AuthorizationPolicy,
+    type AuthRole,
+    type Capability
+} from "#/Authorization.js";
+import { hasUserAccess } from "#/modules/identity/User.access.js";
 import type { Principal } from "#/Principal.js";
 import {
     forbiddenProblem,
@@ -19,18 +24,8 @@ import { NextFunction, Request, Response } from "express";
 import * as jose from "jose";
 import { match } from "path-to-regexp";
 import z from "zod";
-export type { Principal } from "#/Principal.js";
-
-import {
-    AuthRoles,
-    policies,
-    raFromDacEmail,
-    type AuthorizationPolicy,
-    type AuthRole,
-    type Capability
-} from "#/Authorization.js";
-
 export * from "#/Authorization.js";
+export type { Principal } from "#/Principal.js";
 
 const disabled = process.env.DISABLED_AUTH === "true";
 const isProduction = process.env.NODE_ENV === "production";
@@ -241,14 +236,6 @@ class AuthRegistry {
                 return;
             throw new ForbiddenError();
         }
-        if (policy.kind === "student-registration") {
-            if (
-                principal.roles.has(AuthRoles.STUDENT) &&
-                principal.studentId === null
-            )
-                return;
-            throw new ForbiddenError();
-        }
 
         if (policy.kind === "user-access") {
             const userId = Number(params[policy.userParam]);
@@ -277,24 +264,7 @@ class AuthRegistry {
                 throw new ForbiddenError();
             return;
         }
-        const rawStudentId = params[policy.studentParam];
-        const studentId = Number(
-            Array.isArray(rawStudentId) ? rawStudentId[0] : rawStudentId
-        );
-        if (!Number.isSafeInteger(studentId)) throw new ForbiddenError();
-        if (principal.roles.has(AuthRoles.ADMIN)) return;
-        if (principal.studentId === studentId) return;
-        if (!principal.roles.has(AuthRoles.BOT)) throw new ForbiddenError();
-
-        if (
-            !(await hasStudentAccess(
-                req.prisma,
-                principal,
-                studentId,
-                policy.capability
-            ))
-        )
-            throw new ForbiddenError();
+        throw new ForbiddenError();
     }
 
     middleware() {
