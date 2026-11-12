@@ -41,6 +41,33 @@ test("class contract exposes reservation programs instead of legacy codes", () =
     assert.equal(schema.required?.includes("reservationPrograms"), true);
 });
 
+test("Course exposes a required nullable CatalogCourse without new query capabilities", () => {
+    const document = generateDataOpenApiDocument();
+    const schema = document.components?.schemas?.CourseEntity as {
+        properties: Record<string, unknown>;
+        required: string[];
+    };
+    assert.ok(schema.required.includes("latestCatalogCourse"));
+    const field = schema.properties.latestCatalogCourse as {
+        type: string;
+        nullable: boolean;
+        properties: Record<string, unknown>;
+        required: string[];
+    };
+    const catalogCourse = document.components?.schemas?.CatalogCourseEntity as {
+        nullable?: boolean;
+        properties: Record<string, unknown>;
+        required: string[];
+    };
+    assert.equal(field.type, "object");
+    assert.equal(field.nullable, true);
+    assert.deepEqual(field.properties, catalogCourse.properties);
+    assert.deepEqual(field.required, catalogCourse.required);
+    assert.notEqual(catalogCourse.nullable, true);
+    const list = JSON.stringify(document.paths["/courses"]?.get?.parameters);
+    assert.equal(list.includes("latestCatalogCourse"), false);
+});
+
 test("exposes links only in pagination envelopes", () => {
     const document = generateDataOpenApiDocument();
     assert.equal(JSON.stringify(document).includes('"_paths"'), false);

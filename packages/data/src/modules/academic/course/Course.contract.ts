@@ -1,5 +1,6 @@
 import { OutputBuilder } from "#/BuildHandler.js";
 import { policies } from "#/auth.js";
+import catalogCourseIO from "#/modules/catalog/catalog-course/CatalogCourse.contract.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     createPaginationQuerySchema,
@@ -72,7 +73,15 @@ const courseEntity = z
         unitCode: z.string().min(1).nullable().openapi({
             description: "Sigla da unidade responsável, quando conhecida.",
             example: "IC"
-        })
+        }),
+        latestCatalogCourse: z
+            .object(catalogCourseIO.schema.shape)
+            .strict()
+            .nullable()
+            .openapi({
+                description:
+                    "Representação da disciplina no catálogo de maior ano associado a ela, ou null quando não há catálogo associado. Independe do filtro catalogYear e não indica vigência ou oferta atual."
+            })
     })
     .strict()
     .openapi("CourseEntity", {
