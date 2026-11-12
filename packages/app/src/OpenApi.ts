@@ -4,6 +4,7 @@ import type { Request, Response } from "express";
 import { Router } from "express";
 
 import { appControllers } from "#/Controllers.js";
+import { planningGuideVariantSchemas } from "#/modules/planning/period-plan/PeriodPlan.contract.js";
 import {
     assertOpenApiSdkCoverage,
     enrichSdkSchemaMetadata,
@@ -23,9 +24,13 @@ const operationMethods = new Set([
 ]);
 
 export function generateAppOpenApiDocument() {
-    const document = new OpenApiGeneratorV3(
-        appControllers.registry.definitions
-    ).generateDocument({
+    const document = new OpenApiGeneratorV3([
+        ...planningGuideVariantSchemas.map((schema) => ({
+            type: "schema" as const,
+            schema
+        })),
+        ...appControllers.registry.definitions
+    ]).generateDocument({
         openapi: "3.0.0",
         info: {
             version: "1.0.0",

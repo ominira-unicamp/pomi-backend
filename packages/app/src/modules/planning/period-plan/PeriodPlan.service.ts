@@ -74,7 +74,7 @@ async function guideFields(
     userId: number
 ): Promise<ProblemField[]> {
     const fields: ProblemField[] = [];
-    if (guide.mode === "CURRICULUM" && guide.curriculum.source === "SAVED") {
+    if (guide.curriculum?.source === "SAVED") {
         const curriculumId = guide.curriculum.saved.curriculumId;
         const curriculum = await prisma.curriculum.findFirst({
             where: { id: curriculumId, userId },
@@ -82,10 +82,7 @@ async function guideFields(
         });
         fields.push(...planningIssues(validateSavedGuide(!!curriculum)));
     }
-    if (
-        guide.mode === "CURRICULUM" &&
-        guide.curriculum.source === "SUGGESTION"
-    ) {
+    if (guide.curriculum?.source === "SUGGESTION") {
         const { suggestionId, catalogProgramId } = guide.curriculum.suggestion;
         const suggestion = await prisma.curriculumSuggestion.findUnique({
             where: { id: suggestionId },
@@ -105,7 +102,7 @@ async function guideFields(
             )
         );
     }
-    if (guide.mode === "PROGRAM") {
+    if (guide.program) {
         const { catalogProgramId, catalogProgramVariantId, languageId } =
             guide.program;
         const [program, variant, language] = await Promise.all([
@@ -188,18 +185,17 @@ function classUpdateData(
 
 function guideUpdateData(guide: GuideInput) {
     const curriculumId =
-        guide.mode === "CURRICULUM" && guide.curriculum.source === "SAVED"
+        guide.curriculum?.source === "SAVED"
             ? guide.curriculum.saved.curriculumId
             : null;
     const suggestionId =
-        guide.mode === "CURRICULUM" && guide.curriculum.source === "SUGGESTION"
+        guide.curriculum?.source === "SUGGESTION"
             ? guide.curriculum.suggestion.suggestionId
             : null;
-    const program = guide.mode === "PROGRAM" ? guide.program : null;
-    return {
+    const program = guide.program;
+    const data = {
         guideMode: guide.mode,
-        curriculumSource:
-            guide.mode === "CURRICULUM" ? guide.curriculum.source : null,
+        curriculumSource: guide.curriculum?.source ?? null,
         curriculum:
             curriculumId === null
                 ? { disconnect: true }
@@ -209,15 +205,15 @@ function guideUpdateData(guide: GuideInput) {
                 ? { disconnect: true }
                 : { connect: { id: suggestionId } },
         catalogProgram:
-            program === null
+            program == null
                 ? { disconnect: true }
                 : { connect: { id: program.catalogProgramId } },
         catalogProgramVariant:
-            program === null
+            program == null
                 ? { disconnect: true }
                 : { connect: { id: program.catalogProgramVariantId } },
         language:
-            program === null || program.languageId === null
+            program == null || program.languageId === null
                 ? { disconnect: true }
                 : { connect: { id: program.languageId } },
         manualCourses: {
@@ -227,6 +223,21 @@ function guideUpdateData(guide: GuideInput) {
             }))
         }
     };
+    return {
+        ...data,
+        curriculumSource:
+            guide.curriculum === undefined ? undefined : data.curriculumSource,
+        curriculum:
+            guide.curriculum === undefined ? undefined : data.curriculum,
+        curriculumSuggestion:
+            guide.curriculum === undefined
+                ? undefined
+                : data.curriculumSuggestion,
+        catalogProgram: program === undefined ? undefined : data.catalogProgram,
+        catalogProgramVariant:
+            program === undefined ? undefined : data.catalogProgramVariant,
+        language: program === undefined ? undefined : data.language
+    };
 }
 
 function guideCreateData(guide: GuideInput) {
@@ -234,17 +245,19 @@ function guideCreateData(guide: GuideInput) {
     return {
         guideMode: update.guideMode,
         curriculumSource: update.curriculumSource,
-        ...(update.curriculum.connect ? { curriculum: update.curriculum } : {}),
-        ...(update.curriculumSuggestion.connect
+        ...(update.curriculum?.connect
+            ? { curriculum: update.curriculum }
+            : {}),
+        ...(update.curriculumSuggestion?.connect
             ? { curriculumSuggestion: update.curriculumSuggestion }
             : {}),
-        ...(update.catalogProgram.connect
+        ...(update.catalogProgram?.connect
             ? { catalogProgram: update.catalogProgram }
             : {}),
-        ...(update.catalogProgramVariant.connect
+        ...(update.catalogProgramVariant?.connect
             ? { catalogProgramVariant: update.catalogProgramVariant }
             : {}),
-        ...(update.language.connect ? { language: update.language } : {}),
+        ...(update.language?.connect ? { language: update.language } : {}),
         manualCourses: {
             create: guide.manualCourseIds.map((courseId) => ({
                 course: { connect: { id: courseId } }

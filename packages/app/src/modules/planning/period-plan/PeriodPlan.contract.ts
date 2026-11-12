@@ -119,57 +119,24 @@ const curriculumPlanningGuideDetailsSchema = z
             publicName: "CurriculumPlanningGuideDetails"
         }
     });
-const nonePlanningGuideSchema = z
-    .object({
-        mode: z.literal("NONE"),
-        manualCourseIds: manualCourseIdsSchema
-    })
-    .openapi("NonePlanningGuide", {
-        "x-pomi-schema": {
-            kind: "variant",
-            publicName: "NonePlanningGuide"
-        }
-    });
-const programPlanningGuideSchema = z
-    .object({
-        mode: z.literal("PROGRAM"),
-        manualCourseIds: manualCourseIdsSchema,
-        program: programPlanningGuideDetailsSchema
-    })
-    .openapi("ProgramPlanningGuide", {
-        "x-pomi-schema": {
-            kind: "variant",
-            publicName: "ProgramPlanningGuide"
-        }
-    });
-const curriculumPlanningGuideSchema = z
-    .object({
-        mode: z.literal("CURRICULUM"),
-        manualCourseIds: manualCourseIdsSchema,
-        curriculum: curriculumPlanningGuideDetailsSchema
-    })
-    .openapi("CurriculumPlanningGuide", {
-        "x-pomi-schema": {
-            kind: "variant",
-            publicName: "CurriculumPlanningGuide"
-        }
-    });
+const nullableObjectMetadata = { type: "object" as const, nullable: true };
 
 export const guideSchema = z
-    .discriminatedUnion("mode", [
-        nonePlanningGuideSchema,
-        programPlanningGuideSchema,
-        curriculumPlanningGuideSchema
-    ])
+    .object({
+        mode: z.enum(["NONE", "PROGRAM", "CURRICULUM"]),
+        manualCourseIds: manualCourseIdsSchema,
+        curriculum: curriculumPlanningGuideDetailsSchema.nullable().openapi({
+            ...nullableObjectMetadata,
+            oneOf: [
+                { $ref: "#/components/schemas/SavedCurriculumPlanningGuide" },
+                {
+                    $ref: "#/components/schemas/SuggestionCurriculumPlanningGuide"
+                }
+            ]
+        }),
+        program: programPlanningGuideDetailsSchema.nullable()
+    })
     .openapi("PlanningGuide", {
-        "discriminator": {
-            propertyName: "mode",
-            mapping: {
-                NONE: "#/components/schemas/NonePlanningGuide",
-                PROGRAM: "#/components/schemas/ProgramPlanningGuide",
-                CURRICULUM: "#/components/schemas/CurriculumPlanningGuide"
-            }
-        },
         "x-pomi-schema": { kind: "value-object", publicName: "PlanningGuide" }
     });
 
@@ -219,56 +186,28 @@ const curriculumPlanningGuideInputSchema = z.discriminatedUnion("source", [
     savedCurriculumPlanningGuideInputSchema,
     suggestionCurriculumPlanningGuideInputSchema
 ]);
-const nonePlanningGuideInputSchema = z
-    .object({ mode: z.literal("NONE"), manualCourseIds: manualCourseIdsSchema })
-    .strict()
-    .openapi("NonePlanningGuideInput", {
-        "x-pomi-schema": {
-            kind: "input",
-            publicName: "NonePlanningGuideInput"
-        }
-    });
-const programPlanningGuideInputSchema = z
+export const guideInputSchema = z
     .object({
-        mode: z.literal("PROGRAM"),
-        manualCourseIds: manualCourseIdsSchema,
-        program: programPlanningGuideInputDetailsSchema
-    })
-    .strict()
-    .openapi("ProgramPlanningGuideInput", {
-        "x-pomi-schema": {
-            kind: "input",
-            publicName: "ProgramPlanningGuideInput"
-        }
-    });
-const curriculumPlanningGuideInputBranchSchema = z
-    .object({
-        mode: z.literal("CURRICULUM"),
+        mode: z.enum(["NONE", "PROGRAM", "CURRICULUM"]),
         manualCourseIds: manualCourseIdsSchema,
         curriculum: curriculumPlanningGuideInputSchema
+            .nullable()
+            .openapi({
+                ...nullableObjectMetadata,
+                oneOf: [
+                    {
+                        $ref: "#/components/schemas/SavedCurriculumPlanningGuideInput"
+                    },
+                    {
+                        $ref: "#/components/schemas/SuggestionCurriculumPlanningGuideInput"
+                    }
+                ]
+            })
+            .optional(),
+        program: programPlanningGuideInputDetailsSchema.nullable().optional()
     })
     .strict()
-    .openapi("CurriculumPlanningGuideInput", {
-        "x-pomi-schema": {
-            kind: "input",
-            publicName: "CurriculumPlanningGuideInput"
-        }
-    });
-export const guideInputSchema = z
-    .discriminatedUnion("mode", [
-        nonePlanningGuideInputSchema,
-        programPlanningGuideInputSchema,
-        curriculumPlanningGuideInputBranchSchema
-    ])
     .openapi("PlanningGuideInput", {
-        "discriminator": {
-            propertyName: "mode",
-            mapping: {
-                NONE: "#/components/schemas/NonePlanningGuideInput",
-                PROGRAM: "#/components/schemas/ProgramPlanningGuideInput",
-                CURRICULUM: "#/components/schemas/CurriculumPlanningGuideInput"
-            }
-        },
         "x-pomi-schema": { kind: "input", publicName: "PlanningGuideInput" }
     });
 
@@ -574,3 +513,10 @@ export default {
     patch,
     remove
 };
+
+export const planningGuideVariantSchemas = [
+    savedCurriculumPlanningGuideSchema,
+    suggestionCurriculumPlanningGuideSchema,
+    savedCurriculumPlanningGuideInputSchema,
+    suggestionCurriculumPlanningGuideInputSchema
+];

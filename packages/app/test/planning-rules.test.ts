@@ -48,8 +48,12 @@ test("program guide accepts a program without an additional language", () => {
         true
     );
     assert.equal(
-        guideSchema.safeParse({ mode: "PROGRAM", manualCourseIds: [], program })
-            .success,
+        guideSchema.safeParse({
+            mode: "PROGRAM",
+            manualCourseIds: [],
+            program,
+            curriculum: null
+        }).success,
         true
     );
     assert.ok(

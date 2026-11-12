@@ -19,83 +19,38 @@ function buildPlanningGuide(
         ({ courseId }) => courseId
     );
 
-    if (periodPlanning.guideMode === "NONE") {
-        if (
-            periodPlanning.curriculumSource !== null ||
-            periodPlanning.curriculum !== null ||
-            periodPlanning.curriculumSuggestion !== null ||
-            periodPlanning.catalogProgram !== null ||
-            periodPlanning.catalogProgramVariant !== null ||
-            periodPlanning.language !== null
-        )
-            invalid("none_with_variant_data");
-        return { mode: "NONE", manualCourseIds };
-    }
-
-    if (periodPlanning.guideMode === "PROGRAM") {
-        const program = periodPlanning.catalogProgram;
-        const variant = periodPlanning.catalogProgramVariant;
-        const language = periodPlanning.language;
-        if (
-            periodPlanning.curriculumSource !== null ||
-            periodPlanning.curriculum !== null ||
-            periodPlanning.curriculumSuggestion !== null ||
-            program === null ||
-            variant === null
-        )
-            return invalid("invalid_program_variant");
-        return {
-            mode: "PROGRAM",
-            manualCourseIds,
-            program: {
-                catalogProgramId: program.id,
-                catalogProgramVariantId: variant.id,
-                languageId: language?.id ?? null
-            }
-        };
-    }
-
-    if (periodPlanning.guideMode !== "CURRICULUM") invalid("unknown_mode");
-    if (
-        periodPlanning.catalogProgram !== null ||
-        periodPlanning.catalogProgramVariant !== null ||
-        periodPlanning.language !== null
-    )
-        invalid("curriculum_with_program_data");
-
-    if (periodPlanning.curriculumSource === "SAVED") {
-        const curriculum = periodPlanning.curriculum;
-        if (curriculum === null || periodPlanning.curriculumSuggestion !== null)
-            return invalid("invalid_saved_curriculum_variant");
-        return {
-            mode: "CURRICULUM",
-            manualCourseIds,
-            curriculum: {
-                source: "SAVED",
-                saved: { curriculumId: curriculum.id }
-            }
-        };
-    }
-
-    if (periodPlanning.curriculumSource === "SUGGESTION") {
-        const suggestion = periodPlanning.curriculumSuggestion;
-        if (periodPlanning.curriculum !== null || suggestion === null)
-            return invalid("invalid_suggestion_curriculum_variant");
-        return {
-            mode: "CURRICULUM",
-            manualCourseIds,
-            curriculum: {
-                source: "SUGGESTION",
-                suggestion: {
-                    suggestionId: suggestion.id,
-                    catalogProgramId:
-                        suggestion.catalogProgramVariant.catalogProgramId
+    const curriculum = periodPlanning.curriculum;
+    const suggestion = periodPlanning.curriculumSuggestion;
+    const program = periodPlanning.catalogProgram;
+    const variant = periodPlanning.catalogProgramVariant;
+    if (curriculum && suggestion) invalid("multiple_curriculum_sources");
+    return {
+        mode: periodPlanning.guideMode,
+        manualCourseIds,
+        curriculum: curriculum
+            ? {
+                  source: "SAVED",
+                  saved: { curriculumId: curriculum.id }
+              }
+            : suggestion
+              ? {
+                    source: "SUGGESTION",
+                    suggestion: {
+                        suggestionId: suggestion.id,
+                        catalogProgramId:
+                            suggestion.catalogProgramVariant.catalogProgramId
+                    }
                 }
-            }
-        };
-    }
-
-    return invalid("curriculum_without_source");
+              : null,
+        program:
+            program && variant
+                ? {
+                      catalogProgramId: program.id,
+                      catalogProgramVariantId: variant.id,
+                      languageId: periodPlanning.language?.id ?? null
+                  }
+                : null
+    };
 }
 
 function buildPeriodPlanning(
