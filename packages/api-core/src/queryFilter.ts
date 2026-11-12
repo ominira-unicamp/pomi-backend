@@ -1,5 +1,6 @@
 import qs from "qs";
 import z from "zod";
+import { BadRequestError } from "./errors/AppError.js";
 
 import { isSortTerms, serializeSort } from "./sorting.js";
 
@@ -10,10 +11,25 @@ export const queryFilterOperators = [
     "gte",
     "lt",
     "lte",
-    "in"
+    "in",
+    "notIn",
+    "contains",
+    "isNull"
 ] as const;
 
 export const queryFilterOperatorMetadata = {
+    notIn: {
+        valueCardinality: "oneOrMore",
+        description: "Não contido em uma lista"
+    },
+    contains: {
+        valueCardinality: "single",
+        description: "Contém trecho de texto"
+    },
+    isNull: {
+        valueCardinality: "single",
+        description: "Ausência de informação"
+    },
     eq: {
         valueCardinality: "single",
         description: "Igual a"
@@ -75,10 +91,13 @@ const queryFilterLimits = {
 
 const queryParserOptions = {
     allowPrototypes: false,
-    arrayLimit: 20,
-    depth: queryFilterLimits.depth,
+    arrayLimit: 100,
+    depth: 12,
     parameterLimit: queryFilterLimits.parameters,
-    plainObjects: true
+    plainObjects: true,
+    allowSparse: true,
+    strictDepth: true,
+    throwOnLimitExceeded: true
 } as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -168,7 +187,7 @@ function normalizeQueryFilterInput(input: unknown): NormalizedQueryFilter {
                 }
 
                 const values = Array.isArray(child) ? child : [child];
-                if (key !== "in" && values.length !== 1) {
+                if (!["in", "notIn"].includes(key) && values.length !== 1) {
                     addIssue(
                         [...path, key],
                         `O operador "${key}" aceita exatamente um valor.`,
@@ -261,7 +280,22 @@ function normalizeQueryFilterInput(input: unknown): NormalizedQueryFilter {
 }
 
 export function parseStructuredQuery(query: string): Record<string, unknown> {
-    return qs.parse(query, queryParserOptions) as Record<string, unknown>;
+    try {
+        return qs.parse(query, queryParserOptions) as Record<string, unknown>;
+    } catch (error) {
+        if (!(error instanceof RangeError)) throw error;
+        throw new BadRequestError(
+            "A consulta excede os limites de parâmetros ou profundidade.",
+            [
+                {
+                    code: "FILTER_SYNTAX_INVALID",
+                    path: ["query"],
+                    message:
+                        "A consulta excede os limites de parâmetros ou profundidade."
+                }
+            ]
+        );
+    }
 }
 
 export function normalizeQueryFilter(input: unknown): NormalizedQueryFilter {
@@ -319,7 +353,9 @@ function queryFilterToObject(filter: QueryFilter) {
         current[field] = Object.fromEntries(
             expressions.map((item) => [
                 item.operator,
-                item.operator === "in" ? item.values : item.values[0]
+                ["in", "notIn"].includes(item.operator)
+                    ? item.values
+                    : item.values[0]
             ])
         );
     }
@@ -351,7 +387,27 @@ export function serializeQueryParams(query: Record<string, unknown>) {
         serializableQuery.sort = serializeSort(serializableQuery.sort);
     }
 
-    return qs.stringify(serializableQuery, {
+    function indexCollections(value: unknown): unknown {
+        if (Array.isArray(value)) {
+            if (value.some((item) => item !== null && typeof item === "object"))
+                return Object.fromEntries(
+                    value.map((item, index) => [
+                        String(index),
+                        indexCollections(item)
+                    ])
+                );
+            return value;
+        }
+        if (isRecord(value))
+            return Object.fromEntries(
+                Object.entries(value).map(([key, item]) => [
+                    key,
+                    indexCollections(item)
+                ])
+            );
+        return value;
+    }
+    return qs.stringify(indexCollections(serializableQuery), {
         arrayFormat: "repeat",
         encode: true,
         skipNulls: true

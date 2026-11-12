@@ -41,7 +41,7 @@ test("class contract exposes reservation programs instead of legacy codes", () =
     assert.equal(schema.required?.includes("reservationPrograms"), true);
 });
 
-test("Course exposes a required nullable CatalogCourse without new query capabilities", () => {
+test("Course exposes a required nullable CatalogCourse and explicit catalog filter capabilities", () => {
     const document = generateDataOpenApiDocument();
     const schema = document.components?.schemas?.CourseEntity as {
         properties: Record<string, unknown>;
@@ -65,7 +65,29 @@ test("Course exposes a required nullable CatalogCourse without new query capabil
     assert.deepEqual(field.required, catalogCourse.required);
     assert.notEqual(catalogCourse.nullable, true);
     const list = JSON.stringify(document.paths["/courses"]?.get?.parameters);
-    assert.equal(list.includes("latestCatalogCourse"), false);
+    assert.equal(list.includes("latestCatalogCourse"), true);
+    const parameters = document.paths["/courses"]?.get
+        ?.parameters as unknown as Array<Record<string, unknown>>;
+    const filter = parameters.find((parameter) => parameter.name === "filter")!;
+    const metadata = filter["x-pomi-filters"] as {
+        fields: Array<{ path: string[]; operators: string[] }>;
+        collections: { sameItem: boolean };
+    };
+    assert.ok(
+        metadata.fields.some(
+            (field) =>
+                field.path.join(".") === "latestCatalogCourse.syllabus" &&
+                field.operators.includes("contains")
+        )
+    );
+    assert.ok(
+        metadata.fields.some(
+            (field) =>
+                field.path.join(".") ===
+                "latestCatalogCourse.prerequisites.some.*.course.courseId"
+        )
+    );
+    assert.equal(metadata.collections.sameItem, true);
 });
 
 test("exposes links only in pagination envelopes", () => {

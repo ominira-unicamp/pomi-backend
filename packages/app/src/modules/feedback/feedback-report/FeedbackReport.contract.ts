@@ -27,7 +27,15 @@ export const feedbackFeatureKeys = [
     "course-situation",
     "agenda",
     "social",
-    "academic-data"
+    "academic-data",
+    "courses",
+    "disciplines",
+    "profile",
+    "groups",
+    "events",
+    "tags",
+    "exchange",
+    "feedback"
 ] as const;
 
 export const feedbackAcademicResourceTypes = [

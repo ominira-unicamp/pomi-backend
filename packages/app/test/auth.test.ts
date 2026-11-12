@@ -493,3 +493,64 @@ test("a first signed HTTP request admits a human before authorization, including
         assert.equal(status, path === "/me" ? undefined : 403);
     }
 });
+
+test("feedback administration denies anonymous and ordinary users and permits administrators", async () => {
+    const { AuthRegistry } = await import("#/auth.js");
+    const { default: feedback } =
+        await import("#/modules/feedback/feedback-report/FeedbackReport.contract.js");
+    const registry = new AuthRegistry();
+    registry.addPolicy(
+        "GET",
+        "/admin/feedback-reports",
+        feedback.listAdmin.meta.authorization
+    );
+    registry.addPolicy(
+        "PATCH",
+        "/admin/feedback-reports/:id",
+        feedback.patchAdmin.meta.authorization
+    );
+    for (const [method, path] of [
+        ["GET", "/admin/feedback-reports"],
+        ["PATCH", "/admin/feedback-reports/1"]
+    ]) {
+        for (const role of [undefined, "STUDENT", "ADMIN"]) {
+            let status: number | undefined;
+            let allowed = false;
+            const request = {
+                method,
+                path,
+                headers: role
+                    ? { authorization: `Bearer ${await signToken()}` }
+                    : {},
+                prisma: {
+                    authIdentity: {
+                        findUnique: async () =>
+                            credentialFixture({ roles: role ? [{ role }] : [] })
+                    }
+                },
+                scope: { register: () => undefined }
+            } as unknown as Request;
+            const response = {
+                status(value: number) {
+                    status = value;
+                    return this;
+                },
+                type() {
+                    return this;
+                },
+                json() {
+                    return this;
+                }
+            } as unknown as Response;
+            await registry.middleware()(request, response, (error) => {
+                assert.equal(error, undefined);
+                allowed = true;
+            });
+            assert.equal(allowed, role === "ADMIN");
+            assert.equal(
+                status,
+                role === "ADMIN" ? undefined : role ? 403 : 401
+            );
+        }
+    }
+});

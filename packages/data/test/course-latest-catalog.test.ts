@@ -33,11 +33,11 @@ test("always exposes latestCatalogCourse and strips persistence relations", () =
     );
 });
 
-test("does not introduce filters on latestCatalogCourse", () => {
+test("accepts filters on latestCatalogCourse without changing its response schema", () => {
     assert.equal(
         IO.list.request.safeParse({
             query: { filter: { latestCatalogCourse: { catalogYear: 2026 } } }
         }).success,
-        false
+        true
     );
 });

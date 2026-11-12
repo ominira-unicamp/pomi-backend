@@ -228,3 +228,43 @@ test("limits anonymous feedback reports by source address", async () => {
     if (result.isErr())
         assert.equal(result.error.type, "urn:pomi:problem:feedback-rate-limit");
 });
+
+test("accepts current feedback areas and legacy academic data", () => {
+    for (const key of [
+        "home",
+        "curriculum-planner",
+        "semester-planner",
+        "course-situation",
+        "agenda",
+        "social",
+        "academic-data",
+        "courses",
+        "disciplines",
+        "profile",
+        "groups",
+        "events",
+        "tags",
+        "exchange",
+        "feedback"
+    ]) {
+        assert.equal(
+            IO.body.safeParse({
+                kind: "BUG",
+                target: { type: "FEATURE", feature: { key } },
+                title: "Problema na funcionalidade",
+                description: "Descrição detalhada do problema encontrado."
+            }).success,
+            true,
+            key
+        );
+    }
+    assert.equal(
+        IO.body.safeParse({
+            kind: "BUG",
+            target: { type: "FEATURE", feature: { key: "unknown" } },
+            title: "Problema na funcionalidade",
+            description: "Descrição detalhada do problema encontrado."
+        }).success,
+        false
+    );
+});

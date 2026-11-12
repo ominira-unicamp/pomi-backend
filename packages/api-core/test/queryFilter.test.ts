@@ -73,3 +73,20 @@ test("identifies filters unsupported by an endpoint", () => {
         undefined
     );
 });
+
+test("rejects excessive transport parameters with a public bad request", () => {
+    assert.throws(
+        () =>
+            parseStructuredQuery(
+                Array.from(
+                    { length: 101 },
+                    (_, index) => `field${index}=1`
+                ).join("&")
+            ),
+        { status: 400 }
+    );
+    assert.throws(
+        () => parseStructuredQuery(`filter${"[nested]".repeat(14)}=1`),
+        { status: 400 }
+    );
+});

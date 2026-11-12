@@ -6,12 +6,9 @@ import {
     createPaginationQuerySchema,
     defineResource,
     defineSort,
-    equalityOperators,
-    filterDefinition,
     getPaginatedSchema,
     pathParam,
     pathSeg,
-    resourceFilterSchema,
     resourceSortSchema,
     serializeQueryParams,
     type Filter,
@@ -19,6 +16,10 @@ import {
     type PaginationPolicy
 } from "@pomi/api-core";
 import z from "zod";
+import {
+    courseFilterSchema,
+    type LegacyCourseFilterName
+} from "./Course.filters.js";
 
 extendZodWithOpenApi(z);
 
@@ -95,28 +96,8 @@ const courseEntity = z
 export type CourseFilterValue = FilterValue;
 export type CourseFilter = Filter;
 
-const courseFilterDefinitions = {
-    "catalogYear": filterDefinition.integer(),
-    "code": filterDefinition.code(),
-    "credits": filterDefinition.integer({
-        minimum: 0,
-        operators: ["eq", "ne", "gt", "gte", "lt", "lte", "in"]
-    }),
-    "tagId": filterDefinition.id({ positive: true }),
-    "unit.code": filterDefinition.code({ operators: equalityOperators }),
-    "unit.id": filterDefinition.id({ positive: true })
-};
-export type CourseFilterName = keyof typeof courseFilterDefinitions;
-
-const courseFilter = resourceFilterSchema(
-    courseFilterDefinitions,
-    "courses",
-    "Structured course filters. Use bracket notation such as filter[credits][gte]=4.",
-    {
-        credits: { gte: 4 },
-        unit: { code: "IC" }
-    }
-);
+export type CourseFilterName = LegacyCourseFilterName;
+const courseFilter = courseFilterSchema;
 
 export const courseSort = defineSort({
     resourceName: "courses",

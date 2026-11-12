@@ -177,6 +177,8 @@ export function scalarFilter<T extends string | number | Date>(
             return { lt: converted[0] };
         case "lte":
             return { lte: converted[0] };
+        default:
+            throw new Error(`Unsupported scalar filter operator: ${operator}`);
     }
 }
 

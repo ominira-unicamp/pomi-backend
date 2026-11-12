@@ -23,6 +23,7 @@ import {
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
+import { listCoursesWithCatalogFilters } from "./Course.query.js";
 
 type CourseEntity = z.infer<typeof IO.schema>;
 type ListQueryParams = z.infer<typeof IO.list.request>["query"];
@@ -68,6 +69,12 @@ export function createCourseService({
 }): CourseService {
     return {
         async list(query) {
+            if (
+                query.filter?.some(
+                    (expression) => expression.path[0] === "latestCatalogCourse"
+                )
+            )
+                return listCoursesWithCatalogFilters(prisma, query);
             const pagination = resolvePagination(query, coursePagination);
             const filterWhere = courseFilterWhere(query.filter);
             const where: MyPrisma.CourseWhereInput =
