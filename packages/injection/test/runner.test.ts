@@ -191,3 +191,95 @@ test("lê issues.json quando a entrada da injection é um diretório", async () 
         await rm(directory, { recursive: true, force: true });
     }
 });
+
+for (const manifestYear of [2027, 2026])
+    test(`snapshot anual valida o ano solicitado contra manifesto ${manifestYear}`, async () => {
+        const directory = await mkdtemp(
+            join(tmpdir(), "pomi-disciplines-snapshot-")
+        );
+        const config: InjectionConfig = {
+            version: 1,
+            rootDirectory: directory,
+            configDirectory: directory,
+            injections: [],
+            workflows: []
+        };
+        const definition = {
+            name: "catalog-disciplines-snapshot",
+            input: {
+                directory: "data/snapshots/catalog-disciplines",
+                fileName: "snapshot"
+            },
+            snapshot: {
+                provider: "catalog-disciplines",
+                partition: "year" as const
+            },
+            obtain: {
+                command: process.execPath,
+                args: [
+                    "-e",
+                    "if(process.env.POMI_PARTITION_YEAR!=='2027')throw new Error('Ano do coletor incorreto');const fs=require('node:fs'),p=process.env.POMI_PROVIDER_OUTPUT,c=Buffer.from('{\\\"data\\\":[]}\\n'),h=require('node:crypto').createHash('sha256').update(c).digest('hex');fs.mkdirSync(p,{recursive:true});fs.writeFileSync(p+'/events.json',c);fs.writeFileSync(p+'/manifest.json',JSON.stringify({protocol:'pomi.catalog-disciplines.snapshot',version:2,snapshotId:process.env.POMI_SNAPSHOT_ID,partition:{year:Number(process.env.MANIFEST_YEAR)},status:'COMPLETE',components:{events:{status:'COMPLETE',path:'events.json',sha256:h,schemaVersion:1,records:0}},issues:[]}))"
+                ],
+                cwd: ".",
+                env: { MANIFEST_YEAR: String(manifestYear) },
+                timeoutMs: 10_000
+            },
+            options: {},
+            allowIssues: false
+        };
+        const originalDatabaseUrl = process.env.DATABASE_URL;
+        process.env.DATABASE_URL =
+            originalDatabaseUrl ??
+            "postgresql://user:password@localhost:5432/pomi";
+        try {
+            const execute = () =>
+                runInjection(
+                    config,
+                    definition,
+                    undefined,
+                    () => ({ async run() {} }),
+                    "obtain",
+                    { year: 2027 }
+                );
+            if (manifestYear !== 2027) {
+                await assert.rejects(
+                    execute,
+                    /Partição do snapshot não corresponde/
+                );
+                return;
+            }
+            const result = await execute();
+            assert.match(
+                result.inputPath,
+                /data\/snapshots\/catalog-disciplines\/2027\//
+            );
+            assert.equal(
+                JSON.parse(
+                    await readFile(
+                        join(result.inputPath, "manifest.json"),
+                        "utf8"
+                    )
+                ).snapshotId,
+                result.inputPath.split("/").at(-1)
+            );
+            let injectedPath = "";
+            await runInjection(
+                config,
+                definition,
+                undefined,
+                () => ({
+                    async run({ inputPath }) {
+                        injectedPath = inputPath;
+                    }
+                }),
+                "inject",
+                { year: 2027, snapshotId: result.inputPath.split("/").at(-1) }
+            );
+            assert.equal(injectedPath, result.inputPath);
+        } finally {
+            if (originalDatabaseUrl === undefined)
+                delete process.env.DATABASE_URL;
+            else process.env.DATABASE_URL = originalDatabaseUrl;
+            await rm(directory, { recursive: true, force: true });
+        }
+    });

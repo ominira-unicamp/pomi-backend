@@ -25,6 +25,7 @@ import { loadInjectionEnv } from "./env.js";
 import { createInjectionLogger } from "./logger.js";
 import { injectionNames } from "./registry.js";
 import {
+    annualInjectionParameters,
     injectionRequestPartition,
     isRequestableInjection
 } from "./request.js";
@@ -231,6 +232,7 @@ program
 program
     .command("request <name> [mode]")
     .description("enfileira uma injection para execução pelo worker")
+    .option("--year <year>", "ano da injection anual", parseYear)
     .option("--first-year <year>", "primeiro ano da partição", parseYear)
     .option("--last-year <year>", "último ano da partição", parseYear)
     .option("--institute-code <code>", "sigla do instituto")
@@ -246,6 +248,10 @@ program
         });
         try {
             if (isWorkflowName(name)) {
+                if (options.year !== undefined)
+                    throw new Error(
+                        "Workflows usam --first-year e --last-year"
+                    );
                 const firstYear = options.firstYear ?? options.lastYear;
                 const lastYear = options.lastYear ?? options.firstYear;
                 if (firstYear === undefined || lastYear === undefined)
@@ -272,7 +278,7 @@ program
             const job = await withTrace(
                 "injection.job.request",
                 () => {
-                    const request = injectionRequestPartition(options);
+                    const request = injectionRequestPartition(options, name);
                     return enqueueJob(database, {
                         type: JobRequestType.INJECTION,
                         name,
@@ -328,6 +334,7 @@ program
     .description(
         `executa uma injection (${injectionNames.join(", ")}); modo: all, obtain ou inject`
     )
+    .option("--year <year>", "ano da injection anual", parseYear)
     .option("--first-year <year>", "primeiro ano da partição", parseYear)
     .option("--last-year <year>", "último ano da partição", parseYear)
     .option("--semester <semester>", "semestre da partição", parseSemester)
@@ -344,13 +351,22 @@ program
         if (!injection) throw new Error(`Injection não encontrada: ${name}`);
         if (mode === "inject" && injection.snapshot && !options.snapshotId)
             throw new Error("O modo inject requer --snapshot-id");
+        if (
+            options.year !== undefined &&
+            injection.snapshot?.partition !== "year"
+        )
+            throw new Error("--year não é suportado por esta injection");
+        const parameters =
+            injection.snapshot?.partition === "year"
+                ? annualInjectionParameters({ ...options })
+                : (partitionParameters(options) ?? {});
         await runInjection(
             config,
             injection,
             undefined,
             undefined,
             mode as InjectionRunMode,
-            partitionParameters(options) ?? {}
+            parameters
         );
     });
 
@@ -438,9 +454,12 @@ program.command("watch").action(async () => {
                         trigger: JobRequestTrigger.SCHEDULED,
                         scheduledFor,
                         requestedBy: "scheduler",
-                        parameters: injection.partitioning
-                            ? { root: true }
-                            : undefined,
+                        parameters:
+                            injection.snapshot?.partition === "year"
+                                ? annualInjectionParameters({}, scheduledAt)
+                                : injection.partitioning
+                                  ? { root: true }
+                                  : undefined,
                         deduplicationKey: `injection:${injection.name}:${scheduledFor.toISOString()}`
                     });
                 } catch (error) {
@@ -580,6 +599,7 @@ async function main() {
 void main();
 
 type PartitionOptions = {
+    year?: number;
     firstYear?: number;
     lastYear?: number;
     partitionKey?: string;

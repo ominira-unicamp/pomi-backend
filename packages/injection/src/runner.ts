@@ -24,6 +24,7 @@ import { loadInjectionEnv } from "./env.js";
 import { createInjectionLogger } from "./logger.js";
 import { runProcess } from "./process.js";
 import { createInjectionService, type InjectionService } from "./registry.js";
+import { annualInjectionParameters } from "./request.js";
 import { readSnapshotManifest } from "./snapshots.js";
 import {
     validateWorkflowArtifact,
@@ -100,6 +101,8 @@ async function runInjectionInternal(
     const logger = createInjectionLogger(definition.name, runId);
     const workflowStage = workflowStageParameters(parameters);
     const snapshot = definition.snapshot;
+    if (snapshot?.partition === "year")
+        parameters = annualInjectionParameters(parameters);
     const baseInputPath = resolveInputPath(
         definition,
         config.rootDirectory,
@@ -261,12 +264,13 @@ async function runInjectionInternal(
         } else if (snapshot) {
             const manifest = await readSnapshotManifest(inputPath, {
                 protocol: `pomi.${snapshot.provider}.snapshot`,
-                version: 1
+                version: snapshot.provider === "catalog-disciplines" ? 2 : 1
             });
             if (manifest.snapshotId !== snapshotId)
                 throw new Error("Snapshot não corresponde à execução");
             if (
-                snapshot.partition === "current-year" &&
+                (snapshot.partition === "current-year" ||
+                    snapshot.partition === "year") &&
                 manifest.partition.year !== Number(snapshotPartitionKey)
             )
                 throw new Error(
@@ -351,6 +355,8 @@ function resolveSnapshotPartitionKey(
     parameters: Record<string, unknown>,
     now: Date
 ) {
+    if (snapshot.partition === "year")
+        return annualInjectionParameters(parameters, now).partitionKey;
     if (typeof parameters.partitionKey === "string" && parameters.partitionKey)
         return parameters.partitionKey;
     if (snapshot.partition === "partition-key") {

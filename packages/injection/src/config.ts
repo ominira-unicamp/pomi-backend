@@ -29,6 +29,10 @@ const injectionSchema = z.object({
         .discriminatedUnion("partition", [
             z.object({
                 provider: z.string().regex(/^[a-z][a-z0-9-]*$/),
+                partition: z.literal("year")
+            }),
+            z.object({
+                provider: z.string().regex(/^[a-z][a-z0-9-]*$/),
                 partition: z.literal("current-year")
             }),
             z.object({
