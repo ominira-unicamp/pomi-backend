@@ -63,7 +63,11 @@ for (const [dependency, path, controller, method] of controllers) {
                                     if (path.startsWith("/users/"))
                                         assert.equal(args[0], 1042);
                                     called = true;
-                                    return [];
+                                    return {
+                                        items: [],
+                                        total: 0,
+                                        pagination: { mode: "all" }
+                                    };
                                 }
                             };
                         }

@@ -190,6 +190,7 @@ test("lista locais em ordem de nome", async () => {
     const service = createExchangePlaceService({
         prisma: {
             exchangePlace: {
+                count: async () => 1,
                 findMany: async () => [
                     { id: 4, name: "França", normalizedName: "FRANCA" }
                 ]
@@ -197,7 +198,7 @@ test("lista locais em ordem de nome", async () => {
         } as never
     });
 
-    assert.deepEqual(await service.list({}), [
+    assert.deepEqual((await service.list({})).items, [
         {
             id: 4,
             name: "França"

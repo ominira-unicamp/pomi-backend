@@ -16,9 +16,13 @@ import {
     err,
     NotFoundError,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -44,7 +48,7 @@ const absenceFilterWhere = {
 >;
 
 export type StudentAbsenceService = {
-    list(userId: number, input: ListInput): Promise<Absence[]>;
+    list(userId: number, input: ListInput): Promise<PageResult<Absence>>;
     create(
         userId: number,
         input: CreateInput
@@ -68,11 +72,15 @@ export function createStudentAbsenceService({
                 absenceFilterWhere,
                 "student absences"
             );
+            const pagination = resolvePagination(input, unpaginatedByDefault);
+            const where: MyPrisma.StudentAbsenceWhereInput = {
+                AND: [{ studentCourseAttempt: { userId } }, ...filterWhere]
+            };
+            const total = await prisma.studentAbsence.count({ where });
             const absences = await prisma.studentAbsence.findMany({
+                ...prismaPaginationParams(pagination),
                 ...prismaStudentAbsenceSelection,
-                where: {
-                    AND: [{ studentCourseAttempt: { userId } }, ...filterWhere]
-                },
+                where,
                 orderBy: compileSort(
                     resolveSort(input.sort, studentAbsenceSort),
                     {
@@ -93,7 +101,11 @@ export function createStudentAbsenceService({
                     }
                 )
             });
-            return absences.map(absencePresenter.build);
+            return {
+                items: absences.map(absencePresenter.build),
+                total,
+                pagination
+            };
         },
         async create(userId, input) {
             const [attempt, schedule] = await Promise.all([

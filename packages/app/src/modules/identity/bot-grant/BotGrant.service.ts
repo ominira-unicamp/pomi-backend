@@ -4,8 +4,18 @@ import IO, {
     botIdentitySort
 } from "#/modules/identity/bot-grant/BotGrant.contract.js";
 import { botNotFoundProblem } from "#/modules/identity/bot-grant/BotGrant.problems.js";
-import { compileSort, err, ok, resolveSort, type Result } from "@pomi/api-core";
-import type { PrismaClient } from "@pomi/db";
+import {
+    compileSort,
+    err,
+    ok,
+    prismaPaginationParams,
+    resolvePagination,
+    resolveSort,
+    unpaginatedByDefault,
+    type PageResult,
+    type Result
+} from "@pomi/api-core";
+import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 
 type BotGrant = z.infer<typeof IO.schemas.entity>;
@@ -15,8 +25,8 @@ type GrantsQuery = z.infer<typeof IO.list.request>["query"];
 export type BotGrantService = {
     listBots(
         query: BotsQuery
-    ): Promise<Array<{ id: number; displayName: string | null }>>;
-    list(userId: number, query: GrantsQuery): Promise<BotGrant[]>;
+    ): Promise<PageResult<{ id: number; displayName: string | null }>>;
+    list(userId: number, query: GrantsQuery): Promise<PageResult<BotGrant>>;
     replace(
         userId: number,
         botAuthIdentityId: number,
@@ -31,32 +41,45 @@ export function createBotGrantService({
     prisma: PrismaClient;
 }): BotGrantService {
     return {
-        listBots: async (query) =>
-            (
-                await prisma.authIdentity.findMany({
-                    where: {
-                        status: "ACTIVE",
-                        principal: { status: "ACTIVE" },
-                        roles: { some: { role: AuthRoles.BOT } }
-                    },
-                    select: { id: true, displayName: true },
-                    orderBy: compileSort(
-                        resolveSort(query.sort, botIdentitySort),
-                        {
-                            displayName: (direction) => ({
-                                displayName: direction
-                            }),
-                            id: (direction) => ({ id: direction })
-                        }
-                    )
-                })
-            ).map(({ id, displayName }) => ({
-                id: id,
-                displayName
-            })),
+        async listBots(query) {
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.AuthIdentityWhereInput = {
+                status: "ACTIVE",
+                principal: { status: "ACTIVE" },
+                roles: { some: { role: AuthRoles.BOT } }
+            };
+            const total = await prisma.authIdentity.count({ where });
+            return {
+                items: (
+                    await prisma.authIdentity.findMany({
+                        ...prismaPaginationParams(pagination),
+                        where,
+                        select: { id: true, displayName: true },
+                        orderBy: compileSort(
+                            resolveSort(query.sort, botIdentitySort),
+                            {
+                                displayName: (direction) => ({
+                                    displayName: direction
+                                }),
+                                id: (direction) => ({ id: direction })
+                            }
+                        )
+                    })
+                ).map(({ id, displayName }) => ({
+                    id: id,
+                    displayName
+                })),
+                total,
+                pagination
+            };
+        },
         async list(userId, query) {
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.BotGrantWhereInput = { userId: userId };
+            const total = await prisma.botGrant.count({ where });
             const grants = await prisma.botGrant.findMany({
-                where: { userId: userId },
+                ...prismaPaginationParams(pagination),
+                where,
                 include: {
                     botAuthIdentity: {
                         select: { id: true, displayName: true }
@@ -73,17 +96,21 @@ export function createBotGrantService({
                     id: (direction) => ({ id: direction })
                 })
             });
-            return grants.map((grant) => ({
-                id: grant.id,
-                userId: grant.userId,
-                botAuthIdentityId: grant.botAuthIdentityId,
-                grantedByAuthIdentityId: grant.grantedByAuthIdentityId,
-                revokedByAuthIdentityId: grant.revokedByAuthIdentityId,
-                capability: grant.capability,
-                createdAt: grant.createdAt,
-                revokedAt: grant.revokedAt,
-                botAuthIdentity: grant.botAuthIdentity
-            }));
+            return {
+                items: grants.map((grant) => ({
+                    id: grant.id,
+                    userId: grant.userId,
+                    botAuthIdentityId: grant.botAuthIdentityId,
+                    grantedByAuthIdentityId: grant.grantedByAuthIdentityId,
+                    revokedByAuthIdentityId: grant.revokedByAuthIdentityId,
+                    capability: grant.capability,
+                    createdAt: grant.createdAt,
+                    revokedAt: grant.revokedAt,
+                    botAuthIdentity: grant.botAuthIdentity
+                })),
+                total,
+                pagination
+            };
         },
         async replace(
             userId,

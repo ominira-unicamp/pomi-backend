@@ -2,11 +2,10 @@ import { createDataEndpointRegistries, type Context } from "#/BuildHandler.js";
 import IO from "#/modules/schedule/daily-menu/DailyMenu.contract.js";
 import {
     ApiResponse,
-    buildArrayPaginationResponse,
+    buildQueryPaginationResponse,
     createResultResponder,
     problemResponse,
     ResourceNotFoundProblem,
-    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -18,10 +17,9 @@ const respond = createResultResponder({
 const actions: Actions = {
     list: async (ctx, input) =>
         ApiResponse.ok(
-            buildArrayPaginationResponse(
+            buildQueryPaginationResponse(
                 await ctx.dailyMenuService.list(input.query),
                 input.query,
-                unpaginatedByDefault,
                 "/daily-menus"
             )
         ),

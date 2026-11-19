@@ -8,10 +8,14 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
+    unpaginatedByDefault,
     type FilterExpression,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -68,7 +72,7 @@ export type SocialFriendshipService = {
     listFriendships(
         userId: number,
         input: FriendshipQuery
-    ): Promise<Friendship[]>;
+    ): Promise<PageResult<Friendship>>;
     createFriendship(
         userId: number,
         targetPublicId: string
@@ -107,16 +111,20 @@ export function createSocialFriendshipService({
                     (expression) => expression.path.join(".") === "direction"
                 )
                 .map((expression) => directionWhere(expression, userId));
+            const pagination = resolvePagination(input, unpaginatedByDefault);
+            const where: MyPrisma.StudentFriendshipWhereInput = {
+                AND: [
+                    {
+                        OR: [{ userAId: userId }, { userBId: userId }]
+                    },
+                    ...filterWhere,
+                    ...directionFilters
+                ]
+            };
+            const total = await prisma.studentFriendship.count({ where });
             const rows = await prisma.studentFriendship.findMany({
-                where: {
-                    AND: [
-                        {
-                            OR: [{ userAId: userId }, { userBId: userId }]
-                        },
-                        ...filterWhere,
-                        ...directionFilters
-                    ]
-                },
+                ...prismaPaginationParams(pagination),
+                where,
                 ...friendshipSelection,
                 orderBy: compileSort(
                     resolveSort(input.sort, studentFriendshipSort),
@@ -127,7 +135,11 @@ export function createSocialFriendshipService({
                     }
                 )
             });
-            return rows.map((row) => buildFriendship(row, userId));
+            return {
+                items: rows.map((row) => buildFriendship(row, userId)),
+                total,
+                pagination
+            };
         },
         async createFriendship(userId, targetPublicId) {
             const target = await prisma.user.findFirst({

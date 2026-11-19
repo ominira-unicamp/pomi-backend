@@ -10,7 +10,10 @@ type Context = { groupEventService: GroupEventService } & UserContext;
 const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     listPublicEvents: async (ctx, input) =>
         page(
-            await ctx.groupEventService.listPublicEvents(groupId(input.query)),
+            await ctx.groupEventService.listPublicEvents(
+                groupId(input.query),
+                input.query
+            ),
             input.query,
             "/group-events"
         ),
@@ -22,7 +25,8 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         page(
             await ctx.groupEventService.listManagedEvents(
                 await ctx.resolveUserContext(input.path.userId),
-                input.path.groupId
+                input.path.groupId,
+                input.query
             ),
             input.query,
             `/users/${input.path.userId}/groups/${input.path.groupId}/events`

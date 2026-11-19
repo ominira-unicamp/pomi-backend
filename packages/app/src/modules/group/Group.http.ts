@@ -3,13 +3,14 @@ import { policies } from "#/Authorization.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
     ApiResponse,
-    buildArrayPaginationResponse,
+    buildQueryPaginationResponse,
     createPaginationQuerySchema,
     filterDefinition,
     pathParam,
     pathSeg,
     resourceFilterSchema,
-    unpaginatedByDefault
+    unpaginatedByDefault,
+    type PageResult
 } from "@pomi/api-core";
 import z from "zod";
 extendZodWithOpenApi(z);
@@ -99,13 +100,10 @@ export const sidId = userId.extend({ id: pathId });
 export const publicId = z.object({ id: pathId });
 
 export const page = <T>(
-    items: T[],
-    query: Parameters<typeof buildArrayPaginationResponse<T>>[1],
+    result: PageResult<T>,
+    query: Parameters<typeof buildQueryPaginationResponse<T>>[1],
     path: string
-) =>
-    ApiResponse.ok(
-        buildArrayPaginationResponse(items, query, unpaginatedByDefault, path)
-    );
+) => ApiResponse.ok(buildQueryPaginationResponse(result, query, path));
 export const groupId = (query: {
     filter?: { path: string[]; values: (string | number)[] }[];
 }) =>

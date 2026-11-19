@@ -11,10 +11,14 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -39,7 +43,7 @@ export function calendarTagFilterWhere(
     );
 }
 export type CalendarTagService = {
-    list(query: Query): Promise<Tag[]>;
+    list(query: Query): Promise<PageResult<Tag>>;
     getById(
         id: number
     ): Promise<Result<Tag, ReturnType<typeof ResourceNotFoundProblem.create>>>;
@@ -52,18 +56,27 @@ export function createCalendarTagService({
     return {
         async list(query) {
             const filterWhere = calendarTagFilterWhere(query.filter);
-            return (
-                await prisma.calendarTag.findMany({
-                    where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: compileSort(
-                        resolveSort(query.sort, calendarTagSort),
-                        {
-                            name: (direction) => ({ name: direction }),
-                            id: (direction) => ({ id: direction })
-                        }
-                    )
-                })
-            ).map(calendarTagEntity.build);
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.CalendarTagWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.calendarTag.count({ where });
+            return {
+                items: (
+                    await prisma.calendarTag.findMany({
+                        ...prismaPaginationParams(pagination),
+                        where,
+                        orderBy: compileSort(
+                            resolveSort(query.sort, calendarTagSort),
+                            {
+                                name: (direction) => ({ name: direction }),
+                                id: (direction) => ({ id: direction })
+                            }
+                        )
+                    })
+                ).map(calendarTagEntity.build),
+                total,
+                pagination
+            };
         },
         async getById(id) {
             const value = await prisma.calendarTag.findUnique({

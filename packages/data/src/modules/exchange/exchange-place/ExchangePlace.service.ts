@@ -8,9 +8,13 @@ import IO, {
 import {
     compileFilterWhere,
     compileSort,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
-    type FilterWhereBuilder
+    unpaginatedByDefault,
+    type FilterWhereBuilder,
+    type PageResult
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
@@ -36,7 +40,7 @@ export function exchangePlaceFilterWhere(
 }
 
 export type ExchangePlaceService = {
-    list(query: Query): Promise<ExchangePlace[]>;
+    list(query: Query): Promise<PageResult<ExchangePlace>>;
 };
 
 export function createExchangePlaceService({
@@ -47,8 +51,13 @@ export function createExchangePlaceService({
     return {
         async list(query) {
             const filterWhere = exchangePlaceFilterWhere(query.filter);
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.ExchangePlaceWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.exchangePlace.count({ where });
             const places = await prisma.exchangePlace.findMany({
-                where: filterWhere.length > 0 ? { AND: filterWhere } : {},
+                ...prismaPaginationParams(pagination),
+                where,
                 orderBy: compileSort(
                     resolveSort(query.sort, exchangePlaceSort),
                     {
@@ -57,10 +66,14 @@ export function createExchangePlaceService({
                     }
                 )
             });
-            return places.map((place) => ({
-                id: place.id,
-                name: place.name
-            }));
+            return {
+                items: places.map((place) => ({
+                    id: place.id,
+                    name: place.name
+                })),
+                total,
+                pagination
+            };
         }
     };
 }

@@ -4,10 +4,9 @@ import IO from "#/modules/identity/bot-grant/BotGrant.contract.js";
 import { botGrantProblemResponses } from "#/modules/identity/bot-grant/BotGrant.problems.js";
 import {
     ApiResponse,
-    buildArrayPaginationResponse,
+    buildQueryPaginationResponse,
     createResultResponder,
     problemInput,
-    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -17,22 +16,20 @@ const respond = createResultResponder(botGrantProblemResponses);
 const actions: Actions = {
     listBots: async (ctx, input) =>
         ApiResponse.ok(
-            buildArrayPaginationResponse(
+            buildQueryPaginationResponse(
                 await ctx.botGrantService.listBots(input.query),
                 input.query,
-                unpaginatedByDefault,
                 "/bots"
             )
         ),
     list: async (ctx, input) =>
         ApiResponse.ok(
-            buildArrayPaginationResponse(
+            buildQueryPaginationResponse(
                 await ctx.botGrantService.list(
                     await ctx.resolveUserContext(input.path.userId),
                     input.query
                 ),
                 input.query,
-                unpaginatedByDefault,
                 `/users/${input.path.userId}/bot-grants`
             )
         ),

@@ -15,11 +15,15 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
     scalarFilter,
+    unpaginatedByDefault,
     type FilterExpression,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import {
@@ -74,7 +78,7 @@ const attemptFilterWhere = {
 >;
 
 export type StudentCourseAttemptService = {
-    list(userId: number, input: ListInput): Promise<Attempt[]>;
+    list(userId: number, input: ListInput): Promise<PageResult<Attempt>>;
     getById(
         userId: number,
         id: number
@@ -179,9 +183,15 @@ export function createStudentCourseAttemptService({
                 attemptFilterWhere,
                 "user course attempts"
             );
+            const pagination = resolvePagination(input, unpaginatedByDefault);
+            const where: MyPrisma.StudentCourseAttemptWhereInput = {
+                AND: [{ userId }, ...filterWhere]
+            };
+            const total = await prisma.studentCourseAttempt.count({ where });
             const attempts = await prisma.studentCourseAttempt.findMany({
+                ...prismaPaginationParams(pagination),
                 ...prismaStudentCourseFieldSelection,
-                where: { AND: [{ userId }, ...filterWhere] },
+                where,
                 orderBy: compileSort(
                     resolveSort(input.sort, studentCourseAttemptSort),
                     {
@@ -196,7 +206,11 @@ export function createStudentCourseAttemptService({
                     }
                 )
             });
-            return attempts.map(attemptPresenter.build);
+            return {
+                items: attempts.map(attemptPresenter.build),
+                total,
+                pagination
+            };
         },
         async getById(userId, id) {
             const attempt = await prisma.studentCourseAttempt.findFirst({

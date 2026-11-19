@@ -1,8 +1,7 @@
 import {
     ApiResponse,
-    buildArrayPaginationResponse,
+    buildQueryPaginationResponse,
     createResultResponder,
-    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -17,10 +16,9 @@ const respond = createResultResponder(catalogProgramProblemResponses);
 
 const list: Actions["list"] = async (ctx, input) =>
     ApiResponse.ok(
-        buildArrayPaginationResponse(
+        buildQueryPaginationResponse(
             await ctx.catalogProgramService.list(input.query),
             input.query,
-            unpaginatedByDefault,
             "/catalog-program"
         )
     );

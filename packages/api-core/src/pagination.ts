@@ -151,6 +151,25 @@ export function prismaPaginationParamsFromQuery(query: {
     };
 }
 
+export type PageResult<T> = {
+    items: T[];
+    total: number;
+    pagination: ResolvedPagination;
+};
+
+export function buildQueryPaginationResponse<T>(
+    result: PageResult<T>,
+    query: PaginationQuery & Record<string, unknown>,
+    path: string
+) {
+    return buildPaginationResponse<z.ZodType<T>>(
+        result.items,
+        result.total,
+        result.pagination,
+        (linkQuery) => buildPaginationPath(path, query, linkQuery)
+    );
+}
+
 export function paginateItems<T>(items: T[], pagination: ResolvedPagination) {
     return pagination.mode === "page"
         ? items.slice(pagination.skip, pagination.skip + pagination.take)

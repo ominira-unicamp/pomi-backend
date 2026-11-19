@@ -3,9 +3,9 @@ import type { AuthorizationPolicy } from "#/auth.js";
 import IO, { relatedCourse } from "#/modules/tagging/Tagging.contract.js";
 import {
     ApiResponse,
-    buildArrayPaginationResponse,
     buildPaginationPath,
     buildPaginationResponse,
+    buildQueryPaginationResponse,
     createResultResponder,
     paginatedByDefault,
     problemInput,
@@ -14,7 +14,6 @@ import {
     resolvePagination,
     ResourceNotFoundProblem,
     UniqueConstraintConflictProblem,
-    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -29,10 +28,9 @@ const respond = createResultResponder({
 const actions: Actions = {
     listCategories: async (ctx, input) =>
         ApiResponse.ok(
-            buildArrayPaginationResponse(
+            buildQueryPaginationResponse(
                 await ctx.taggingService.listCategories(input.query),
                 input.query,
-                unpaginatedByDefault,
                 "/categories"
             )
         ),
@@ -43,10 +41,9 @@ const actions: Actions = {
         ),
     listTags: async (ctx, input) =>
         ApiResponse.ok(
-            buildArrayPaginationResponse(
+            buildQueryPaginationResponse(
                 await ctx.taggingService.listTags(input.query),
                 input.query,
-                unpaginatedByDefault,
                 "/tags"
             )
         ),
@@ -60,10 +57,9 @@ const actions: Actions = {
             ),
             (items) =>
                 ApiResponse.ok(
-                    buildArrayPaginationResponse(
+                    buildQueryPaginationResponse(
                         items,
                         input.query,
-                        unpaginatedByDefault,
                         `/courses/${input.path.courseId}/tags`
                     )
                 )

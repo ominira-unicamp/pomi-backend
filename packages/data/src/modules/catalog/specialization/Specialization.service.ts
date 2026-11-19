@@ -11,10 +11,14 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -42,7 +46,7 @@ export function specializationFilterWhere(
     );
 }
 export type SpecializationService = {
-    list(query: Query): Promise<Specialization[]>;
+    list(query: Query): Promise<PageResult<Specialization>>;
     getById(
         id: number
     ): Promise<
@@ -60,26 +64,35 @@ export function createSpecializationService({
     return {
         async list(query) {
             const filterWhere = specializationFilterWhere(query.filter);
-            return (
-                await prisma.specialization.findMany({
-                    ...specializationEntity.prismaSelection,
-                    where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: compileSort(
-                        resolveSort(query.sort, specializationSort),
-                        {
-                            programCode: (direction) => ({
-                                program: { code: direction }
-                            }),
-                            programName: (direction) => ({
-                                program: { name: direction }
-                            }),
-                            code: (direction) => ({ code: direction }),
-                            name: (direction) => ({ name: direction }),
-                            id: (direction) => ({ id: direction })
-                        }
-                    )
-                })
-            ).map(specializationEntity.build);
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.SpecializationWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.specialization.count({ where });
+            return {
+                items: (
+                    await prisma.specialization.findMany({
+                        ...prismaPaginationParams(pagination),
+                        ...specializationEntity.prismaSelection,
+                        where,
+                        orderBy: compileSort(
+                            resolveSort(query.sort, specializationSort),
+                            {
+                                programCode: (direction) => ({
+                                    program: { code: direction }
+                                }),
+                                programName: (direction) => ({
+                                    program: { name: direction }
+                                }),
+                                code: (direction) => ({ code: direction }),
+                                name: (direction) => ({ name: direction }),
+                                id: (direction) => ({ id: direction })
+                            }
+                        )
+                    })
+                ).map(specializationEntity.build),
+                total,
+                pagination
+            };
         },
         async getById(id) {
             const specialization = await prisma.specialization.findUnique({

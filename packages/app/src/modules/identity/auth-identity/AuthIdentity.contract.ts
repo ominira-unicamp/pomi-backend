@@ -93,7 +93,7 @@ export const authIdentitySort = defineSort({
     resourceName: "auth users",
     sortableFields: ["id", "displayName", "email", "status"] as const,
     defaultSort: [{ field: "id", direction: "asc" }] as const,
-    tieBreakers: [] as const
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
 });
 const list = {
     meta: {

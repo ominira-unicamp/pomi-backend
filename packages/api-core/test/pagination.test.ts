@@ -143,3 +143,32 @@ function stringify(value: Record<string, number | string>) {
         Object.entries(value).map(([key, item]) => [key, String(item)])
     );
 }
+
+test("formats a database page without slicing it again and preserves query links", async () => {
+    const { buildQueryPaginationResponse } =
+        await import("../src/pagination.js");
+    const items = ["third", "fourth"];
+    const response = buildQueryPaginationResponse(
+        {
+            items,
+            total: 5,
+            pagination: resolvePagination(
+                { page: 2, pageSize: 2 },
+                pageByDefault
+            )
+        },
+        { page: 2, pageSize: 2, q: "cálculo" },
+        "/items"
+    );
+    assert.deepEqual(response.data, items);
+    assert.equal(response.quantity, 2);
+    assert.equal(response.total, 5);
+    assert.equal(
+        response.links.next,
+        "/items?page=3&pageSize=2&q=c%C3%A1lculo"
+    );
+    assert.equal(
+        response.links.previous,
+        "/items?page=1&pageSize=2&q=c%C3%A1lculo"
+    );
+});

@@ -11,10 +11,14 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -35,7 +39,7 @@ export function languageFilterWhere(
     return compileFilterWhere(filter, languageWhereDefinitions, "language");
 }
 export type LanguageService = {
-    list(query: Query): Promise<Language[]>;
+    list(query: Query): Promise<PageResult<Language>>;
     getById(
         id: number
     ): Promise<
@@ -50,19 +54,28 @@ export function createLanguageService({
     return {
         async list(query) {
             const filterWhere = languageFilterWhere(query.filter);
-            return (
-                await prisma.language.findMany({
-                    ...languageEntity.prismaSelection,
-                    where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: compileSort(
-                        resolveSort(query.sort, languageSort),
-                        {
-                            name: (direction) => ({ name: direction }),
-                            id: (direction) => ({ id: direction })
-                        }
-                    )
-                })
-            ).map(languageEntity.build);
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.LanguageWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.language.count({ where });
+            return {
+                items: (
+                    await prisma.language.findMany({
+                        ...prismaPaginationParams(pagination),
+                        ...languageEntity.prismaSelection,
+                        where,
+                        orderBy: compileSort(
+                            resolveSort(query.sort, languageSort),
+                            {
+                                name: (direction) => ({ name: direction }),
+                                id: (direction) => ({ id: direction })
+                            }
+                        )
+                    })
+                ).map(languageEntity.build),
+                total,
+                pagination
+            };
         },
         async getById(id) {
             const language = await prisma.language.findUnique({

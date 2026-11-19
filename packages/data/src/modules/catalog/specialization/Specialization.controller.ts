@@ -2,11 +2,10 @@ import { createDataEndpointRegistries, type Context } from "#/BuildHandler.js";
 import IO from "#/modules/catalog/specialization/Specialization.contract.js";
 import {
     ApiResponse,
-    buildArrayPaginationResponse,
+    buildQueryPaginationResponse,
     createResultResponder,
     problemResponse,
     ResourceNotFoundProblem,
-    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 const { schema: _schema, ...contracts } = IO;
@@ -16,10 +15,9 @@ const respond = createResultResponder({
 });
 export const listFn: Actions["list"] = async (ctx, input) =>
     ApiResponse.ok(
-        buildArrayPaginationResponse(
+        buildQueryPaginationResponse(
             await ctx.specializationService.list(input.query),
             input.query,
-            unpaginatedByDefault,
             "/specializations"
         )
     );

@@ -1,9 +1,8 @@
 import {
     ApiResponse,
-    buildArrayPaginationResponse,
+    buildQueryPaginationResponse,
     createResultResponder,
     problemInput,
-    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -38,23 +37,21 @@ const createForUser: Actions["createForUser"] = async (ctx, input) =>
 
 const listStudent: Actions["listStudent"] = async (ctx, input) =>
     ApiResponse.ok(
-        buildArrayPaginationResponse(
+        buildQueryPaginationResponse(
             await ctx.feedbackReportService.listForUser(
                 await ctx.resolveUserContext(input.path.userId),
                 input.query
             ),
             input.query,
-            unpaginatedByDefault,
             `/users/${input.path.userId}/feedback-reports`
         )
     );
 
 const listAdmin: Actions["listAdmin"] = async (ctx, input) =>
     ApiResponse.ok(
-        buildArrayPaginationResponse(
+        buildQueryPaginationResponse(
             await ctx.feedbackReportService.listForAdmin(input.query),
             input.query,
-            unpaginatedByDefault,
             "/admin/feedback-reports"
         )
     );

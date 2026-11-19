@@ -68,7 +68,7 @@ export const studentSort = defineSort({
     resourceName: "students",
     sortableFields: ["id", "ra", "name", "entryYear"] as const,
     defaultSort: [{ field: "id", direction: "asc" }] as const,
-    tieBreakers: [] as const
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
 });
 
 const createStudentBody = studentBase

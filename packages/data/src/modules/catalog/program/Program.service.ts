@@ -9,10 +9,14 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -34,7 +38,7 @@ export function programFilterWhere(
     return compileFilterWhere(filter, programWhereDefinitions, "program");
 }
 export type ProgramService = {
-    list(query: Query): Promise<Program[]>;
+    list(query: Query): Promise<PageResult<Program>>;
     getById(
         id: number
     ): Promise<
@@ -49,20 +53,32 @@ export function createProgramService({
     return {
         async list(query) {
             const filterWhere = programFilterWhere(query.filter);
-            return (
-                await prisma.program.findMany({
-                    ...programEntity.prismaSelection,
-                    where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: compileSort(resolveSort(query.sort, programSort), {
-                        code: (direction) => ({ code: direction }),
-                        name: (direction) => ({ name: direction }),
-                        unitCode: (direction) => ({
-                            unit: { code: direction }
-                        }),
-                        id: (direction) => ({ id: direction })
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.ProgramWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.program.count({ where });
+            return {
+                items: (
+                    await prisma.program.findMany({
+                        ...prismaPaginationParams(pagination),
+                        ...programEntity.prismaSelection,
+                        where,
+                        orderBy: compileSort(
+                            resolveSort(query.sort, programSort),
+                            {
+                                code: (direction) => ({ code: direction }),
+                                name: (direction) => ({ name: direction }),
+                                unitCode: (direction) => ({
+                                    unit: { code: direction }
+                                }),
+                                id: (direction) => ({ id: direction })
+                            }
+                        )
                     })
-                })
-            ).map(programEntity.build);
+                ).map(programEntity.build),
+                total,
+                pagination
+            };
         },
         async getById(id) {
             const program = await prisma.program.findUnique({

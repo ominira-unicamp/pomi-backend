@@ -1,4 +1,11 @@
-import { ConflictError, ForbiddenError, NotFoundError } from "@pomi/api-core";
+import {
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    prismaPaginationParams,
+    resolvePagination,
+    unpaginatedByDefault
+} from "@pomi/api-core";
 import type { GroupPermission, MyPrisma, PrismaClient } from "@pomi/db";
 import type z from "zod";
 import type IO from "./Group.contract.js";
@@ -88,13 +95,17 @@ export function createGroupService({ prisma }: { prisma: PrismaClient }) {
         return serialize(group);
     }
     return {
-        async list() {
+        async list(query: z.infer<typeof IO.list.request>["query"]) {
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.GroupWhereInput = { status: "ACTIVE" };
+            const total = await prisma.group.count({ where });
             const groups = await prisma.group.findMany({
-                where: { status: "ACTIVE" },
+                ...prismaPaginationParams(pagination),
+                where,
                 include: groupSelection,
                 orderBy: [{ name: "asc" }, { id: "asc" }]
             });
-            return groups.map(serialize);
+            return { items: groups.map(serialize), total, pagination };
         },
         get: load,
         async create(userId: number, input: CreateInput) {

@@ -2,8 +2,7 @@ import { createDataEndpointRegistries, type Context } from "#/BuildHandler.js";
 import IO from "#/modules/exchange/exchange-place/ExchangePlace.contract.js";
 import {
     ApiResponse,
-    buildArrayPaginationResponse,
-    unpaginatedByDefault,
+    buildQueryPaginationResponse,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -12,10 +11,9 @@ type Actions = EndpointActions<typeof contracts, unknown, Context>;
 const actions: Actions = {
     list: async (ctx, input) =>
         ApiResponse.ok(
-            buildArrayPaginationResponse(
+            buildQueryPaginationResponse(
                 await ctx.exchangePlaceService.list(input.query),
                 input.query,
-                unpaginatedByDefault,
                 "/exchange-places"
             )
         )

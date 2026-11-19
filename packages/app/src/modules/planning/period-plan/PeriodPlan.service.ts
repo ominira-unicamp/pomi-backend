@@ -16,10 +16,15 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
+    resolvePagination,
     resolveSort,
+    unpaginatedByDefault,
+    type PageResult,
     type ProblemField,
     type Result
 } from "@pomi/api-core";
+import type { MyPrisma } from "@pomi/db";
 import { studyPeriodCode, type PrismaClient } from "@pomi/db";
 import z from "zod";
 import { missingCourseIssues, planningIssues } from "../Planning.rules.js";
@@ -38,7 +43,7 @@ export type CreatePeriodPlanInput = z.infer<typeof createBody>;
 export type PatchPeriodPlanInput = z.infer<typeof patchBody>;
 
 export type PeriodPlanService = {
-    list(userId: number, query: ListQuery): Promise<PeriodPlan[]>;
+    list(userId: number, query: ListQuery): Promise<PageResult<PeriodPlan>>;
     getById(
         userId: number,
         id: number
@@ -280,31 +285,39 @@ export function createPeriodPlanService({
 }): PeriodPlanService {
     return {
         async list(userId, query) {
-            return (
-                await prisma.periodPlanning.findMany({
-                    ...prismaPeriodPlanningFieldSelection,
-                    where: { userId },
-                    orderBy: compileSort(
-                        resolveSort(query.sort, periodPlanningSort),
-                        {
-                            updatedAt: (direction) => ({
-                                updatedAt: direction
-                            }),
-                            name: (direction) => ({ name: direction }),
-                            studyPeriodYear: (direction) => ({
-                                studyPeriod: { year: direction }
-                            }),
-                            studyPeriodYearPeriod: (direction) => ({
-                                studyPeriod: { yearPeriod: direction }
-                            }),
-                            visibility: (direction) => ({
-                                visibility: direction
-                            }),
-                            id: (direction) => ({ id: direction })
-                        }
-                    )
-                })
-            ).map(periodPlanningPresenter.build);
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.PeriodPlanningWhereInput = { userId };
+            const total = await prisma.periodPlanning.count({ where });
+            return {
+                items: (
+                    await prisma.periodPlanning.findMany({
+                        ...prismaPaginationParams(pagination),
+                        ...prismaPeriodPlanningFieldSelection,
+                        where,
+                        orderBy: compileSort(
+                            resolveSort(query.sort, periodPlanningSort),
+                            {
+                                updatedAt: (direction) => ({
+                                    updatedAt: direction
+                                }),
+                                name: (direction) => ({ name: direction }),
+                                studyPeriodYear: (direction) => ({
+                                    studyPeriod: { year: direction }
+                                }),
+                                studyPeriodYearPeriod: (direction) => ({
+                                    studyPeriod: { yearPeriod: direction }
+                                }),
+                                visibility: (direction) => ({
+                                    visibility: direction
+                                }),
+                                id: (direction) => ({ id: direction })
+                            }
+                        )
+                    })
+                ).map(periodPlanningPresenter.build),
+                total,
+                pagination
+            };
         },
         async getById(userId, id) {
             const periodPlan = await load(prisma, userId, id);

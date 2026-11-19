@@ -15,7 +15,8 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         page(
             await ctx.groupMembershipService.listPublicMemberships(
                 groupId(input.query),
-                profilePublicId(input.query)
+                profilePublicId(input.query),
+                input.query
             ),
             input.query,
             "/group-memberships"
@@ -28,7 +29,8 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         page(
             await ctx.groupMembershipService.listOwnMemberships(
                 await ctx.resolveUserContext(input.path.userId),
-                groupId(input.query)
+                groupId(input.query),
+                input.query
             ),
             input.query,
             `/users/${input.path.userId}/group-memberships`
@@ -52,7 +54,8 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         page(
             await ctx.groupMembershipService.listManagedMemberships(
                 await ctx.resolveUserContext(input.path.userId),
-                input.path.groupId
+                input.path.groupId,
+                input.query
             ),
             input.query,
             `/users/${input.path.userId}/groups/${input.path.groupId}/memberships`

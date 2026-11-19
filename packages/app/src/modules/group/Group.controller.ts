@@ -3,8 +3,7 @@ import type { AuthorizationPolicy } from "#/auth.js";
 import { type UserContext } from "#/modules/identity/UserContext.js";
 import {
     ApiResponse,
-    buildArrayPaginationResponse,
-    unpaginatedByDefault,
+    buildQueryPaginationResponse,
     type EndpointActions
 } from "@pomi/api-core";
 import IO from "./Group.contract.js";
@@ -14,10 +13,9 @@ type Context = { groupService: GroupService } & UserContext;
 const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
     list: async (ctx, input) =>
         ApiResponse.ok(
-            buildArrayPaginationResponse(
-                await ctx.groupService.list(),
+            buildQueryPaginationResponse(
+                await ctx.groupService.list(input.query),
                 input.query,
-                unpaginatedByDefault,
                 "/groups"
             )
         ),

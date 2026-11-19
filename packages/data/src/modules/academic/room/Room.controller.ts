@@ -1,10 +1,9 @@
 import {
     ApiResponse,
-    buildArrayPaginationResponse,
+    buildQueryPaginationResponse,
     createResultResponder,
     problemResponse,
     ResourceNotFoundProblem,
-    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 
@@ -20,10 +19,9 @@ const respond = createResultResponder({
 const actions: Actions = {
     list: async (ctx, input) =>
         ApiResponse.ok(
-            buildArrayPaginationResponse(
+            buildQueryPaginationResponse(
                 await ctx.roomService.list(input.query),
                 input.query,
-                unpaginatedByDefault,
                 "/rooms"
             )
         ),

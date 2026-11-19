@@ -1,6 +1,14 @@
 import { systemClock, type Clock } from "#/application/Clock.js";
-import { BadRequestError, ConflictError, NotFoundError } from "@pomi/api-core";
-import type { PrismaClient } from "@pomi/db";
+import {
+    BadRequestError,
+    ConflictError,
+    NotFoundError,
+    prismaPaginationParams,
+    resolvePagination,
+    unpaginatedByDefault,
+    type PaginationQuery
+} from "@pomi/api-core";
+import type { MyPrisma, PrismaClient } from "@pomi/db";
 import { requireGroupRule, requirePermission } from "../Group.problems.js";
 import { ownMember } from "../membership/GroupMembership.presenter.js";
 import { loadMember } from "../membership/GroupMembership.queries.js";
@@ -15,35 +23,63 @@ export function createGroupInvitationService({
     clock?: Clock;
 }) {
     return {
-        async listInvitations(userId: number, groupId?: number) {
-            return (
-                await prisma.groupInvitation.findMany({
-                    where: { recipientUserId: userId, groupId },
-                    include: invitationInclude,
-                    orderBy: { createdAt: "desc" }
-                })
-            ).map((value) => invitation(value, clock.now()));
+        async listInvitations(
+            userId: number,
+            groupId?: number,
+            query: PaginationQuery = {}
+        ) {
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.GroupInvitationWhereInput = {
+                recipientUserId: userId,
+                groupId
+            };
+            const total = await prisma.groupInvitation.count({ where });
+            return {
+                items: (
+                    await prisma.groupInvitation.findMany({
+                        ...prismaPaginationParams(pagination),
+                        where,
+                        include: invitationInclude,
+                        orderBy: [{ createdAt: "desc" }, { id: "desc" }]
+                    })
+                ).map((value) => invitation(value, clock.now())),
+                total,
+                pagination
+            };
         },
-        async listManagedInvitations(userId: number, groupId?: number) {
+        async listManagedInvitations(
+            userId: number,
+            groupId?: number,
+            query: PaginationQuery = {}
+        ) {
             if (!groupId)
                 throw new BadRequestError("filter[groupId] é obrigatório.");
             await requirePermission(prisma, groupId, userId, "MEMBER_MANAGE");
-            return (
-                await prisma.groupInvitation.findMany({
-                    where: { groupId },
-                    include: invitationInclude,
-                    orderBy: [{ createdAt: "desc" }, { id: "desc" }]
-                })
-            ).map((value) => ({
-                ...invitation(value, clock.now()),
-                recipientName: value.recipientUser.name ?? "Usuário do POMI",
-                recipientPublicId: value.recipientUser.publicId,
-                recipientAvatarMediaId:
-                    value.recipientUser.publicProfileEnabled &&
-                    value.recipientUser.principal.identities.length
-                        ? value.recipientUser.avatarMediaId
-                        : null
-            }));
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.GroupInvitationWhereInput = { groupId };
+            const total = await prisma.groupInvitation.count({ where });
+            return {
+                items: (
+                    await prisma.groupInvitation.findMany({
+                        ...prismaPaginationParams(pagination),
+                        where,
+                        include: invitationInclude,
+                        orderBy: [{ createdAt: "desc" }, { id: "desc" }]
+                    })
+                ).map((value) => ({
+                    ...invitation(value, clock.now()),
+                    recipientName:
+                        value.recipientUser.name ?? "Usuário do POMI",
+                    recipientPublicId: value.recipientUser.publicId,
+                    recipientAvatarMediaId:
+                        value.recipientUser.publicProfileEnabled &&
+                        value.recipientUser.principal.identities.length
+                            ? value.recipientUser.avatarMediaId
+                            : null
+                })),
+                total,
+                pagination
+            };
         },
         async createInvitation(
             userId: number,

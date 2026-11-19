@@ -13,10 +13,14 @@ import {
     err,
     InconsistentResourceStateError,
     ok,
+    prismaPaginationParams,
+    resolvePagination,
     resolveSort,
+    unpaginatedByDefault,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
-import type { FeedbackReportStatus, PrismaClient } from "@pomi/db";
+import type { FeedbackReportStatus, MyPrisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 
 type Input = z.infer<typeof IO.body>;
@@ -256,8 +260,11 @@ export type FeedbackReportService = {
             >
         >
     >;
-    listForUser(userId: number, query: StudentListQuery): Promise<Report[]>;
-    listForAdmin(query: AdminListQuery): Promise<Report[]>;
+    listForUser(
+        userId: number,
+        query: StudentListQuery
+    ): Promise<PageResult<Report>>;
+    listForAdmin(query: AdminListQuery): Promise<PageResult<Report>>;
     patchAdmin(
         id: number,
         input: AdminPatchInput
@@ -313,8 +320,14 @@ export function createFeedbackReportService({
             return create(input, userId);
         },
         async listForUser(userId, query) {
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.FeedbackReportWhereInput = {
+                reporterUserId: userId
+            };
+            const total = await prisma.feedbackReport.count({ where });
             const reports = await prisma.feedbackReport.findMany({
-                where: { reporterUserId: userId },
+                ...prismaPaginationParams(pagination),
+                where,
                 select: reportSelection,
                 orderBy: compileSort(
                     resolveSort(query.sort, feedbackReportSort),
@@ -328,10 +341,15 @@ export function createFeedbackReportService({
                     }
                 )
             });
-            return reports.map(buildReport);
+            return { items: reports.map(buildReport), total, pagination };
         },
         async listForAdmin(query) {
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.FeedbackReportWhereInput = {};
+            const total = await prisma.feedbackReport.count({ where });
             const reports = await prisma.feedbackReport.findMany({
+                ...prismaPaginationParams(pagination),
+                where,
                 select: reportSelection,
                 orderBy: compileSort(
                     resolveSort(query.sort, feedbackReportSort),
@@ -345,7 +363,7 @@ export function createFeedbackReportService({
                     }
                 )
             });
-            return reports.map(buildReport);
+            return { items: reports.map(buildReport), total, pagination };
         },
         async patchAdmin(id, input) {
             const existing = await prisma.feedbackReport.findUnique({

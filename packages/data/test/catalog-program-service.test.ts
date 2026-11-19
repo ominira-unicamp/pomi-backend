@@ -45,6 +45,7 @@ test("combines catalog program filters in the Prisma query", async () => {
     const service = createCatalogProgramService({
         prisma: {
             catalogProgram: {
+                count: async () => 0,
                 findMany: async ({ where }: { where: unknown }) => {
                     receivedWhere = where;
                     return [];

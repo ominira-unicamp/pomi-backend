@@ -12,7 +12,7 @@
         "dev:app": "npm run dev --workspace @pomi/app",
         "openapi:export": "npm run openapi:export --workspace @pomi/data && npm run openapi:export --workspace @pomi/app",
         "build": "npm run check:boundaries && npm run build --workspace @pomi/db && npm run build --workspace @pomi/api-core && npm run build --workspace @pomi/data && npm run build --workspace @pomi/app && npm run build --workspace @pomi/injection && npm run build --workspace @pomi/notifier",
-        "check:boundaries": "node scripts/check-package-boundaries.mjs",
+        "check:boundaries": "node scripts/check-package-boundaries.mjs && node scripts/check-pagination.mjs",
         "test": "npm run test:boundaries && npm run test --workspaces --if-present",
         "lint": "eslint packages/api-core/src packages/api-core/test packages/app/src packages/app/test packages/data/src packages/data/test packages/injection/src packages/injection/test packages/notifier/src packages/notifier/test packages/db/src packages/db/test --ext .ts,.tsx && prettier --check \"packages/{api-core,app,data,injection,notifier}/{src,test,tests}/**/*.{ts,tsx}\" \"packages/db/{src,test}/**/*.{ts,tsx}\" \"packages/*/{package.json,tsconfig.json,tsconfig.test.json}\"",
         "injection:list": "npm run pomi-injection --workspace @pomi/injection -- list",
@@ -32,7 +32,7 @@
         "prisma:deploy": "npm run migrate:deploy --workspace @pomi/db",
         "prisma:status": "npm run migrate:status --workspace @pomi/db",
         "prepare": "husky install",
-        "test:boundaries": "node scripts/check-package-boundaries.test.mjs",
+        "test:boundaries": "node --test scripts/check-package-boundaries.test.mjs scripts/check-pagination.test.mjs",
         "auth:backfill-local": "npm run auth:backfill-local --workspace @pomi/db --"
     },
     "devDependencies": {

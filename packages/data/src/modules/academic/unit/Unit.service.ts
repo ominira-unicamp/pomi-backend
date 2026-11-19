@@ -9,10 +9,14 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -32,7 +36,7 @@ export function unitFilterWhere(
     return compileFilterWhere(filter, unitWhereDefinitions, "unit");
 }
 export type UnitService = {
-    list(query: Query): Promise<Unit[]>;
+    list(query: Query): Promise<PageResult<Unit>>;
     getById(
         id: number
     ): Promise<Result<Unit, ReturnType<typeof ResourceNotFoundProblem.create>>>;
@@ -45,16 +49,28 @@ export function createUnitService({
     return {
         async list(query) {
             const filterWhere = unitFilterWhere(query.filter);
-            return (
-                await prisma.unit.findMany({
-                    where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: compileSort(resolveSort(query.sort, unitSort), {
-                        code: (direction) => ({ code: direction }),
-                        name: (direction) => ({ name: direction }),
-                        id: (direction) => ({ id: direction })
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.UnitWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.unit.count({ where });
+            return {
+                items: (
+                    await prisma.unit.findMany({
+                        ...prismaPaginationParams(pagination),
+                        where,
+                        orderBy: compileSort(
+                            resolveSort(query.sort, unitSort),
+                            {
+                                code: (direction) => ({ code: direction }),
+                                name: (direction) => ({ name: direction }),
+                                id: (direction) => ({ id: direction })
+                            }
+                        )
                     })
-                })
-            ).map(unitEntity.build);
+                ).map(unitEntity.build),
+                total,
+                pagination
+            };
         },
         async getById(id) {
             const unit = await prisma.unit.findUnique({ where: { id } });

@@ -4,9 +4,8 @@ import IO from "#/modules/identity/auth-identity/AuthIdentity.contract.js";
 import { authIdentityProblemResponses } from "#/modules/identity/auth-identity/AuthIdentity.problems.js";
 import {
     ApiResponse,
-    buildArrayPaginationResponse,
+    buildQueryPaginationResponse,
     createResultResponder,
-    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 const { schemas: _schemas, ...contracts } = IO;
@@ -15,10 +14,9 @@ const respond = createResultResponder(authIdentityProblemResponses);
 const actions: Actions = {
     list: async (ctx, input) =>
         ApiResponse.ok(
-            buildArrayPaginationResponse(
+            buildQueryPaginationResponse(
                 await ctx.authIdentityService.list(input.query),
                 input.query,
-                unpaginatedByDefault,
                 "/admin/auth-identities"
             )
         ),

@@ -11,10 +11,14 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -38,7 +42,7 @@ export function dailyMenuFilterWhere(
 }
 
 export type DailyMenuService = {
-    list(query: ListQuery): Promise<DailyMenu[]>;
+    list(query: ListQuery): Promise<PageResult<DailyMenu>>;
     getById(
         id: number
     ): Promise<
@@ -54,9 +58,14 @@ export function createDailyMenuService({
     return {
         async list(query) {
             const filterWhere = dailyMenuFilterWhere(query.filter);
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.DailyMenuWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.dailyMenu.count({ where });
             const dailyMenus = await prisma.dailyMenu.findMany({
+                ...prismaPaginationParams(pagination),
                 ...dailyMenuEntity.prismaSelection,
-                where: filterWhere.length > 0 ? { AND: filterWhere } : {},
+                where,
                 orderBy: compileSort(resolveSort(query.sort, dailyMenuSort), {
                     date: (direction) => ({ date: direction }),
                     createdAt: (direction) => ({ createdAt: direction }),
@@ -64,7 +73,11 @@ export function createDailyMenuService({
                     id: (direction) => ({ id: direction })
                 })
             });
-            return dailyMenus.map(dailyMenuEntity.build);
+            return {
+                items: dailyMenus.map(dailyMenuEntity.build),
+                total,
+                pagination
+            };
         },
         async getById(id) {
             const dailyMenu = await prisma.dailyMenu.findUnique({

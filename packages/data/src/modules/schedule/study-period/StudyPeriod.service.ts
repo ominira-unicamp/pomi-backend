@@ -11,10 +11,14 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -40,7 +44,7 @@ export function studyPeriodFilterWhere(
     );
 }
 export type StudyPeriodService = {
-    list(query: Query): Promise<StudyPeriod[]>;
+    list(query: Query): Promise<PageResult<StudyPeriod>>;
     getById(
         id: number
     ): Promise<
@@ -55,22 +59,33 @@ export function createStudyPeriodService({
     return {
         async list(query) {
             const filterWhere = studyPeriodFilterWhere(query.filter);
-            return (
-                await prisma.studyPeriod.findMany({
-                    where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: compileSort(
-                        resolveSort(query.sort, studyPeriodSort),
-                        {
-                            id: (direction) => ({ id: direction }),
-                            year: (direction) => ({ year: direction }),
-                            yearPeriod: (direction) => ({
-                                yearPeriod: direction
-                            }),
-                            startDate: (direction) => ({ startDate: direction })
-                        }
-                    )
-                })
-            ).map(studyPeriodEntity.build);
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.StudyPeriodWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.studyPeriod.count({ where });
+            return {
+                items: (
+                    await prisma.studyPeriod.findMany({
+                        ...prismaPaginationParams(pagination),
+                        where,
+                        orderBy: compileSort(
+                            resolveSort(query.sort, studyPeriodSort),
+                            {
+                                id: (direction) => ({ id: direction }),
+                                year: (direction) => ({ year: direction }),
+                                yearPeriod: (direction) => ({
+                                    yearPeriod: direction
+                                }),
+                                startDate: (direction) => ({
+                                    startDate: direction
+                                })
+                            }
+                        )
+                    })
+                ).map(studyPeriodEntity.build),
+                total,
+                pagination
+            };
         },
         async getById(id) {
             const value = await prisma.studyPeriod.findUnique({

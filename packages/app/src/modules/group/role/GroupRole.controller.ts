@@ -13,7 +13,8 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         page(
             await ctx.groupRoleService.listRoles(
                 await ctx.resolveUserContext(input.path.userId),
-                input.path.groupId
+                input.path.groupId,
+                input.query
             ),
             input.query,
             `/users/${input.path.userId}/groups/${input.path.groupId}/roles`

@@ -1,4 +1,12 @@
-import { BadRequestError, ConflictError, NotFoundError } from "@pomi/api-core";
+import {
+    BadRequestError,
+    ConflictError,
+    NotFoundError,
+    prismaPaginationParams,
+    resolvePagination,
+    unpaginatedByDefault,
+    type PaginationQuery
+} from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
 import type z from "zod";
 import { requireGroupRule, requirePermission } from "../Group.problems.js";
@@ -44,18 +52,26 @@ async function requireTags(
 
 export function createGroupEventService({ prisma }: { prisma: PrismaClient }) {
     return {
-        async listPublicEvents(groupId?: number) {
-            return (
-                await prisma.groupEvent.findMany({
-                    where: {
-                        groupId,
-                        status: "PUBLISHED",
-                        group: { status: "ACTIVE" }
-                    },
-                    include: eventInclude,
-                    orderBy: [{ startsAt: "asc" }, { id: "asc" }]
-                })
-            ).map(publicEvent);
+        async listPublicEvents(groupId?: number, query: PaginationQuery = {}) {
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.GroupEventWhereInput = {
+                groupId,
+                status: "PUBLISHED",
+                group: { status: "ACTIVE" }
+            };
+            const total = await prisma.groupEvent.count({ where });
+            return {
+                items: (
+                    await prisma.groupEvent.findMany({
+                        ...prismaPaginationParams(pagination),
+                        where,
+                        include: eventInclude,
+                        orderBy: [{ startsAt: "asc" }, { id: "asc" }]
+                    })
+                ).map(publicEvent),
+                total,
+                pagination
+            };
         },
         async getPublicEvent(id: number) {
             const value = await loadEvent(prisma, id);
@@ -68,7 +84,11 @@ export function createGroupEventService({ prisma }: { prisma: PrismaClient }) {
                 throw new NotFoundError("Evento público não encontrado.");
             return publicEvent(value);
         },
-        async listManagedEvents(userId: number, groupId?: number) {
+        async listManagedEvents(
+            userId: number,
+            groupId?: number,
+            query: PaginationQuery = {}
+        ) {
             if (!groupId)
                 throw new BadRequestError("filter[groupId] é obrigatório.");
             await requirePermission(prisma, groupId, userId, [
@@ -76,13 +96,21 @@ export function createGroupEventService({ prisma }: { prisma: PrismaClient }) {
                 "EVENT_EDIT",
                 "EVENT_PUBLISH"
             ]);
-            return (
-                await prisma.groupEvent.findMany({
-                    where: { groupId },
-                    include: eventInclude,
-                    orderBy: { id: "asc" }
-                })
-            ).map(managedEvent);
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.GroupEventWhereInput = { groupId };
+            const total = await prisma.groupEvent.count({ where });
+            return {
+                items: (
+                    await prisma.groupEvent.findMany({
+                        ...prismaPaginationParams(pagination),
+                        where,
+                        include: eventInclude,
+                        orderBy: { id: "asc" }
+                    })
+                ).map(managedEvent),
+                total,
+                pagination
+            };
         },
         async createEvent(userId: number, groupId: number, input: EventInput) {
             await requirePermission(prisma, groupId, userId, "EVENT_CREATE");

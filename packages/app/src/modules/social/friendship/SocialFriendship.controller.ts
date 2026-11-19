@@ -2,10 +2,9 @@ import type { AuthorizationPolicy } from "#/Authorization.js";
 import { createAppEndpointRegistries, type Context } from "#/BuildHandler.js";
 import {
     ApiResponse,
-    buildArrayPaginationResponse,
+    buildQueryPaginationResponse,
     createResultResponder,
     problemInput,
-    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 import {
@@ -19,13 +18,12 @@ const actions: EndpointActions<typeof contracts, AuthorizationPolicy, Context> =
     {
         listFriendships: async (ctx, input) =>
             ApiResponse.ok(
-                buildArrayPaginationResponse(
+                buildQueryPaginationResponse(
                     await ctx.socialFriendshipService.listFriendships(
                         await ctx.resolveUserContext(input.path.userId),
                         input.query
                     ),
                     input.query,
-                    unpaginatedByDefault,
                     `/users/${input.path.userId}/friendships`
                 )
             ),

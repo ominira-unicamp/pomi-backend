@@ -12,9 +12,13 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -45,7 +49,9 @@ export function catalogProgramFilterWhere(
 }
 
 export type CatalogProgramService = {
-    list(input: CatalogProgramListInput): Promise<CatalogProgramEntity[]>;
+    list(
+        input: CatalogProgramListInput
+    ): Promise<PageResult<CatalogProgramEntity>>;
     getById(
         id: number
     ): Promise<
@@ -62,11 +68,15 @@ export function createCatalogProgramService({
     prisma: PrismaClient;
 }): CatalogProgramService {
     return {
-        async list({ filter, sort }) {
+        async list(query) {
+            const { filter, sort } = query;
             const filterWhere = catalogProgramFilterWhere(filter);
             const where: MyPrisma.CatalogProgramWhereInput =
                 filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const total = await prisma.catalogProgram.count({ where });
             const catalogPrograms = await prisma.catalogProgram.findMany({
+                ...prismaPaginationParams(pagination),
                 ...catalogProgramEntity.prismaSelection,
                 where,
                 orderBy: compileSort(resolveSort(sort, catalogProgramSort), {
@@ -80,10 +90,14 @@ export function createCatalogProgramService({
                     programName: (direction) => ({
                         program: { name: direction }
                     }),
-                    title: (direction) => ({ title: direction })
+                    title: (direction) => ({ program: { name: direction } })
                 })
             });
-            return catalogPrograms.map(catalogProgramEntity.build);
+            return {
+                items: catalogPrograms.map(catalogProgramEntity.build),
+                total,
+                pagination
+            };
         },
         async getById(id) {
             const catalogProgram = await prisma.catalogProgram.findUnique({

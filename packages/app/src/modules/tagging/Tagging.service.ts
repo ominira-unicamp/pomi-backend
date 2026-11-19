@@ -12,12 +12,16 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
     ReferenceNotFoundProblem,
+    resolvePagination,
     resolveSort,
     ResourceNotFoundProblem,
     UniqueConstraintConflictProblem,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -57,20 +61,22 @@ const conflict = (detail: string) =>
 export type TaggingService = {
     listCategories(
         query: Infer<typeof IO.listCategories.request>["query"]
-    ): Promise<CategoryEntity[]>;
+    ): Promise<PageResult<CategoryEntity>>;
     getCategory(
         id: number
     ): Promise<Result<CategoryEntity, ReturnType<typeof resourceNotFound>>>;
     listTags(
         query: Infer<typeof IO.listTags.request>["query"]
-    ): Promise<TagEntity[]>;
+    ): Promise<PageResult<TagEntity>>;
     getTag(
         id: number
     ): Promise<Result<TagEntity, ReturnType<typeof resourceNotFound>>>;
     listCourseTags(
         courseId: number,
         query: Infer<typeof IO.listCourseTags.request>["query"]
-    ): Promise<Result<TagEntity[], ReturnType<typeof resourceNotFound>>>;
+    ): Promise<
+        Result<PageResult<TagEntity>, ReturnType<typeof resourceNotFound>>
+    >;
     listTagCourses(
         tagId: number,
         query: Infer<typeof IO.listTagCourses.request>["query"]
@@ -162,12 +168,24 @@ export function createTaggingService({
     }
     return {
         async listCategories(query) {
-            return await prisma.category.findMany({
-                orderBy: compileSort(resolveSort(query.sort, categorySort), {
-                    name: (direction) => ({ name: direction }),
-                    id: (direction) => ({ id: direction })
-                })
-            });
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.CategoryWhereInput = {};
+            const total = await prisma.category.count({ where });
+            return {
+                items: await prisma.category.findMany({
+                    ...prismaPaginationParams(pagination),
+                    where,
+                    orderBy: compileSort(
+                        resolveSort(query.sort, categorySort),
+                        {
+                            name: (direction) => ({ name: direction }),
+                            id: (direction) => ({ id: direction })
+                        }
+                    )
+                }),
+                total,
+                pagination
+            };
         },
         async getCategory(id) {
             const value = await prisma.category.findUnique({ where: { id } });
@@ -181,14 +199,22 @@ export function createTaggingService({
                 tagFilterWhere,
                 "tags"
             );
-            return await prisma.tag.findMany({
-                where: { AND: filterWhere },
-                orderBy: compileSort(resolveSort(query.sort, tagSort), {
-                    name: (direction) => ({ name: direction }),
-                    categoryId: (direction) => ({ categoryId: direction }),
-                    id: (direction) => ({ id: direction })
-                })
-            });
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.TagWhereInput = { AND: filterWhere };
+            const total = await prisma.tag.count({ where });
+            return {
+                items: await prisma.tag.findMany({
+                    ...prismaPaginationParams(pagination),
+                    where,
+                    orderBy: compileSort(resolveSort(query.sort, tagSort), {
+                        name: (direction) => ({ name: direction }),
+                        categoryId: (direction) => ({ categoryId: direction }),
+                        id: (direction) => ({ id: direction })
+                    })
+                }),
+                total,
+                pagination
+            };
         },
         async getTag(id) {
             const value = await prisma.tag.findUnique({ where: { id } });
@@ -202,16 +228,19 @@ export function createTaggingService({
                 select: { id: true }
             });
             if (!courseExists) return err(resourceNotFound("Course not found"));
-            return ok(
-                await prisma.tag.findMany({
-                    where: { courseTags: { some: { courseId } } },
-                    orderBy: compileSort(resolveSort(query.sort, tagSort), {
-                        name: (direction) => ({ name: direction }),
-                        categoryId: (direction) => ({ categoryId: direction }),
-                        id: (direction) => ({ id: direction })
-                    })
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where = { courseTags: { some: { courseId } } };
+            const total = await prisma.tag.count({ where });
+            const items = await prisma.tag.findMany({
+                where,
+                ...prismaPaginationParams(pagination),
+                orderBy: compileSort(resolveSort(query.sort, tagSort), {
+                    name: (direction) => ({ name: direction }),
+                    categoryId: (direction) => ({ categoryId: direction }),
+                    id: (direction) => ({ id: direction })
                 })
-            );
+            });
+            return ok({ items, total, pagination });
         },
         async listTagCourses(tagId, query) {
             const tagExists = await prisma.tag.findUnique({

@@ -1,15 +1,14 @@
 import { createDataEndpointRegistries, type Context } from "#/BuildHandler.js";
 import {
     ApiResponse,
-    buildArrayPaginationResponse,
     buildPaginationPath,
     buildPaginationResponse,
+    buildQueryPaginationResponse,
     createResultResponder,
     paginatedByDefault,
     problemResponse,
     resolvePagination,
     ResourceNotFoundProblem,
-    unpaginatedByDefault,
     type EndpointActions
 } from "@pomi/api-core";
 import IO, {
@@ -61,10 +60,9 @@ const actions: Actions = {
         ),
     positionList: async (ctx, input) =>
         ApiResponse.ok(
-            buildArrayPaginationResponse(
+            buildQueryPaginationResponse(
                 await ctx.professorDataPortalService.listPositions(input.query),
                 input.query,
-                unpaginatedByDefault,
                 "/professor-positions"
             )
         ),
@@ -75,12 +73,11 @@ const actions: Actions = {
         ),
     departmentList: async (ctx, input) =>
         ApiResponse.ok(
-            buildArrayPaginationResponse(
+            buildQueryPaginationResponse(
                 await ctx.professorDataPortalService.listDepartments(
                     input.query
                 ),
                 input.query,
-                unpaginatedByDefault,
                 "/departments"
             )
         ),

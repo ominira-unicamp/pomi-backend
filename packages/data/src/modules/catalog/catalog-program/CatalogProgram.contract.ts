@@ -296,7 +296,7 @@ export const catalogProgramSort = defineSort({
         "title"
     ] as const,
     defaultSort: [{ field: "id", direction: "asc" }] as const,
-    tieBreakers: [] as const
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
 });
 
 const get = {

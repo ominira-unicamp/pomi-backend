@@ -123,8 +123,12 @@ test("canonical user HTTP keeps its target and effects for authorized human, adm
                 return project(target, select);
             }
         },
-        studentCourseAttempt: { findMany: async () => [] },
+        studentCourseAttempt: {
+            count: async () => 0,
+            findMany: async () => []
+        },
         botGrant: {
+            count: async () => 0,
             findFirst: async ({
                 where
             }: {

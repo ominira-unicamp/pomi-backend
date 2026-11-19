@@ -9,7 +9,18 @@ import {
     type AuthIdentityProblem
 } from "#/modules/identity/auth-identity/AuthIdentity.problems.js";
 import { prismaAuthIdentitySelection } from "#/modules/identity/auth-identity/AuthIdentity.queries.js";
-import { compileSort, err, ok, resolveSort, type Result } from "@pomi/api-core";
+import {
+    compileSort,
+    err,
+    ok,
+    prismaPaginationParams,
+    resolvePagination,
+    resolveSort,
+    unpaginatedByDefault,
+    type PageResult,
+    type Result
+} from "@pomi/api-core";
+import type { MyPrisma } from "@pomi/db";
 import {
     canonicalIdentity,
     canonicalIdentityInclude,
@@ -33,7 +44,7 @@ type PatchInput = {
     capabilities?: Capability[];
 };
 export type AuthIdentityService = {
-    list(query: ListQuery): Promise<AuthIdentity[]>;
+    list(query: ListQuery): Promise<PageResult<AuthIdentity>>;
     create(input: CreateInput): Promise<AuthIdentity>;
     patch(
         id: number,
@@ -48,22 +59,31 @@ export function createAuthIdentityService({
 }): AuthIdentityService {
     return {
         async list(query) {
-            return (
-                await prisma.authIdentity.findMany({
-                    ...prismaAuthIdentitySelection,
-                    orderBy: compileSort(
-                        resolveSort(query.sort, authIdentitySort),
-                        {
-                            id: (direction) => ({ id: direction }),
-                            displayName: (direction) => ({
-                                displayName: direction
-                            }),
-                            email: (direction) => ({ email: direction }),
-                            status: (direction) => ({ status: direction })
-                        }
-                    )
-                })
-            ).map(authIdentityPresenter.build);
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.AuthIdentityWhereInput = {};
+            const total = await prisma.authIdentity.count({ where });
+            return {
+                items: (
+                    await prisma.authIdentity.findMany({
+                        ...prismaPaginationParams(pagination),
+                        where,
+                        ...prismaAuthIdentitySelection,
+                        orderBy: compileSort(
+                            resolveSort(query.sort, authIdentitySort),
+                            {
+                                id: (direction) => ({ id: direction }),
+                                displayName: (direction) => ({
+                                    displayName: direction
+                                }),
+                                email: (direction) => ({ email: direction }),
+                                status: (direction) => ({ status: direction })
+                            }
+                        )
+                    })
+                ).map(authIdentityPresenter.build),
+                total,
+                pagination
+            };
         },
         async create(input) {
             const identity = await runIdentityTransaction(

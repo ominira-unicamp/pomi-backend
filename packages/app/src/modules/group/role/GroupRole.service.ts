@@ -7,7 +7,11 @@ import {
     ConflictError,
     NotFoundError,
     err,
-    ok
+    ok,
+    prismaPaginationParams,
+    resolvePagination,
+    unpaginatedByDefault,
+    type PaginationQuery
 } from "@pomi/api-core";
 import type { GroupPermission, MyPrisma, PrismaClient } from "@pomi/db";
 import type { GroupRuleIssue } from "../Group.errors.js";
@@ -50,17 +54,29 @@ export function createGroupRoleService({
     operationTelemetry?: OperationTelemetry;
 }) {
     return {
-        async listRoles(userId: number, groupId?: number) {
+        async listRoles(
+            userId: number,
+            groupId?: number,
+            query: PaginationQuery = {}
+        ) {
             if (!groupId)
                 throw new BadRequestError("filter[groupId] é obrigatório.");
             await requirePermission(prisma, groupId, userId, "ROLE_MANAGE");
-            return (
-                await prisma.groupRole.findMany({
-                    where: { groupId },
-                    include: roleInclude,
-                    orderBy: { id: "asc" }
-                })
-            ).map(role);
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.GroupRoleWhereInput = { groupId };
+            const total = await prisma.groupRole.count({ where });
+            return {
+                items: (
+                    await prisma.groupRole.findMany({
+                        ...prismaPaginationParams(pagination),
+                        where,
+                        include: roleInclude,
+                        orderBy: { id: "asc" }
+                    })
+                ).map(role),
+                total,
+                pagination
+            };
         },
         async createRole(
             userId: number,

@@ -11,10 +11,14 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -53,7 +57,7 @@ export function calendarEventFilterWhere(
     );
 }
 export type CalendarEventService = {
-    list(query: Query): Promise<Event[]>;
+    list(query: Query): Promise<PageResult<Event>>;
     getById(
         id: number
     ): Promise<
@@ -68,25 +72,36 @@ export function createCalendarEventService({
     return {
         async list(query) {
             const filterWhere = calendarEventFilterWhere(query.filter);
-            return (
-                await prisma.calendarEvent.findMany({
-                    ...calendarEventEntity.prismaSelection,
-                    where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: compileSort(
-                        resolveSort(query.sort, calendarEventSort),
-                        {
-                            startDate: (direction) => ({
-                                startDate: direction
-                            }),
-                            endDate: (direction) => ({ endDate: direction }),
-                            description: (direction) => ({
-                                description: direction
-                            }),
-                            id: (direction) => ({ id: direction })
-                        }
-                    )
-                })
-            ).map(calendarEventEntity.build);
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.CalendarEventWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.calendarEvent.count({ where });
+            return {
+                items: (
+                    await prisma.calendarEvent.findMany({
+                        ...prismaPaginationParams(pagination),
+                        ...calendarEventEntity.prismaSelection,
+                        where,
+                        orderBy: compileSort(
+                            resolveSort(query.sort, calendarEventSort),
+                            {
+                                startDate: (direction) => ({
+                                    startDate: direction
+                                }),
+                                endDate: (direction) => ({
+                                    endDate: direction
+                                }),
+                                description: (direction) => ({
+                                    description: direction
+                                }),
+                                id: (direction) => ({ id: direction })
+                            }
+                        )
+                    })
+                ).map(calendarEventEntity.build),
+                total,
+                pagination
+            };
         },
         async getById(id) {
             const value = await prisma.calendarEvent.findUnique({

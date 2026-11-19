@@ -9,10 +9,14 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -34,7 +38,7 @@ export function catalogFilterWhere(
     return compileFilterWhere(filter, catalogWhereDefinitions, "catalog");
 }
 export type CatalogService = {
-    list(query: Query): Promise<Catalog[]>;
+    list(query: Query): Promise<PageResult<Catalog>>;
     getById(
         id: number
     ): Promise<
@@ -49,16 +53,28 @@ export function createCatalogService({
     return {
         async list(query) {
             const filterWhere = catalogFilterWhere(query.filter);
-            return (
-                await prisma.catalog.findMany({
-                    ...catalogEntity.prismaSelection,
-                    where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                    orderBy: compileSort(resolveSort(query.sort, catalogSort), {
-                        year: (direction) => ({ year: direction }),
-                        id: (direction) => ({ id: direction })
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.CatalogWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.catalog.count({ where });
+            return {
+                items: (
+                    await prisma.catalog.findMany({
+                        ...prismaPaginationParams(pagination),
+                        ...catalogEntity.prismaSelection,
+                        where,
+                        orderBy: compileSort(
+                            resolveSort(query.sort, catalogSort),
+                            {
+                                year: (direction) => ({ year: direction }),
+                                id: (direction) => ({ id: direction })
+                            }
+                        )
                     })
-                })
-            ).map(catalogEntity.build);
+                ).map(catalogEntity.build),
+                total,
+                pagination
+            };
         },
         async getById(id) {
             const catalog = await prisma.catalog.findUnique({

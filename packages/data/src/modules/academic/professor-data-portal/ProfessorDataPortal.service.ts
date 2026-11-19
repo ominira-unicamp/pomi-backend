@@ -11,14 +11,18 @@ import {
     err,
     InconsistentResourceStateError,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type Filter,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
-import type { Department, Prisma, PrismaClient } from "@pomi/db";
+import type { Department, MyPrisma, Prisma, PrismaClient } from "@pomi/db";
 import z from "zod";
 
 type Profile = ReturnType<typeof buildProfile>;
@@ -271,7 +275,7 @@ export type ProfessorDataPortalService = {
     >;
     listPositions(
         query: PositionQuery
-    ): Promise<ReturnType<typeof buildPosition>[]>;
+    ): Promise<PageResult<ReturnType<typeof buildPosition>>>;
     getPosition(
         id: number
     ): Promise<
@@ -280,7 +284,7 @@ export type ProfessorDataPortalService = {
             ReturnType<typeof ResourceNotFoundProblem.create>
         >
     >;
-    listDepartments(query: DepartmentQuery): Promise<Department[]>;
+    listDepartments(query: DepartmentQuery): Promise<PageResult<Department>>;
     getDepartment(
         id: number
     ): Promise<
@@ -354,8 +358,13 @@ export function createProfessorDataPortalService({
                 positionWhereDefinitions,
                 "professor position"
             );
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.AcademicPositionWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.academicPosition.count({ where });
             const values = await prisma.academicPosition.findMany({
-                where: filterWhere.length > 0 ? { AND: filterWhere } : {},
+                ...prismaPaginationParams(pagination),
+                where,
                 include: { careerReference: true },
                 orderBy: compileSort(resolveSort(query.sort, positionSort), {
                     canonicalKey: (direction) => ({ canonicalKey: direction }),
@@ -363,7 +372,7 @@ export function createProfessorDataPortalService({
                     id: (direction) => ({ id: direction })
                 })
             });
-            return values.map(buildPosition);
+            return { items: values.map(buildPosition), total, pagination };
         },
         async getPosition(id) {
             const value = await prisma.academicPosition.findUnique({
@@ -378,13 +387,25 @@ export function createProfessorDataPortalService({
                 departmentWhereDefinitions,
                 "department"
             );
-            return prisma.department.findMany({
-                where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                orderBy: compileSort(resolveSort(query.sort, departmentSort), {
-                    name: (direction) => ({ name: direction }),
-                    id: (direction) => ({ id: direction })
-                })
-            });
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.DepartmentWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.department.count({ where });
+            return {
+                items: await prisma.department.findMany({
+                    ...prismaPaginationParams(pagination),
+                    where,
+                    orderBy: compileSort(
+                        resolveSort(query.sort, departmentSort),
+                        {
+                            name: (direction) => ({ name: direction }),
+                            id: (direction) => ({ id: direction })
+                        }
+                    )
+                }),
+                total,
+                pagination
+            };
         },
         async getDepartment(id) {
             const value = await prisma.department.findUnique({ where: { id } });

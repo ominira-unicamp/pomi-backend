@@ -50,6 +50,7 @@ test("lista cardápios com refeições e coleções textuais", async () => {
     const service = createDailyMenuService({
         prisma: {
             dailyMenu: {
+                count: async () => 0,
                 findMany: async (value: unknown) => {
                     query = value;
                     return [persistedMenu];
@@ -58,12 +59,14 @@ test("lista cardápios com refeições e coleções textuais", async () => {
         } as never
     });
 
-    const result = await service.list({
-        filter: [
-            { path: ["date"], operator: "gte", values: ["2026-08-20"] },
-            { path: ["date"], operator: "lte", values: ["2026-08-20"] }
-        ]
-    });
+    const result = (
+        await service.list({
+            filter: [
+                { path: ["date"], operator: "gte", values: ["2026-08-20"] },
+                { path: ["date"], operator: "lte", values: ["2026-08-20"] }
+            ]
+        })
+    ).items;
 
     assert.deepEqual((query as { where: unknown }).where, {
         AND: [

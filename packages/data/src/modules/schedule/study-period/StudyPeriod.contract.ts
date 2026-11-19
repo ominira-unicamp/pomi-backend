@@ -68,7 +68,7 @@ export const studyPeriodSort = defineSort({
     resourceName: "study periods",
     sortableFields: ["id", "year", "yearPeriod", "startDate"] as const,
     defaultSort: [{ field: "id", direction: "asc" }] as const,
-    tieBreakers: [] as const
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
 });
 
 const get = {

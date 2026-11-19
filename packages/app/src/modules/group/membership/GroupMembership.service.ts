@@ -3,8 +3,15 @@ import {
     observeOperation,
     type OperationTelemetry
 } from "#/application/OperationTelemetry.js";
-import { BadRequestError, NotFoundError } from "@pomi/api-core";
-import type { PrismaClient } from "@pomi/db";
+import {
+    BadRequestError,
+    NotFoundError,
+    prismaPaginationParams,
+    resolvePagination,
+    unpaginatedByDefault,
+    type PaginationQuery
+} from "@pomi/api-core";
+import type { MyPrisma, PrismaClient } from "@pomi/db";
 import { requireGroupRule, requirePermission } from "../Group.problems.js";
 import { loadMember } from "../membership/GroupMembership.queries.js";
 import {
@@ -27,31 +34,39 @@ export function createGroupMembershipService({
     operationTelemetry?: OperationTelemetry;
 }) {
     return {
-        async listPublicMemberships(groupId?: number, publicId?: string) {
-            const values = await prisma.groupMembership.findMany({
-                where: {
-                    groupId,
-                    isPublic: true,
-                    activeKey: "ACTIVE",
-                    group: { status: "ACTIVE" },
-                    ...(publicId && {
-                        user: {
-                            publicId,
-                            publicProfileEnabled: true,
-                            principal: {
-                                identities: {
-                                    some: {
-                                        status: "ACTIVE"
-                                    }
+        async listPublicMemberships(
+            groupId?: number,
+            publicId?: string,
+            query: PaginationQuery = {}
+        ) {
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.GroupMembershipWhereInput = {
+                groupId,
+                isPublic: true,
+                activeKey: "ACTIVE",
+                group: { status: "ACTIVE" },
+                ...(publicId && {
+                    user: {
+                        publicId,
+                        publicProfileEnabled: true,
+                        principal: {
+                            identities: {
+                                some: {
+                                    status: "ACTIVE"
                                 }
                             }
                         }
-                    })
-                },
+                    }
+                })
+            };
+            const total = await prisma.groupMembership.count({ where });
+            const values = await prisma.groupMembership.findMany({
+                ...prismaPaginationParams(pagination),
+                where,
                 include: membershipInclude,
                 orderBy: { id: "asc" }
             });
-            return values.map(publicMember);
+            return { items: values.map(publicMember), total, pagination };
         },
         async getPublicMembership(id: number) {
             const value = await loadMember(prisma, id);
@@ -65,14 +80,29 @@ export function createGroupMembershipService({
                 throw new NotFoundError("Membro público não encontrado.");
             return publicMember(value);
         },
-        async listOwnMemberships(userId: number, groupId?: number) {
-            return (
-                await prisma.groupMembership.findMany({
-                    where: { userId, groupId },
-                    include: membershipInclude,
-                    orderBy: { joinedAt: "desc" }
-                })
-            ).map(ownMember);
+        async listOwnMemberships(
+            userId: number,
+            groupId?: number,
+            query: PaginationQuery = {}
+        ) {
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.GroupMembershipWhereInput = {
+                userId,
+                groupId
+            };
+            const total = await prisma.groupMembership.count({ where });
+            return {
+                items: (
+                    await prisma.groupMembership.findMany({
+                        ...prismaPaginationParams(pagination),
+                        where,
+                        include: membershipInclude,
+                        orderBy: [{ joinedAt: "desc" }, { id: "asc" }]
+                    })
+                ).map(ownMember),
+                total,
+                pagination
+            };
         },
         async getOwnMembership(userId: number, id: number) {
             const value = await loadMember(prisma, id);
@@ -97,20 +127,32 @@ export function createGroupMembershipService({
             });
             return ownMember(await loadMember(prisma, id));
         },
-        async listManagedMemberships(userId: number, groupId?: number) {
+        async listManagedMemberships(
+            userId: number,
+            groupId?: number,
+            query: PaginationQuery = {}
+        ) {
             if (!groupId)
                 throw new BadRequestError("filter[groupId] é obrigatório.");
             await requirePermission(prisma, groupId, userId, [
                 "MEMBER_MANAGE",
                 "ROLE_MANAGE"
             ]);
-            return (
-                await prisma.groupMembership.findMany({
-                    where: { groupId },
-                    include: membershipInclude,
-                    orderBy: { id: "asc" }
-                })
-            ).map(managedMember);
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.GroupMembershipWhereInput = { groupId };
+            const total = await prisma.groupMembership.count({ where });
+            return {
+                items: (
+                    await prisma.groupMembership.findMany({
+                        ...prismaPaginationParams(pagination),
+                        where,
+                        include: membershipInclude,
+                        orderBy: { id: "asc" }
+                    })
+                ).map(managedMember),
+                total,
+                pagination
+            };
         },
         async patchManagedMembership(
             userId: number,

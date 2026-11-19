@@ -108,6 +108,7 @@ test("friendship lists preserve filters and hide private profile details", async
         clock: { now: () => new Date("2026-01-02") },
         prisma: {
             studentFriendship: {
+                count: async () => 0,
                 findMany: async (input: { where: unknown }) => {
                     where = input.where;
                     return [row];
@@ -115,9 +116,13 @@ test("friendship lists preserve filters and hide private profile details", async
             }
         }
     } as never);
-    const result = await service.listFriendships(7, {
-        filter: [{ path: ["direction"], operator: "eq", values: ["INCOMING"] }]
-    });
+    const result = (
+        await service.listFriendships(7, {
+            filter: [
+                { path: ["direction"], operator: "eq", values: ["INCOMING"] }
+            ]
+        })
+    ).items;
     assert.deepEqual(where, {
         AND: [
             { OR: [{ userAId: 7 }, { userBId: 7 }] },

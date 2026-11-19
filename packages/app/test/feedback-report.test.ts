@@ -49,6 +49,7 @@ test("lists a student's feedback reports", async () => {
     const service = createFeedbackReportService({
         prisma: {
             feedbackReport: {
+                count: async () => 0,
                 findMany: async () => [
                     {
                         id: 3,
@@ -77,7 +78,7 @@ test("lists a student's feedback reports", async () => {
     });
 
     await assert.doesNotReject(async () => {
-        const reports = await service.listForUser(7, {});
+        const reports = (await service.listForUser(7, {})).items;
         assert.equal(reports[0]?.status, "OPEN");
         assert.equal(reports[0]?.reporterUserId, 7);
     });

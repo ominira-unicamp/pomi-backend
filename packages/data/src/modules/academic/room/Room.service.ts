@@ -8,10 +8,14 @@ import {
     compileSort,
     err,
     ok,
+    prismaPaginationParams,
     prismaWhereFor,
+    resolvePagination,
     resolveSort,
     ResourceNotFoundProblem,
+    unpaginatedByDefault,
     type FilterWhereBuilder,
+    type PageResult,
     type Result
 } from "@pomi/api-core";
 import type { MyPrisma, PrismaClient } from "@pomi/db";
@@ -31,7 +35,7 @@ export function roomFilterWhere(
 }
 
 export type RoomService = {
-    list(query: Query): Promise<Room[]>;
+    list(query: Query): Promise<PageResult<Room>>;
     getById(
         id: number
     ): Promise<Result<Room, ReturnType<typeof ResourceNotFoundProblem.create>>>;
@@ -45,13 +49,22 @@ export function createRoomService({
     return {
         async list(query) {
             const filterWhere = roomFilterWhere(query.filter);
-            return await prisma.room.findMany({
-                where: filterWhere.length > 0 ? { AND: filterWhere } : {},
-                orderBy: compileSort(resolveSort(query.sort, roomSort), {
-                    code: (direction) => ({ code: direction }),
-                    id: (direction) => ({ id: direction })
-                })
-            });
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.RoomWhereInput =
+                filterWhere.length > 0 ? { AND: filterWhere } : {};
+            const total = await prisma.room.count({ where });
+            return {
+                items: await prisma.room.findMany({
+                    ...prismaPaginationParams(pagination),
+                    where,
+                    orderBy: compileSort(resolveSort(query.sort, roomSort), {
+                        code: (direction) => ({ code: direction }),
+                        id: (direction) => ({ id: direction })
+                    })
+                }),
+                total,
+                pagination
+            };
         },
         async getById(id) {
             const room = await prisma.room.findUnique({ where: { id } });

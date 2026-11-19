@@ -14,7 +14,8 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         page(
             await ctx.groupInvitationService.listInvitations(
                 await ctx.resolveUserContext(input.path.userId),
-                groupId(input.query)
+                groupId(input.query),
+                input.query
             ),
             input.query,
             `/users/${input.path.userId}/group-invitations`
@@ -23,7 +24,8 @@ const actions: EndpointActions<typeof IO, AuthorizationPolicy, Context> = {
         page(
             await ctx.groupInvitationService.listManagedInvitations(
                 await ctx.resolveUserContext(input.path.userId),
-                input.path.groupId
+                input.path.groupId,
+                input.query
             ),
             input.query,
             `/users/${input.path.userId}/groups/${input.path.groupId}/invitations`

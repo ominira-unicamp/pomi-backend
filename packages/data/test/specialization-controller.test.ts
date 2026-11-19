@@ -17,17 +17,21 @@ test("lists specializations through its service", async () => {
     const result = await controller.listFn(
         {
             specializationService: {
-                list: async () => [
-                    {
-                        id: 11,
-                        programId: 7,
-                        programCode: 34,
-                        programName: "Engenharia de Computação",
-                        code: "AA",
-                        name: "Sistemas",
-                        catalogProgramVariantsCount: 0
-                    }
-                ]
+                list: async () => ({
+                    total: 1,
+                    pagination: { mode: "all" },
+                    items: [
+                        {
+                            id: 11,
+                            programId: 7,
+                            programCode: 34,
+                            programName: "Engenharia de Computação",
+                            code: "AA",
+                            name: "Sistemas",
+                            catalogProgramVariantsCount: 0
+                        }
+                    ]
+                })
             }
         } as never,
         {

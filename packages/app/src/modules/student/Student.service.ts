@@ -6,7 +6,18 @@ import {
     studentReferenceNotFoundProblem,
     type StudentProblem
 } from "#/modules/student/Student.problems.js";
-import { compileSort, err, ok, resolveSort, type Result } from "@pomi/api-core";
+import {
+    compileSort,
+    err,
+    ok,
+    prismaPaginationParams,
+    resolvePagination,
+    resolveSort,
+    unpaginatedByDefault,
+    type PageResult,
+    type Result
+} from "@pomi/api-core";
+import type { MyPrisma } from "@pomi/db";
 import { runIdentityTransaction, type PrismaClient } from "@pomi/db";
 import z from "zod";
 
@@ -134,7 +145,7 @@ export type StudentService = {
         userId: number,
         confirmationRa: string
     ): ReturnType<StudentService["remove"]>;
-    list(query: ListQuery): Promise<Student[]>;
+    list(query: ListQuery): Promise<PageResult<Student>>;
     getById(
         id: number
     ): Promise<Result<Student, ReturnType<typeof studentNotFoundProblem>>>;
@@ -224,17 +235,31 @@ export function createStudentService({
                 : err(studentNotFoundProblem());
         },
         async list(query) {
-            return (
-                await prisma.student.findMany({
-                    include: studentOwnerInclude,
-                    orderBy: compileSort(resolveSort(query.sort, studentSort), {
-                        id: (direction) => ({ id: direction }),
-                        ra: (direction) => ({ ra: direction }),
-                        name: (direction) => ({ name: direction }),
-                        entryYear: (direction) => ({ entryYear: direction })
+            const pagination = resolvePagination(query, unpaginatedByDefault);
+            const where: MyPrisma.StudentWhereInput = {};
+            const total = await prisma.student.count({ where });
+            return {
+                items: (
+                    await prisma.student.findMany({
+                        ...prismaPaginationParams(pagination),
+                        where,
+                        include: studentOwnerInclude,
+                        orderBy: compileSort(
+                            resolveSort(query.sort, studentSort),
+                            {
+                                id: (direction) => ({ id: direction }),
+                                ra: (direction) => ({ ra: direction }),
+                                name: (direction) => ({ name: direction }),
+                                entryYear: (direction) => ({
+                                    entryYear: direction
+                                })
+                            }
+                        )
                     })
-                })
-            ).map(academicStudent);
+                ).map(academicStudent),
+                total,
+                pagination
+            };
         },
         async getById(id) {
             const student = await prisma.student.findUnique({
