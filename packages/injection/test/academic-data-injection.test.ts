@@ -57,3 +57,137 @@ test("resolve códigos de reserva para ids de programas sem duplicatas", () => {
         { programIds: [1, 2], unknownCodes: [99] }
     );
 });
+
+test("valida todos os créditos antes de acessar o banco", async () => {
+    const { injectAcademicData } =
+        await import("../src/services/AcademicDataInjection.js");
+    const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    const { tmpdir } = await import("node:os");
+    const directory = await mkdtemp(join(tmpdir(), "academic-credits-"));
+    try {
+        const inputPath = join(directory, "input.json");
+        await writeFile(
+            inputPath,
+            JSON.stringify({
+                year: 2027,
+                semester: 1,
+                institutes: [
+                    {
+                        code: "FE",
+                        name: "FE",
+                        courses: [
+                            {
+                                code: "VALID",
+                                name: "Nome",
+                                credits: 2,
+                                classes: []
+                            },
+                            { code: "INVALID", name: "Nome", classes: [] }
+                        ]
+                    }
+                ]
+            })
+        );
+        const context = {
+            inputPath,
+            prisma: new Proxy(
+                {},
+                {
+                    get() {
+                        throw new Error("Banco acessado antes da validação");
+                    }
+                }
+            ),
+            logger: { info() {} }
+        } as unknown as Parameters<typeof injectAcademicData>[0];
+        await assert.rejects(
+            injectAcademicData(context),
+            /Créditos ausentes ou inválidos para INVALID/
+        );
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});
+
+test("cria disciplina com créditos da fonte e preserva créditos na atualização normal", async () => {
+    const { injectAcademicData } =
+        await import("../src/services/AcademicDataInjection.js");
+    const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    const { tmpdir } = await import("node:os");
+    const directory = await mkdtemp(join(tmpdir(), "academic-credits-create-"));
+    try {
+        const inputPath = join(directory, "input.json");
+        await writeFile(
+            inputPath,
+            JSON.stringify({
+                year: 2027,
+                semester: 1,
+                institutes: [
+                    {
+                        code: "FE",
+                        name: "FE",
+                        courses: [
+                            {
+                                code: "EX092",
+                                name: "Nome",
+                                credits: 2,
+                                classes: []
+                            }
+                        ]
+                    }
+                ]
+            })
+        );
+        let writes: unknown;
+        const prisma = {
+            program: {
+                async findMany() {
+                    return [];
+                }
+            },
+            professor: {
+                async findMany() {
+                    return [];
+                }
+            },
+            room: { async createMany() {} },
+            studyPeriod: {
+                async upsert() {
+                    return { id: 1 };
+                }
+            },
+            unit: {
+                async upsert() {},
+                async findMany() {
+                    return [{ id: 1, code: "FE" }];
+                }
+            },
+            course: {
+                async upsert(args: unknown) {
+                    writes = args;
+                    throw new Error("capturado");
+                }
+            },
+            async $executeRaw() {},
+            async $transaction(operation: (tx: unknown) => Promise<unknown>) {
+                return operation(prisma);
+            }
+        };
+        const context = {
+            inputPath,
+            prisma,
+            logger: { info() {} },
+            auditContext: { source: "injection" }
+        } as unknown as Parameters<typeof injectAcademicData>[0];
+        await assert.rejects(injectAcademicData(context), /capturado/);
+        assert.deepEqual(writes, {
+            where: { code: "EX092" },
+            create: { code: "EX092", name: "Nome", credits: 2, unitId: 1 },
+            update: { unitId: 1 }
+        });
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});

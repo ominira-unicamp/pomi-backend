@@ -302,16 +302,25 @@ test("exposes canonical identity identifiers in current-user", async () => {
     );
     assert.equal(principal.principalId, 800);
     assert.equal(principal.userId, 8000);
-    assert.deepEqual(createCurrentUserService().get(principal), {
-        principalId: principal.principalId,
-        authIdentityId: principal.authIdentityId,
-        kind: "HUMAN",
-        userId: principal.userId,
-        serviceAccountId: null,
-        roles: [...principal.roles],
-        capabilities: [...principal.capabilities],
-        studentId: principal.studentId
-    });
+    const prisma = {
+        user: { findUniqueOrThrow: async () => ({ welcomePending: false }) }
+    };
+    assert.deepEqual(
+        await createCurrentUserService({ prisma: prisma as never }).get(
+            principal
+        ),
+        {
+            principalId: principal.principalId,
+            authIdentityId: principal.authIdentityId,
+            kind: "HUMAN",
+            userId: principal.userId,
+            serviceAccountId: null,
+            roles: [...principal.roles],
+            capabilities: [...principal.capabilities],
+            studentId: principal.studentId,
+            welcomePending: false
+        }
+    );
 });
 
 function admissionRequest() {
@@ -397,7 +406,13 @@ test("admits a human without email or name and ignores invalid contact claims", 
     for (const email of [undefined, "invalid", 123]) {
         const { request, creations } = admissionRequest();
         await resolvePrincipal(
-            { iss: issuer, sub: "new", azp: "pomi-token-cli", email } as never,
+            {
+                iss: issuer,
+                sub: "new",
+                azp: "pomi-token-cli",
+                email,
+                preferred_username: "private@example.test"
+            } as never,
             request
         );
         assert.equal(creations[0]!.email, null);
@@ -553,4 +568,58 @@ test("feedback administration denies anonymous and ordinary users and permits ad
             );
         }
     }
+});
+
+test("welcome completion is idempotent and always targets the authenticated user", async () => {
+    const { createCurrentUserService } =
+        await import("#/modules/identity/current-user/CurrentUser.service.js");
+    const principal = await resolvePrincipal(
+        { iss: issuer, sub: "welcome-user" },
+        requestWithPrisma({
+            authIdentity: { findUnique: async () => credentialFixture() }
+        })
+    );
+    let pending = true;
+    const ids: number[] = [];
+    const service = createCurrentUserService({
+        prisma: {
+            user: {
+                findUniqueOrThrow: async () => ({ welcomePending: pending }),
+                update: async ({
+                    where,
+                    data
+                }: {
+                    where: { id: number };
+                    data: { welcomePending: boolean };
+                }) => {
+                    ids.push(where.id);
+                    pending = data.welcomePending;
+                }
+            }
+        } as never
+    });
+    assert.equal(
+        service.get({ ...principal, welcomePending: true }).welcomePending,
+        true
+    );
+    assert.equal(
+        (await service.completeWelcome(principal)).welcomePending,
+        false
+    );
+    assert.equal(
+        (await service.completeWelcome(principal)).welcomePending,
+        false
+    );
+    assert.deepEqual(ids, [principal.userId, principal.userId]);
+    const servicePrincipal = {
+        ...principal,
+        userId: null,
+        serviceAccountId: 50
+    };
+    assert.equal((await service.get(servicePrincipal)).welcomePending, false);
+    await assert.rejects(
+        service.completeWelcome(servicePrincipal),
+        /conta de usuário/
+    );
+    assert.equal(ids.length, 2);
 });

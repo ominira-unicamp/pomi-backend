@@ -6,6 +6,8 @@ export type InjectionAuditContext = {
     injectionName: string;
     mode: "all" | "inject";
     jobId?: string;
+    snapshotId?: string;
+    creditsCorrectionPreviewSha256?: string;
     trigger?: "MANUAL" | "SCHEDULED";
     requestedBy?: string;
 };

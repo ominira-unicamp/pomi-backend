@@ -103,9 +103,9 @@ export async function resolvePrincipal(payload: TokenPayload, req: Request) {
                 : undefined;
         const email = z.email().max(320).safeParse(emailInput);
         const displayName =
-            [payload.name, payload.preferred_username]
-                .find((value) => typeof value === "string" && value.trim())
-                ?.trim() || null;
+            typeof payload.name === "string" && payload.name.trim()
+                ? payload.name.trim()
+                : null;
         identity = await runIdentityTransaction(req.prisma, async (tx) => {
             const existing = await tx.authIdentity.findUnique({
                 where: { issuer_subject: { issuer: tokenIssuer, subject } },
@@ -135,6 +135,7 @@ export async function resolvePrincipal(payload: TokenPayload, req: Request) {
     if (resolved.principal.status !== "ACTIVE") throw new ForbiddenError();
 
     return {
+        welcomePending: resolved.principal.user?.welcomePending === true,
         principalId: resolved.principal.id,
         authIdentityId: resolved.identity.id,
         userId: resolved.principal.user?.id ?? null,

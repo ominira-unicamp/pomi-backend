@@ -20,17 +20,26 @@ import { once } from "node:events";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import pino from "pino";
-import { loadInjectionConfig, type InjectionDefinition } from "./config.js";
+import {
+    loadInjectionConfig,
+    resolveCommandCwd,
+    type InjectionDefinition
+} from "./config.js";
 import { loadInjectionEnv } from "./env.js";
 import { createInjectionLogger } from "./logger.js";
 import { injectionNames } from "./registry.js";
 import {
+    academicRequestPartitions,
     annualInjectionParameters,
     injectionRequestPartition,
     isRequestableInjection
 } from "./request.js";
 import type { InjectionRunMode } from "./runner.js";
 import { runInjection } from "./runner.js";
+import {
+    applyAcademicCredits,
+    previewAcademicCredits
+} from "./services/AcademicCreditsRepair.js";
 import { injectCatalogDisciplinesSnapshot } from "./services/CatalogDisciplinesSnapshotInjection.js";
 import { injectCatalogProgramsSnapshot } from "./services/CatalogProgramsSnapshotInjection.js";
 import { reconcileCatalogProgramVariants } from "./services/CatalogProgramVariantReconciliation.js";
@@ -66,6 +75,48 @@ program.option(
     process.env.POMI_INJECTION_CONFIG ??
         resolve(import.meta.dirname, "../injections.json")
 );
+
+program
+    .command("reconcile-academic-credits <snapshot>")
+    .description(
+        "gera prévia ou aplica correções comprovadas dos créditos de 2027/1"
+    )
+    .option("--output <file>", "arquivo da prévia")
+    .option("--apply <preview>", "prévia revisada a aplicar")
+    .action(
+        async (
+            snapshot: string,
+            options: { output?: string; apply?: string }
+        ) => {
+            if (!!options.output === !!options.apply)
+                throw new Error("Informe somente --output ou --apply");
+            loadInjectionEnv();
+            const database = createDatabaseClient(
+                process.env.DATABASE_URL ?? "",
+                { max: 1 }
+            );
+            try {
+                if (options.apply) {
+                    process.stdout.write(
+                        `${JSON.stringify(await applyAcademicCredits(database, resolve(snapshot), resolve(options.apply)))}\n`
+                    );
+                } else {
+                    const preview = await previewAcademicCredits(
+                        database,
+                        resolve(snapshot)
+                    );
+                    await writeFile(
+                        resolve(options.output!),
+                        `${JSON.stringify(preview, null, 2)}\n`,
+                        { flag: "wx" }
+                    );
+                    process.stdout.write(`${JSON.stringify(preview)}\n`);
+                }
+            } finally {
+                await database.$disconnect();
+            }
+        }
+    );
 
 program.command("list").action(async () => {
     const config = await loadInjectionConfig(program.opts().config);
@@ -235,6 +286,17 @@ program
     .option("--year <year>", "ano da injection anual", parseYear)
     .option("--first-year <year>", "primeiro ano da partição", parseYear)
     .option("--last-year <year>", "último ano da partição", parseYear)
+    .option("--semester <semester>", "semestre selecionado", parseSemester)
+    .option(
+        "--first-semester <semester>",
+        "semestre inicial do intervalo",
+        parseSemester
+    )
+    .option(
+        "--last-semester <semester>",
+        "semestre final do intervalo",
+        parseSemester
+    )
     .option("--institute-code <code>", "sigla do instituto")
     .option("--partition-key <key>", "identificador da partição")
     .option("--profile <profile>", "perfil do workflow", "available")
@@ -605,6 +667,8 @@ type PartitionOptions = {
     partitionKey?: string;
     instituteCode?: string;
     semester?: 1 | 2;
+    firstSemester?: 1 | 2;
+    lastSemester?: 1 | 2;
     profile: string;
     snapshotId?: string;
 };
@@ -661,8 +725,22 @@ type DiscoveredPartition = {
 
 async function discoverPartitions(
     config: Awaited<ReturnType<typeof loadInjectionConfig>>,
-    definition: InjectionDefinition
+    definition: InjectionDefinition,
+    selection?: Record<string, unknown>
 ): Promise<Array<DiscoveredPartition | undefined>> {
+    if (Array.isArray(selection?.periods))
+        return academicRequestPartitions(selection, (year, semester) =>
+            discoverInstituteCodes(
+                config.rootDirectory,
+                year,
+                semester,
+                resolveCommandCwd(
+                    config.rootDirectory,
+                    config.configDirectory,
+                    definition.obtain.cwd
+                )
+            )
+        );
     if (!definition.partitioning) return [undefined];
     if (definition.partitioning.kind === "year") {
         const { firstYear } = definition.partitioning;
@@ -736,7 +814,8 @@ async function discoverPartitions(
 async function discoverInstituteCodes(
     rootDirectory: string,
     year: number,
-    semester: 1 | 2
+    semester: 1 | 2,
+    crawlerDirectory = join(rootDirectory, "scrapper-aulas")
 ): Promise<string[]> {
     const child = spawn(
         "node",
@@ -754,7 +833,7 @@ async function discoverInstituteCodes(
             "stderr"
         ],
         {
-            cwd: join(rootDirectory, "scrapper-aulas"),
+            cwd: crawlerDirectory,
             stdio: ["ignore", "pipe", "pipe"]
         }
     );
@@ -796,7 +875,11 @@ async function expandRootJob(
     injection: InjectionDefinition,
     rootJob: NonNullable<Awaited<ReturnType<typeof claimNextJob>>>
 ) {
-    const partitions = await discoverPartitions(config, injection);
+    const partitions = await discoverPartitions(
+        config,
+        injection,
+        rootJob.parameters as Record<string, unknown> | undefined
+    );
     await database.$transaction(async (transaction) => {
         for (const partition of partitions) {
             const key = `injection:${rootJob.id}:${partition?.key ?? "default"}`;

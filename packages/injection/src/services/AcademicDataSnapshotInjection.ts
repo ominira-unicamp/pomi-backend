@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import {
     beginSnapshotPersistence,
     failSnapshotPersistence,
@@ -7,9 +8,11 @@ import {
 } from "../snapshots.js";
 import {
     injectAcademicData,
+    validateAcademicCredits,
     type AcademicDataInjectionOptions
 } from "./AcademicDataInjection.js";
 import type { InjectionContext } from "./InjectionTypes.js";
+import { unwrapScrapeData } from "./scrape-input.js";
 
 export async function injectAcademicDataSnapshot(
     context: InjectionContext,
@@ -17,9 +20,11 @@ export async function injectAcademicDataSnapshot(
 ) {
     const manifest = await readSnapshotManifest(context.inputPath, {
         protocol: "pomi.academic-data.snapshot",
-        version: 1,
+        version: 2,
         requiredComponents: ["academicData"]
     });
+    if (manifest.components.academicData?.schemaVersion !== 2)
+        throw new Error("Versão do componente acadêmico incompatível");
     const { year, semester, instituteCode } = manifest.partition;
     if (
         !Number.isInteger(year) ||
@@ -33,6 +38,17 @@ export async function injectAcademicDataSnapshot(
     );
     const dataPath = componentPaths.get("academicData");
     if (!dataPath) throw new Error("Componente academicData ausente");
+    const periods = validateAcademicCredits(
+        unwrapScrapeData(JSON.parse(await readFile(dataPath, "utf8")))
+    );
+    if (
+        periods.length !== 1 ||
+        periods[0].year !== year ||
+        periods[0].semester !== semester ||
+        periods[0].institutes.length !== 1 ||
+        periods[0].institutes[0].code !== instituteCode
+    )
+        throw new Error("Conteúdo não corresponde à partição acadêmica");
     const partitionKey = `${year}-${semester}-${instituteCode}`;
     await beginSnapshotPersistence(context, manifest, {
         workflow: "academic-data",

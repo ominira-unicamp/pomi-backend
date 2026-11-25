@@ -375,6 +375,7 @@ model AuthIdentity {
 }
 
 model User {
+  welcomePending Boolean @default(false)
   id                         Int                             @id @default(autoincrement())
   principalId                Int                             @unique
   name                       String?

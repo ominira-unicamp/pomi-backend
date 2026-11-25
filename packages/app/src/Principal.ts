@@ -1,6 +1,7 @@
 import type { AuthRole, Capability } from "./Authorization.js";
 
 export type Principal = {
+    welcomePending?: boolean;
     principalId: number;
     authIdentityId: number;
     userId: number | null;

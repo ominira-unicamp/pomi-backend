@@ -30,6 +30,7 @@ interface Turma {
 interface Disciplina {
     code: string;
     name: string;
+    credits: number;
     classes: Turma[];
 }
 interface Instituto {
@@ -41,6 +42,29 @@ interface AcademicData {
     year: number;
     semester: number;
     institutes: Instituto[];
+}
+
+export function validateAcademicCredits(value: unknown): AcademicData[] {
+    const periods = (Array.isArray(value) ? value : [value]) as AcademicData[];
+    if (!periods.length) throw new Error("Nenhum período acadêmico encontrado");
+    for (const period of periods) {
+        if (!period || !Array.isArray(period.institutes))
+            throw new Error("Dados acadêmicos inválidos");
+        for (const institute of period.institutes) {
+            if (!Array.isArray(institute.courses))
+                throw new Error("Disciplinas inválidas");
+            for (const course of institute.courses)
+                if (
+                    !Number.isInteger(course.credits) ||
+                    course.credits < 0 ||
+                    course.credits > 2147483647
+                )
+                    throw new Error(
+                        `Créditos ausentes ou inválidos para ${course.code}`
+                    );
+        }
+    }
+    return periods;
 }
 
 export function collectProfessorName(
@@ -145,9 +169,7 @@ export async function injectAcademicData(
     const parsedInput = unwrapScrapeData(
         JSON.parse(await readFile(inputPath, "utf-8"))
     );
-    const academicData = (
-        Array.isArray(parsedInput) ? parsedInput : [parsedInput]
-    ) as AcademicData[];
+    const academicData = validateAcademicCredits(parsedInput);
     if (academicData.length === 0)
         throw new Error("Nenhum período acadêmico encontrado");
 
@@ -229,7 +251,7 @@ export async function injectAcademicData(
                     code: courseData.code,
                     name: courseData.name,
                     unitCode: instituteData.code,
-                    credits: 4
+                    credits: courseData.credits
                 });
 
                 for (const classData of courseData.classes) {

@@ -264,7 +264,11 @@ async function runInjectionInternal(
         } else if (snapshot) {
             const manifest = await readSnapshotManifest(inputPath, {
                 protocol: `pomi.${snapshot.provider}.snapshot`,
-                version: snapshot.provider === "catalog-disciplines" ? 2 : 1
+                version: ["catalog-disciplines", "academic-data"].includes(
+                    snapshot.provider
+                )
+                    ? 2
+                    : 1
             });
             if (manifest.snapshotId !== snapshotId)
                 throw new Error("Snapshot não corresponde à execução");

@@ -109,6 +109,7 @@ export async function createCanonicalIdentity(
                                     user: {
                                         create: {
                                             name: input.displayName,
+                                            welcomePending: true,
                                             studentId,
                                             emails: email
                                                 ? { create: { email } }

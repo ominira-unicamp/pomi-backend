@@ -41,7 +41,8 @@ test("canonical user HTTP keeps its target and effects for authorized human, adm
         principalId: 17,
         name: "Initial",
         studentId: null,
-        favoriteCurriculumId: null
+        favoriteCurriculumId: null,
+        welcomePending: true
     };
     let writes = 0;
     let blocked = false;
@@ -64,7 +65,14 @@ test("canonical user HTTP keeps its target and effects for authorized human, adm
             user:
                 identity.userId === null
                     ? null
-                    : { id: identity.userId, studentId: null },
+                    : {
+                          id: identity.userId,
+                          studentId: null,
+                          welcomePending:
+                              identity.userId === 117
+                                  ? target.welcomePending
+                                  : false
+                      },
             serviceAccount: identity.userId === null ? { id: 18 } : null
         }
     }));
@@ -267,6 +275,29 @@ test("canonical user HTTP keeps its target and effects for authorized human, adm
             403
         );
         assert.equal(writes, 3);
+        for (const subject of ["other", "admin", "bot"]) {
+            assert.equal(
+                (await call(subject, "/users/117/welcome", undefined, "POST"))
+                    .status,
+                403
+            );
+        }
+        assert.equal(writes, 3);
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const response = await call(
+                "owner",
+                "/users/117/welcome",
+                undefined,
+                "POST"
+            );
+            assert.equal(response.status, 200);
+            assert.equal(
+                ((await response.json()) as { welcomePending: boolean })
+                    .welcomePending,
+                false
+            );
+        }
+        assert.equal(target.welcomePending, false);
         blocked = true;
         assert.equal((await call("owner", "/users/117")).status, 403);
     } finally {
