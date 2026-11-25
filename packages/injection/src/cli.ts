@@ -1,0 +1,905 @@
+#!/usr/bin/env node
+import {
+    nextCronOccurrence,
+    shutdownTelemetry,
+    withoutPrismaTracing,
+    withTrace
+} from "@pomi/api-core";
+import {
+    claimNextJob,
+    createDatabaseClient,
+    enqueueJob,
+    finishJob,
+    JobRequestTrigger,
+    JobRequestType
+} from "@pomi/db";
+import { Command } from "commander";
+import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { once } from "node:events";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import pino from "pino";
+import {
+    loadInjectionConfig,
+    resolveCommandCwd,
+    type InjectionDefinition
+} from "./config.js";
+import { loadInjectionEnv } from "./env.js";
+import { createInjectionLogger } from "./logger.js";
+import { injectionNames } from "./registry.js";
+import {
+    academicRequestPartitions,
+    annualInjectionParameters,
+    injectionRequestPartition,
+    isRequestableInjection
+} from "./request.js";
+import type { InjectionRunMode } from "./runner.js";
+import { runInjection } from "./runner.js";
+import {
+    applyAcademicCredits,
+    previewAcademicCredits
+} from "./services/AcademicCreditsRepair.js";
+import { injectCatalogDisciplinesSnapshot } from "./services/CatalogDisciplinesSnapshotInjection.js";
+import { injectCatalogProgramsSnapshot } from "./services/CatalogProgramsSnapshotInjection.js";
+import { reconcileCatalogProgramVariants } from "./services/CatalogProgramVariantReconciliation.js";
+import { readSnapshotManifest, snapshotComponentPaths } from "./snapshots.js";
+import {
+    advanceWorkflow,
+    enqueueCatalogProgramWorkflows,
+    isWorkflowName,
+    parseWorkflowProfile,
+    retryWorkflow,
+    validateWorkflowConfig,
+    workflowNames,
+    workflowParameters,
+    workflowStageParameters,
+    workflowStatus
+} from "./workflows.js";
+
+const program = new Command().name("pomi-injection").version("1.0.0");
+const cliLogger = pino({
+    level: process.env.LOG_LEVEL ?? "info"
+});
+program.addHelpText(
+    "after",
+    `\nInjections predefinidas:\n${injectionNames
+        .map((name) => `  - ${name}`)
+        .join("\n")}\n\nWorkflows predefinidos:\n${workflowNames
+        .map((name) => `  - ${name}`)
+        .join("\n")}\n`
+);
+program.option(
+    "--config <file>",
+    "arquivo de configuração",
+    process.env.POMI_INJECTION_CONFIG ??
+        resolve(import.meta.dirname, "../injections.json")
+);
+
+program
+    .command("reconcile-academic-credits <snapshot>")
+    .description(
+        "gera prévia ou aplica correções comprovadas dos créditos de 2027/1"
+    )
+    .option("--output <file>", "arquivo da prévia")
+    .option("--apply <preview>", "prévia revisada a aplicar")
+    .action(
+        async (
+            snapshot: string,
+            options: { output?: string; apply?: string }
+        ) => {
+            if (!!options.output === !!options.apply)
+                throw new Error("Informe somente --output ou --apply");
+            loadInjectionEnv();
+            const database = createDatabaseClient(
+                process.env.DATABASE_URL ?? "",
+                { max: 1 }
+            );
+            try {
+                if (options.apply) {
+                    process.stdout.write(
+                        `${JSON.stringify(await applyAcademicCredits(database, resolve(snapshot), resolve(options.apply)))}\n`
+                    );
+                } else {
+                    const preview = await previewAcademicCredits(
+                        database,
+                        resolve(snapshot)
+                    );
+                    await writeFile(
+                        resolve(options.output!),
+                        `${JSON.stringify(preview, null, 2)}\n`,
+                        { flag: "wx" }
+                    );
+                    process.stdout.write(`${JSON.stringify(preview)}\n`);
+                }
+            } finally {
+                await database.$disconnect();
+            }
+        }
+    );
+
+program.command("list").action(async () => {
+    const config = await loadInjectionConfig(program.opts().config);
+    for (const injection of config.injections)
+        process.stdout.write(
+            `${injection.name}\t${injection.description ?? ""}\n`
+        );
+    for (const workflow of workflowNames)
+        process.stdout.write(`${workflow}\tWorkflow de domínio\n`);
+});
+
+program.command("validate").action(async () => {
+    const config = await loadInjectionConfig(program.opts().config);
+    validateWorkflowConfig(config);
+    process.stdout.write(
+        `${config.injections.length} injection(s) e ${workflowNames.length} workflow(s) válido(s)\n`
+    );
+});
+
+program
+    .command("reconcile-catalog-program-variants <manifest>")
+    .description(
+        "audita variantes contra um snapshot completo; use --apply para corrigir"
+    )
+    .option("--apply", "aplica as remoções seguras", false)
+    .action(async (manifestPath: string, options: { apply: boolean }) => {
+        loadInjectionEnv();
+        const manifest = await readSnapshotManifest(resolve(manifestPath), {
+            protocol: "pomi.catalog-programs.snapshot",
+            version: 1
+        });
+        const year = manifest.partition.year;
+        if (
+            manifest.status !== "COMPLETE" ||
+            manifest.profile !== "complete" ||
+            typeof year !== "number" ||
+            !Number.isInteger(year)
+        )
+            throw new Error("A reconciliação requer um snapshot completo");
+        const components = await snapshotComponentPaths(
+            resolve(manifestPath),
+            manifest
+        );
+        const curriculaPath = components.get("curricula");
+        const informationPath = components.get("information");
+        if (!curriculaPath || !informationPath)
+            throw new Error("Snapshot sem currículos ou informações");
+        const runId = randomUUID();
+        const database = createDatabaseClient(process.env.DATABASE_URL ?? "", {
+            max: 1
+        });
+        try {
+            await reconcileCatalogProgramVariants(
+                {
+                    prisma: database,
+                    inputPath: resolve(manifestPath),
+                    runId,
+                    auditContext: {
+                        source: "injection",
+                        runId,
+                        injectionName: "catalog-program-variant-reconciliation",
+                        mode: "inject",
+                        trigger: "MANUAL",
+                        requestedBy: process.env.POMI_JOB_REQUESTED_BY ?? "cli"
+                    },
+                    logger: createInjectionLogger(
+                        "catalog-program-variant-reconciliation",
+                        runId
+                    )
+                },
+                {
+                    year,
+                    curriculaPath,
+                    informationPath,
+                    dryRun: !options.apply
+                }
+            );
+        } finally {
+            await database.$disconnect();
+        }
+    });
+
+program
+    .command("apply-catalog-programs-snapshot <snapshot-directory>")
+    .description("persiste e publica um snapshot completo de programas")
+    .requiredOption("--apply", "confirma a alteração do banco")
+    .action(async (snapshotDirectory: string) => {
+        loadInjectionEnv();
+        const runId = randomUUID();
+        const database = createDatabaseClient(process.env.DATABASE_URL ?? "", {
+            max: 1
+        });
+        try {
+            await injectCatalogProgramsSnapshot(
+                {
+                    prisma: database,
+                    inputPath: resolve(snapshotDirectory),
+                    runId,
+                    auditContext: {
+                        source: "injection",
+                        runId,
+                        injectionName: "catalog-programs-snapshot",
+                        mode: "inject",
+                        trigger: "MANUAL",
+                        requestedBy: process.env.POMI_JOB_REQUESTED_BY ?? "cli"
+                    },
+                    logger: createInjectionLogger(
+                        "catalog-programs-snapshot",
+                        runId
+                    )
+                },
+                {
+                    transactionTimeout: 600_000,
+                    transactionMaxWait: 60_000
+                }
+            );
+        } finally {
+            await database.$disconnect();
+        }
+    });
+
+program
+    .command("apply-catalog-disciplines-snapshot <snapshot-directory>")
+    .description(
+        "audita um snapshot completo de disciplinas; use --apply para persistir"
+    )
+    .option("--apply", "persiste e publica o snapshot", false)
+    .action(async (snapshotDirectory: string, options: { apply: boolean }) => {
+        loadInjectionEnv();
+        const runId = randomUUID();
+        const database = createDatabaseClient(process.env.DATABASE_URL ?? "", {
+            max: 1
+        });
+        try {
+            await injectCatalogDisciplinesSnapshot(
+                {
+                    prisma: database,
+                    inputPath: resolve(snapshotDirectory),
+                    runId,
+                    auditContext: {
+                        source: "injection",
+                        runId,
+                        injectionName: "catalog-disciplines-snapshot",
+                        mode: "inject",
+                        trigger: "MANUAL",
+                        requestedBy: process.env.POMI_JOB_REQUESTED_BY ?? "cli"
+                    },
+                    logger: createInjectionLogger(
+                        "catalog-disciplines-snapshot",
+                        runId
+                    )
+                },
+                {
+                    transactionTimeout: 1_800_000,
+                    transactionMaxWait: 60_000,
+                    dryRun: !options.apply
+                }
+            );
+        } finally {
+            await database.$disconnect();
+        }
+    });
+
+program
+    .command("request <name> [mode]")
+    .description("enfileira uma injection para execução pelo worker")
+    .option("--year <year>", "ano da injection anual", parseYear)
+    .option("--first-year <year>", "primeiro ano da partição", parseYear)
+    .option("--last-year <year>", "último ano da partição", parseYear)
+    .option("--semester <semester>", "semestre selecionado", parseSemester)
+    .option(
+        "--first-semester <semester>",
+        "semestre inicial do intervalo",
+        parseSemester
+    )
+    .option(
+        "--last-semester <semester>",
+        "semestre final do intervalo",
+        parseSemester
+    )
+    .option("--institute-code <code>", "sigla do instituto")
+    .option("--partition-key <key>", "identificador da partição")
+    .option("--profile <profile>", "perfil do workflow", "available")
+    .option("--snapshot-id <id>", "snapshot validado para o modo inject")
+    .action(async (name: string, mode = "all", options: PartitionOptions) => {
+        loadInjectionEnv();
+        if (!(["all", "obtain", "inject"] as string[]).includes(mode))
+            throw new Error(`Modo inválido: ${mode}`);
+        const database = createDatabaseClient(process.env.DATABASE_URL ?? "", {
+            max: 1
+        });
+        try {
+            if (isWorkflowName(name)) {
+                if (options.year !== undefined)
+                    throw new Error(
+                        "Workflows usam --first-year e --last-year"
+                    );
+                const firstYear = options.firstYear ?? options.lastYear;
+                const lastYear = options.lastYear ?? options.firstYear;
+                if (firstYear === undefined || lastYear === undefined)
+                    throw new Error(
+                        "Workflows requerem --first-year e/ou --last-year"
+                    );
+                if (mode === "inject" && !options.snapshotId)
+                    throw new Error("O modo inject requer --snapshot-id");
+                const jobs = await enqueueCatalogProgramWorkflows(database, {
+                    firstYear,
+                    lastYear,
+                    profile: parseWorkflowProfile(options.profile),
+                    mode: mode as InjectionRunMode,
+                    requestedBy: process.env.POMI_JOB_REQUESTED_BY ?? "cli",
+                    snapshotId: options.snapshotId
+                });
+                for (const job of jobs) process.stdout.write(`${job.id}\n`);
+                return;
+            }
+            if (!isRequestableInjection(name))
+                throw new Error(
+                    `Injection ou workflow não registrado: ${name}`
+                );
+            const job = await withTrace(
+                "injection.job.request",
+                () => {
+                    const request = injectionRequestPartition(options, name);
+                    return enqueueJob(database, {
+                        type: JobRequestType.INJECTION,
+                        name,
+                        mode: mode as "all" | "obtain" | "inject",
+                        trigger: JobRequestTrigger.MANUAL,
+                        partitionKey: request.partitionKey,
+                        parameters: request.parameters,
+                        requestedBy: process.env.POMI_JOB_REQUESTED_BY ?? "cli"
+                    });
+                },
+                {
+                    attributes: {
+                        "injection.name": name,
+                        "injection.mode": mode
+                    }
+                }
+            )();
+            process.stdout.write(`${job.id}\n`);
+        } finally {
+            await database.$disconnect();
+        }
+    });
+
+program.command("job-status <id>").action(async (id: string) => {
+    loadInjectionEnv();
+    const database = createDatabaseClient(process.env.DATABASE_URL ?? "", {
+        max: 1
+    });
+    try {
+        const status = await workflowStatus(database, id);
+        process.stdout.write(`${JSON.stringify(status)}\n`);
+    } finally {
+        await database.$disconnect();
+    }
+});
+
+program.command("retry <id>").action(async (id: string) => {
+    loadInjectionEnv();
+    const config = await loadInjectionConfig(program.opts().config);
+    const database = createDatabaseClient(process.env.DATABASE_URL ?? "", {
+        max: 1
+    });
+    try {
+        await retryWorkflow(database, config, id);
+        process.stdout.write(`${id}\n`);
+    } finally {
+        await database.$disconnect();
+    }
+});
+
+program
+    .command("run <name> [mode]")
+    .description(
+        `executa uma injection (${injectionNames.join(", ")}); modo: all, obtain ou inject`
+    )
+    .option("--year <year>", "ano da injection anual", parseYear)
+    .option("--first-year <year>", "primeiro ano da partição", parseYear)
+    .option("--last-year <year>", "último ano da partição", parseYear)
+    .option("--semester <semester>", "semestre da partição", parseSemester)
+    .option("--institute-code <code>", "sigla do instituto")
+    .option("--partition-key <key>", "identificador da partição")
+    .option("--snapshot-id <id>", "snapshot existente para o modo inject")
+    .action(async (name: string, mode = "all", options: PartitionOptions) => {
+        if (!["all", "obtain", "inject"].includes(mode))
+            throw new Error(
+                `Modo inválido: ${mode}. Use all, obtain ou inject.`
+            );
+        const config = await loadInjectionConfig(program.opts().config);
+        const injection = config.injections.find((item) => item.name === name);
+        if (!injection) throw new Error(`Injection não encontrada: ${name}`);
+        if (mode === "inject" && injection.snapshot && !options.snapshotId)
+            throw new Error("O modo inject requer --snapshot-id");
+        if (
+            options.year !== undefined &&
+            injection.snapshot?.partition !== "year"
+        )
+            throw new Error("--year não é suportado por esta injection");
+        const parameters =
+            injection.snapshot?.partition === "year"
+                ? annualInjectionParameters({ ...options })
+                : (partitionParameters(options) ?? {});
+        await runInjection(
+            config,
+            injection,
+            undefined,
+            undefined,
+            mode as InjectionRunMode,
+            parameters
+        );
+    });
+
+program.command("watch").action(async () => {
+    const config = await loadInjectionConfig(program.opts().config);
+    const lockDirectory = join(
+        config.rootDirectory,
+        ".pomi-injection-watch.lock"
+    );
+    await mkdir(config.rootDirectory, { recursive: true });
+    try {
+        await mkdir(lockDirectory);
+    } catch {
+        throw new Error(`Já existe um watch ativo: ${lockDirectory}`);
+    }
+    await writeFile(join(lockDirectory, "pid"), `${process.pid}\n`);
+    const controller = new AbortController();
+    const stop = () => controller.abort();
+    process.once("SIGINT", stop);
+    process.once("SIGTERM", stop);
+    loadInjectionEnv();
+    const database = createDatabaseClient(process.env.DATABASE_URL ?? "", {
+        max: 1
+    });
+    const nextRun = new Map(
+        config.injections.flatMap((item) =>
+            item.schedule
+                ? [[item.name, nextCronOccurrence(item.schedule.cron)]]
+                : []
+        )
+    );
+    const nextWorkflowRun = new Map(
+        config.workflows.map((item) => [
+            item.name,
+            nextCronOccurrence(item.schedule.cron)
+        ])
+    );
+    try {
+        while (!controller.signal.aborted) {
+            const now = new Date();
+            for (const workflow of config.workflows) {
+                const scheduledAt = nextWorkflowRun.get(workflow.name);
+                if (!scheduledAt || scheduledAt > now) continue;
+                nextWorkflowRun.set(
+                    workflow.name,
+                    nextCronOccurrence(
+                        workflow.schedule.cron,
+                        new Date(now.getTime() + 1_000)
+                    )
+                );
+                try {
+                    await enqueueCatalogProgramWorkflows(database, {
+                        firstYear: new Date().getFullYear(),
+                        lastYear: new Date().getFullYear(),
+                        profile: workflow.profile,
+                        mode: "all",
+                        requestedBy: "scheduler",
+                        trigger: JobRequestTrigger.SCHEDULED,
+                        scheduledFor: scheduledAt
+                    });
+                } catch (error) {
+                    cliLogger.debug(
+                        { err: error, workflow: workflow.name },
+                        "Workflow já pendente"
+                    );
+                }
+            }
+            for (const injection of config.injections) {
+                if (!injection.schedule) continue;
+                const scheduledAt = nextRun.get(injection.name);
+                if (!scheduledAt || scheduledAt > now) continue;
+                nextRun.set(
+                    injection.name,
+                    nextCronOccurrence(
+                        injection.schedule.cron,
+                        new Date(now.getTime() + 1_000)
+                    )
+                );
+                const scheduledFor = scheduledAt;
+                try {
+                    await enqueueJob(database, {
+                        type: JobRequestType.INJECTION,
+                        name: injection.name,
+                        mode: "all",
+                        trigger: JobRequestTrigger.SCHEDULED,
+                        scheduledFor,
+                        requestedBy: "scheduler",
+                        parameters:
+                            injection.snapshot?.partition === "year"
+                                ? annualInjectionParameters({}, scheduledAt)
+                                : injection.partitioning
+                                  ? { root: true }
+                                  : undefined,
+                        deduplicationKey: `injection:${injection.name}:${scheduledFor.toISOString()}`
+                    });
+                } catch (error) {
+                    cliLogger.debug(
+                        { err: error, injection: injection.name },
+                        "Execução já pendente"
+                    );
+                }
+            }
+            const job = await withoutPrismaTracing(() =>
+                claimNextJob(database, JobRequestType.INJECTION)
+            );
+            if (job) {
+                const workflow = workflowParameters(job.parameters);
+                if (isWorkflowName(job.name) && workflow) {
+                    try {
+                        await advanceWorkflow(database, config, job.id);
+                    } catch (error) {
+                        await finishJob(database, job.id, {
+                            errorMessage:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error)
+                        });
+                    }
+                    continue;
+                }
+                const injection = config.injections.find(
+                    (item) => item.name === job.name
+                );
+                if (!injection) {
+                    await finishJob(database, job.id, {
+                        errorMessage: `Injection não configurada no worker: ${job.name}`
+                    });
+                } else {
+                    try {
+                        if (isRootJob(job.parameters)) {
+                            await expandRootJob(
+                                database,
+                                config,
+                                injection,
+                                job
+                            );
+                            await finishJob(database, job.id, {});
+                            continue;
+                        }
+                        const result = await runInjection(
+                            config,
+                            injection,
+                            controller.signal,
+                            undefined,
+                            (job.mode ?? "all") as InjectionRunMode,
+                            job.parameters && typeof job.parameters === "object"
+                                ? (job.parameters as Record<string, unknown>)
+                                : undefined,
+                            {
+                                jobId: job.id,
+                                trigger: job.trigger,
+                                requestedBy: job.requestedBy ?? undefined
+                            }
+                        );
+                        await finishJob(database, job.id, {
+                            runId: result.runId
+                        });
+                        if (
+                            job.parentJobId &&
+                            workflowStageParameters(job.parameters)
+                        )
+                            await reconcileWorkflowParent(
+                                database,
+                                config,
+                                job.parentJobId
+                            );
+                    } catch (error) {
+                        await finishJob(database, job.id, {
+                            errorMessage:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error)
+                        });
+                        if (
+                            job.parentJobId &&
+                            workflowStageParameters(job.parameters)
+                        )
+                            await reconcileWorkflowParent(
+                                database,
+                                config,
+                                job.parentJobId
+                            );
+                        cliLogger.error(
+                            {
+                                err: error,
+                                jobId: job.id,
+                                event: "injection.run.issue"
+                            },
+                            "Falha na execução da injection"
+                        );
+                    }
+                }
+            }
+            await new Promise((resolve) => setTimeout(resolve, 5_000));
+        }
+    } finally {
+        await database.$disconnect();
+        await rm(lockDirectory, { recursive: true, force: true });
+    }
+});
+
+async function reconcileWorkflowParent(
+    database: ReturnType<typeof createDatabaseClient>,
+    config: Awaited<ReturnType<typeof loadInjectionConfig>>,
+    parentId: string
+) {
+    try {
+        await advanceWorkflow(database, config, parentId);
+    } catch (error) {
+        await finishJob(database, parentId, {
+            errorMessage: error instanceof Error ? error.message : String(error)
+        });
+    }
+}
+
+async function main() {
+    try {
+        await program.parseAsync();
+    } catch (error) {
+        cliLogger.error(
+            { err: error, event: "injection.cli.error" },
+            "Falha ao executar o CLI"
+        );
+        process.exitCode = 1;
+    } finally {
+        await shutdownTelemetry();
+    }
+}
+
+void main();
+
+type PartitionOptions = {
+    year?: number;
+    firstYear?: number;
+    lastYear?: number;
+    partitionKey?: string;
+    instituteCode?: string;
+    semester?: 1 | 2;
+    firstSemester?: 1 | 2;
+    lastSemester?: 1 | 2;
+    profile: string;
+    snapshotId?: string;
+};
+
+function parseYear(value: string) {
+    const year = Number(value);
+    if (!Number.isInteger(year) || year < 1900 || year > 3000)
+        throw new Error("Ano inválido");
+    return year;
+}
+
+function parseSemester(value: string): 1 | 2 {
+    if (value !== "1" && value !== "2") throw new Error("Semestre inválido");
+    return Number(value) as 1 | 2;
+}
+
+function partitionParameters(options: PartitionOptions) {
+    if (
+        options.firstYear === undefined &&
+        options.lastYear === undefined &&
+        options.semester === undefined &&
+        options.instituteCode === undefined &&
+        options.snapshotId === undefined
+    )
+        return undefined;
+    const firstYear = options.firstYear ?? options.lastYear;
+    const lastYear = options.lastYear ?? options.firstYear;
+    const partitionKey =
+        options.partitionKey ??
+        options.instituteCode ??
+        (firstYear === undefined || lastYear === undefined
+            ? undefined
+            : `${firstYear}-${lastYear}`);
+    return {
+        ...(partitionKey === undefined ? {} : { partitionKey }),
+        ...(firstYear === undefined ? {} : { firstYear }),
+        ...(lastYear === undefined ? {} : { lastYear }),
+        ...(options.instituteCode === undefined
+            ? {}
+            : { instituteCode: options.instituteCode }),
+        ...(options.semester === undefined
+            ? {}
+            : { semester: options.semester }),
+        ...(options.snapshotId === undefined
+            ? {}
+            : { snapshotId: options.snapshotId })
+    };
+}
+
+type DiscoveredPartition = {
+    key: string;
+    parameters: Record<string, unknown>;
+};
+
+async function discoverPartitions(
+    config: Awaited<ReturnType<typeof loadInjectionConfig>>,
+    definition: InjectionDefinition,
+    selection?: Record<string, unknown>
+): Promise<Array<DiscoveredPartition | undefined>> {
+    if (Array.isArray(selection?.periods))
+        return academicRequestPartitions(selection, (year, semester) =>
+            discoverInstituteCodes(
+                config.rootDirectory,
+                year,
+                semester,
+                resolveCommandCwd(
+                    config.rootDirectory,
+                    config.configDirectory,
+                    definition.obtain.cwd
+                )
+            )
+        );
+    if (!definition.partitioning) return [undefined];
+    if (definition.partitioning.kind === "year") {
+        const { firstYear } = definition.partitioning;
+        return Array.from(
+            {
+                length: new Date().getFullYear() - firstYear + 1
+            },
+            (_, index) => {
+                const year = firstYear + index;
+                return {
+                    key: String(year),
+                    parameters: {
+                        firstYear: year,
+                        lastYear: year,
+                        partitionKey: String(year)
+                    }
+                };
+            }
+        );
+    }
+    if (definition.partitioning.kind === "period-institute") {
+        const currentYear = new Date().getFullYear();
+        const partitions: DiscoveredPartition[] = [];
+        for (
+            let year = definition.partitioning.firstYear;
+            year <= currentYear;
+            year += 1
+        ) {
+            for (const semester of [1, 2] as const) {
+                const codes = await discoverInstituteCodes(
+                    config.rootDirectory,
+                    year,
+                    semester
+                );
+                for (const instituteCode of codes)
+                    partitions.push({
+                        key: `${year}-${semester}-${instituteCode}`,
+                        parameters: {
+                            year,
+                            semester,
+                            instituteCode,
+                            partitionKey: `${year}-${semester}-${instituteCode}`
+                        }
+                    });
+            }
+        }
+        if (partitions.length === 0)
+            throw new Error("As páginas raiz não retornaram institutos");
+        return partitions;
+    }
+    const year = new Date().getFullYear();
+    const semester = new Date().getMonth() < 6 ? 1 : 2;
+    const codes = await discoverInstituteCodes(
+        config.rootDirectory,
+        year,
+        semester
+    );
+    if (codes.length === 0)
+        throw new Error("A página raiz não retornou institutos");
+    return codes.map((instituteCode) => ({
+        key: instituteCode,
+        parameters: {
+            instituteCode,
+            year,
+            semester,
+            partitionKey: instituteCode
+        }
+    }));
+}
+
+async function discoverInstituteCodes(
+    rootDirectory: string,
+    year: number,
+    semester: 1 | 2,
+    crawlerDirectory = join(rootDirectory, "scrapper-aulas")
+): Promise<string[]> {
+    const child = spawn(
+        "node",
+        [
+            "--import",
+            "unicamp-scrapper-cli/dist/telemetry-bootstrap.js",
+            "unicamp-scrapper-cli/dist/index.js",
+            "caderno-horarios-pagina",
+            "--year",
+            String(year),
+            "--semester",
+            String(semester),
+            "--no-cache",
+            "--log-destination",
+            "stderr"
+        ],
+        {
+            cwd: crawlerDirectory,
+            stdio: ["ignore", "pipe", "pipe"]
+        }
+    );
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk: string) => (stdout += chunk));
+    child.stderr?.on("data", (chunk: string) => (stderr += chunk));
+    const [result] = (await once(child, "close")) as [number | null];
+    if (result !== 0)
+        throw new Error(
+            `Falha ao descobrir institutos (${result ?? "signal"}): ${stderr.trim()}`
+        );
+    const parsed = JSON.parse(stdout) as {
+        data?: { institutes?: Array<{ instituteCode?: string }> };
+    };
+    return Array.from(
+        new Set(
+            (parsed.data?.institutes ?? [])
+                .map((institute) => institute.instituteCode?.trim())
+                .filter((code): code is string => Boolean(code))
+        )
+    );
+}
+
+function isRootJob(parameters: unknown): boolean {
+    return (
+        typeof parameters === "object" &&
+        parameters !== null &&
+        "root" in parameters &&
+        parameters.root === true
+    );
+}
+
+async function expandRootJob(
+    database: ReturnType<typeof createDatabaseClient>,
+    config: Awaited<ReturnType<typeof loadInjectionConfig>>,
+    injection: InjectionDefinition,
+    rootJob: NonNullable<Awaited<ReturnType<typeof claimNextJob>>>
+) {
+    const partitions = await discoverPartitions(
+        config,
+        injection,
+        rootJob.parameters as Record<string, unknown> | undefined
+    );
+    await database.$transaction(async (transaction) => {
+        for (const partition of partitions) {
+            const key = `injection:${rootJob.id}:${partition?.key ?? "default"}`;
+            const existing = await transaction.jobRequest.findUnique({
+                where: { deduplicationKey: key },
+                select: { id: true }
+            });
+            if (existing) continue;
+            await enqueueJob(transaction, {
+                type: JobRequestType.INJECTION,
+                name: injection.name,
+                mode: (rootJob.mode ?? "all") as "all" | "obtain" | "inject",
+                trigger: rootJob.trigger,
+                scheduledFor: rootJob.scheduledFor ?? undefined,
+                requestedBy: rootJob.requestedBy ?? undefined,
+                parentJobId: rootJob.id,
+                partitionKey: partition?.key,
+                parameters: partition?.parameters,
+                deduplicationKey: key
+            });
+        }
+    });
+}

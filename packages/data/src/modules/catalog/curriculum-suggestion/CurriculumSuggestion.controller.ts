@@ -1,0 +1,63 @@
+import {
+    ApiResponse,
+    buildArrayPaginationResponse,
+    createResultResponder,
+    serializeQueryParams,
+    unpaginatedByDefault,
+    type EndpointActions
+} from "@pomi/api-core";
+
+import { createDataEndpointRegistries, type Context } from "#/BuildHandler.js";
+import type { AuthorizationPolicy } from "#/auth.js";
+import IO, {
+    type ListCurriculumSuggestionsQuery
+} from "#/modules/catalog/curriculum-suggestion/CurriculumSuggestion.contract.js";
+import { curriculumSuggestionProblemResponses } from "#/modules/catalog/curriculum-suggestion/CurriculumSuggestion.problems.js";
+
+const { schema: _schema, schemas: _schemas, ...contracts } = IO;
+type Actions = EndpointActions<typeof contracts, AuthorizationPolicy, Context>;
+const respond = createResultResponder(curriculumSuggestionProblemResponses);
+
+function entityPath(id: number) {
+    return `/curriculum-suggestions/${id}`;
+}
+
+function listPath(query: Partial<ListCurriculumSuggestionsQuery> = {}) {
+    const search = serializeQueryParams(
+        query as unknown as Record<string, unknown>
+    );
+    return `/curriculum-suggestions${search ? `?${search}` : ""}`;
+}
+
+const list: Actions["list"] = async (ctx, input) =>
+    ApiResponse.ok(
+        buildArrayPaginationResponse(
+            await ctx.curriculumSuggestionService.list(input.query),
+            input.query,
+            unpaginatedByDefault,
+            "/curriculum-suggestions"
+        )
+    );
+
+const get: Actions["get"] = async (ctx, input) =>
+    respond(
+        await ctx.curriculumSuggestionService.getById(input.path.id),
+        (suggestion) => ApiResponse.ok(suggestion)
+    );
+
+const actions: Actions = { list, get };
+const { router, registry, authRegistry } = createDataEndpointRegistries(
+    contracts,
+    actions
+);
+
+export default {
+    contracts,
+    router,
+    registry,
+    authRegistry,
+    paths: {
+        entity: entityPath,
+        list: listPath
+    }
+};

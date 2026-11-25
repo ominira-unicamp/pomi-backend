@@ -1,14 +1,11 @@
 {
-  "compilerOptions": {
-    "sourceMap": true,
-    "outDir": "dist",
-    "strict": true,
-    "lib": [
-      "esnext"
-    ],
-    "esModuleInterop": true,
-    "module": "nodenext",
-    "target": "es6", 
-    "resolveJsonModule": true
-  }
+    "files": [],
+    "references": [
+        { "path": "./packages/db" },
+        { "path": "./packages/api-core" },
+        { "path": "./packages/data" },
+        { "path": "./packages/app" },
+        { "path": "./packages/injection" },
+        { "path": "./packages/notifier" }
+    ]
 }

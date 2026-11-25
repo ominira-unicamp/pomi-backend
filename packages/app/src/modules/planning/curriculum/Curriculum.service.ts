@@ -1,0 +1,454 @@
+import IO, {
+    createBody,
+    curriculumSort,
+    patchBody
+} from "#/modules/planning/curriculum/Curriculum.contract.js";
+import curriculumPresenter from "#/modules/planning/curriculum/Curriculum.presenter.js";
+import {
+    curriculumInputProblem,
+    curriculumNotFoundProblem,
+    type CurriculumProblem
+} from "#/modules/planning/curriculum/Curriculum.problems.js";
+import {
+    prismaCurriculumFieldSelection,
+    prismaCurriculumSummaryFieldSelection
+} from "#/modules/planning/curriculum/Curriculum.queries.js";
+import {
+    compareBySort,
+    err,
+    ok,
+    resolveSort,
+    type ProblemField,
+    type Result
+} from "@pomi/api-core";
+import type { PrismaClient } from "@pomi/db";
+import z from "zod";
+import { missingCourseIssues, planningIssues } from "../Planning.rules.js";
+import {
+    patchSelectionData,
+    planCurriculumPeriodChanges,
+    planningStartData,
+    selectionData,
+    validateCurriculumCoursePeriods,
+    validateCurriculumSelection
+} from "./Curriculum.rules.js";
+
+type Curriculum = z.infer<typeof IO.schema>;
+type CurriculumSummary = z.infer<typeof IO.summarySchema>;
+type ListQuery = z.infer<typeof IO.list.request>["query"];
+export type CreateCurriculumInput = z.infer<typeof createBody>;
+export type PatchCurriculumInput = z.infer<typeof patchBody>;
+type TransactionClient = Omit<
+    PrismaClient,
+    "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends"
+>;
+
+class CurriculumOperationError extends Error {
+    constructor(readonly fields: ProblemField[]) {
+        super("Invalid curriculum operation");
+    }
+}
+
+export type CurriculumService = {
+    list(userId: number, query: ListQuery): Promise<CurriculumSummary[]>;
+    getById(
+        userId: number,
+        id: number
+    ): Promise<
+        Result<Curriculum, ReturnType<typeof curriculumNotFoundProblem>>
+    >;
+    create(
+        userId: number,
+        input: CreateCurriculumInput
+    ): Promise<
+        Result<
+            Curriculum,
+            Exclude<
+                CurriculumProblem,
+                ReturnType<typeof curriculumNotFoundProblem>
+            >
+        >
+    >;
+    patch(
+        userId: number,
+        id: number,
+        input: PatchCurriculumInput
+    ): Promise<Result<Curriculum, CurriculumProblem>>;
+    remove(
+        userId: number,
+        id: number
+    ): Promise<Result<void, ReturnType<typeof curriculumNotFoundProblem>>>;
+};
+
+async function resolveSelection(
+    prisma: TransactionClient | PrismaClient,
+    selection: ReturnType<typeof selectionData>
+) {
+    const [variant, language] = await Promise.all([
+        selection.catalogProgramId === null
+            ? null
+            : prisma.catalogProgramVariant.findFirst({
+                  where: {
+                      catalogProgramId: selection.catalogProgramId,
+                      ...(selection.catalogProgramVariantId === null
+                          ? { programId: { not: null } }
+                          : { id: selection.catalogProgramVariantId })
+                  },
+                  select: { id: true }
+              }),
+        selection.languageId === null || selection.catalogProgramId === null
+            ? null
+            : prisma.catalogLanguage.findFirst({
+                  where: {
+                      catalogProgramId: selection.catalogProgramId,
+                      languageId: selection.languageId
+                  },
+                  select: { id: true }
+              })
+    ]);
+    return {
+        catalogProgramId: selection.catalogProgramId,
+        catalogProgramVariantId: variant?.id ?? null,
+        catalogLanguageId: language?.id ?? null
+    };
+}
+
+async function selectionFields(
+    prisma: TransactionClient,
+    selection: ReturnType<typeof selectionData>,
+    resolved: {
+        catalogProgramVariantId: number | null;
+        catalogLanguageId: number | null;
+    }
+): Promise<ProblemField[]> {
+    const [program, variant, language] = await Promise.all([
+        selection.catalogProgramId === null
+            ? null
+            : prisma.catalogProgram.findUnique({
+                  where: { id: selection.catalogProgramId },
+                  select: { id: true }
+              }),
+        selection.catalogProgramVariantId === null ||
+        selection.catalogProgramId === null
+            ? null
+            : prisma.catalogProgramVariant.findFirst({
+                  where: {
+                      id: resolved.catalogProgramVariantId ?? -1,
+                      catalogProgramId: selection.catalogProgramId
+                  },
+                  select: { catalogProgramId: true }
+              }),
+        selection.languageId === null || selection.catalogProgramId === null
+            ? null
+            : prisma.catalogLanguage.findFirst({
+                  where: {
+                      id: resolved.catalogLanguageId ?? -1,
+                      catalogProgramId: selection.catalogProgramId
+                  },
+                  select: { catalogProgramId: true }
+              })
+    ]);
+    return planningIssues(
+        validateCurriculumSelection(selection, { program, variant, language })
+    );
+}
+
+async function courseFields(
+    prisma: TransactionClient,
+    courseIds: number[],
+    path: string[]
+): Promise<ProblemField[]> {
+    const ids = [...new Set(courseIds)];
+    const found = new Set(
+        (
+            await prisma.course.findMany({
+                where: { id: { in: ids } },
+                select: { id: true }
+            })
+        ).map(({ id }) => id)
+    );
+    return missingCourseIssues(ids, found, path);
+}
+
+async function load(prisma: PrismaClient, userId: number, id: number) {
+    return prisma.curriculum.findUnique({
+        ...prismaCurriculumFieldSelection,
+        where: { userId, id }
+    });
+}
+
+async function patchPeriods(
+    tx: TransactionClient,
+    curriculumId: number,
+    operations: NonNullable<PatchCurriculumInput["periods"]>
+): Promise<ProblemField[]> {
+    const existing = await tx.curriculumPeriod.findMany({
+        where: { curriculumId },
+        select: { id: true, position: true }
+    });
+    const planned = planCurriculumPeriodChanges(existing, operations);
+    if (planned.isErr()) return planned.error;
+    const removed = new Set(planned.value.removed);
+    await tx.curriculumCourse.updateMany({
+        where: { curriculumId, periodId: { in: [...removed] } },
+        data: { periodId: null }
+    });
+    if (removed.size)
+        await tx.curriculumPeriod.deleteMany({
+            where: { curriculumId, id: { in: [...removed] } }
+        });
+    for (const update of operations.update ?? [])
+        await tx.curriculumPeriod.update({
+            where: { id: update.id },
+            data: { position: -update.id }
+        });
+    for (const update of operations.update ?? [])
+        await tx.curriculumPeriod.update({
+            where: { id: update.id },
+            data: { position: update.position }
+        });
+    if (operations.add?.length)
+        await tx.curriculumPeriod.createMany({
+            data: operations.add.map(({ position }) => ({
+                curriculumId,
+                position
+            }))
+        });
+    return [];
+}
+
+async function patchCourses(
+    tx: TransactionClient,
+    curriculumId: number,
+    operations: NonNullable<PatchCurriculumInput["courses"]>
+): Promise<ProblemField[]> {
+    const upserts = operations.upsert ?? [];
+    const fields = await courseFields(
+        tx,
+        upserts.map(({ courseId }) => courseId),
+        ["courses", "upsert"]
+    );
+    const periodIds = upserts.flatMap(({ periodId }) =>
+        periodId === null ? [] : [periodId]
+    );
+    const validPeriods = await tx.curriculumPeriod.count({
+        where: { curriculumId, id: { in: [...new Set(periodIds)] } }
+    });
+    fields.push(
+        ...planningIssues(
+            validateCurriculumCoursePeriods(periodIds, validPeriods)
+        )
+    );
+    if (fields.length) return fields;
+    if (operations.remove?.length)
+        await tx.curriculumCourse.deleteMany({
+            where: { curriculumId, courseId: { in: operations.remove } }
+        });
+    for (const course of upserts)
+        await tx.curriculumCourse.upsert({
+            where: {
+                curriculumId_courseId: {
+                    curriculumId,
+                    courseId: course.courseId
+                }
+            },
+            create: { curriculumId, ...course },
+            update: { periodId: course.periodId }
+        });
+    return [];
+}
+
+export function createCurriculumService({
+    prisma
+}: {
+    prisma: PrismaClient;
+}): CurriculumService {
+    return {
+        async list(userId, query) {
+            return (
+                await prisma.curriculum.findMany({
+                    ...prismaCurriculumSummaryFieldSelection,
+                    where: { userId },
+                    orderBy: { updatedAt: "desc" }
+                })
+            )
+                .map(curriculumPresenter.buildSummary)
+                .sort(
+                    compareBySort(resolveSort(query.sort, curriculumSort), {
+                        isFavorite: (left, right) =>
+                            Number(left.isFavorite) - Number(right.isFavorite),
+                        updatedAt: (left, right) =>
+                            left.updatedAt.localeCompare(right.updatedAt),
+                        name: (left, right) =>
+                            left.name.localeCompare(right.name),
+                        id: (left, right) => left.id - right.id
+                    })
+                );
+        },
+        async getById(userId, id) {
+            const curriculum = await load(prisma, userId, id);
+            return curriculum
+                ? ok(curriculumPresenter.build(curriculum))
+                : err(curriculumNotFoundProblem());
+        },
+        async create(userId, input) {
+            const requestedSelection = selectionData(input.selection);
+            const selection = await resolveSelection(
+                prisma,
+                requestedSelection
+            );
+            const fields = [
+                ...(await selectionFields(
+                    prisma,
+                    requestedSelection,
+                    selection
+                )),
+                ...(await courseFields(
+                    prisma,
+                    (input.courses ?? []).map(({ courseId }) => courseId),
+                    ["courses"]
+                ))
+            ];
+            if (fields.length) return err(curriculumInputProblem(fields));
+            const curriculum = await prisma.$transaction(async (tx) => {
+                const created = await tx.curriculum.create({
+                    data: {
+                        userId,
+                        name: input.name ?? "Novo planejamento",
+                        ...selection,
+                        ...planningStartData(input.planningStart),
+                        currentPeriodId: input.currentPeriodId ?? null,
+                        periods: input.periods
+                            ? { create: input.periods }
+                            : undefined,
+                        courses: input.courses?.length
+                            ? { create: input.courses }
+                            : undefined
+                    },
+                    select: { id: true }
+                });
+                return tx.curriculum.findUniqueOrThrow({
+                    ...prismaCurriculumFieldSelection,
+                    where: { id: created.id }
+                });
+            });
+            return ok(curriculumPresenter.build(curriculum));
+        },
+        async patch(userId, id, input) {
+            const existing = await prisma.curriculum.findUnique({
+                where: { userId, id },
+                select: {
+                    catalogProgramId: true,
+                    catalogProgramVariantId: true,
+                    catalogLanguageId: true,
+                    catalogProgramVariant: {
+                        select: { id: true }
+                    },
+                    catalogLanguage: { select: { languageId: true } }
+                }
+            });
+            if (!existing) return err(curriculumNotFoundProblem());
+            const requestedSelection = patchSelectionData(
+                input.selection,
+                existing
+            );
+            const selection = await resolveSelection(
+                prisma,
+                requestedSelection
+            );
+            const fields = await selectionFields(
+                prisma,
+                requestedSelection,
+                selection
+            );
+            if (fields.length) return err(curriculumInputProblem(fields));
+            try {
+                await prisma.$transaction(async (tx) => {
+                    if (input.periods) {
+                        const errors = await patchPeriods(
+                            tx,
+                            id,
+                            input.periods
+                        );
+                        if (errors.length)
+                            throw new CurriculumOperationError(errors);
+                    }
+                    if (input.courses) {
+                        const errors = await patchCourses(
+                            tx,
+                            id,
+                            input.courses
+                        );
+                        if (errors.length)
+                            throw new CurriculumOperationError(errors);
+                    }
+                    if (
+                        input.currentPeriodId !== undefined &&
+                        input.currentPeriodId !== null &&
+                        !(await tx.curriculumPeriod.findFirst({
+                            where: {
+                                id: input.currentPeriodId,
+                                curriculumId: id
+                            },
+                            select: { id: true }
+                        }))
+                    )
+                        throw new CurriculumOperationError([
+                            {
+                                code: "REFERENCE_NOT_FOUND",
+                                path: ["currentPeriodId"],
+                                message:
+                                    "O período atual deve pertencer ao planejamento."
+                            }
+                        ]);
+                    await tx.curriculum.update({
+                        where: { id },
+                        data: {
+                            ...(input.name !== undefined && {
+                                name: input.name
+                            }),
+                            ...(input.selection && selection),
+                            ...(input.planningStart !== undefined &&
+                                planningStartData(input.planningStart)),
+                            ...(input.currentPeriodId !== undefined && {
+                                currentPeriodId: input.currentPeriodId
+                            })
+                        }
+                    });
+                    if (input.isFavorite !== undefined) {
+                        const user = await tx.user.findUniqueOrThrow({
+                            where: { id: userId },
+                            select: { favoriteCurriculumId: true }
+                        });
+                        await tx.user.update({
+                            where: { id: userId },
+                            data: {
+                                favoriteCurriculumId: input.isFavorite
+                                    ? id
+                                    : user.favoriteCurriculumId === id
+                                      ? null
+                                      : user.favoriteCurriculumId
+                            }
+                        });
+                    }
+                });
+            } catch (error) {
+                if (error instanceof CurriculumOperationError)
+                    return err(curriculumInputProblem(error.fields));
+                throw error;
+            }
+            return ok(
+                curriculumPresenter.build((await load(prisma, userId, id))!)
+            );
+        },
+        async remove(userId, id) {
+            const existing = await prisma.curriculum.findUnique({
+                where: { userId, id },
+                select: { id: true }
+            });
+            if (!existing) return err(curriculumNotFoundProblem());
+            await prisma.curriculum.delete({ where: { id } });
+            return ok(undefined);
+        }
+    };
+}

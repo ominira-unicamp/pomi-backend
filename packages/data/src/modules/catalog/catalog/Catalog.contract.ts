@@ -1,0 +1,103 @@
+import { OutputBuilder, type IO } from "#/BuildHandler.js";
+import { policies } from "#/auth.js";
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import {
+    createPaginationQuerySchema,
+    defineSort,
+    filterDefinition,
+    getPaginatedSchema,
+    pathParam,
+    pathSeg,
+    resourceFilterSchema,
+    resourceSortSchema,
+    SpecBuilder,
+    unpaginatedByDefault,
+    type Filter
+} from "@pomi/api-core";
+import z from "zod";
+
+extendZodWithOpenApi(z);
+
+const basePath = [pathSeg.literal("catalogs")];
+const tags = ["catalogs"];
+const specsBuilder = new SpecBuilder(basePath, tags, "id", {
+    resource: "catalogs",
+    operationName: "Catalogs",
+    pathParameters: { id: "catalogId" }
+});
+
+const catalogEntitySchema = z
+    .object({
+        id: z.number().int().openapi({ example: 1 }),
+        year: z.number().int().openapi({ example: 2024 }),
+        programsCount: z.number().int().openapi({ example: 5 }),
+        coursesCount: z.number().int().openapi({ example: 8996 }),
+        programIds: z.array(z.number().int()).openapi({ example: [1, 2, 3] })
+    })
+    .openapi("Catalog", {
+        "x-pomi-schema": {
+            kind: "entity",
+            publicName: "Catalog",
+            identityFields: ["id"]
+        }
+    });
+
+export type CatalogFilter = Filter;
+const catalogFilterDefinitions = { year: filterDefinition.integer() };
+export type CatalogFilterName = keyof typeof catalogFilterDefinitions;
+const catalogFilter = resourceFilterSchema(
+    catalogFilterDefinitions,
+    "catalogs",
+    "Structured catalog filters. Use bracket notation such as filter[year]=2025."
+);
+export const catalogSort = defineSort({
+    resourceName: "catalogs",
+    sortableFields: ["year"] as const,
+    defaultSort: [{ field: "year", direction: "desc" }] as const,
+    tieBreakers: [{ field: "id", direction: "asc" }] as const
+});
+
+const get = {
+    meta: {
+        ...specsBuilder.get(),
+        authorization: policies.public
+    },
+    request: z.object({
+        path: z.object({
+            id: pathParam.integer()
+        })
+    }),
+    response: new OutputBuilder()
+        .ok(catalogEntitySchema, "Catalog retrieved successfully")
+        .notFound()
+        .build()
+} satisfies IO;
+
+const list = {
+    meta: {
+        ...specsBuilder.list(),
+        authorization: policies.public,
+        queryFeatures: { filter: true, sort: true },
+        pagination: unpaginatedByDefault
+    },
+    request: z.object({
+        query: createPaginationQuerySchema(unpaginatedByDefault, {
+            filter: catalogFilter.optional(),
+            sort: resourceSortSchema(catalogSort).optional()
+        }).strict()
+    }),
+    response: new OutputBuilder()
+        .ok(
+            getPaginatedSchema(catalogEntitySchema),
+            "List of catalogs retrieved successfully"
+        )
+        .build()
+} satisfies IO;
+
+export default {
+    get,
+    list,
+    schemas: {
+        catalogEntitySchema
+    }
+};

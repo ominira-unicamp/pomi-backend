@@ -14,18 +14,119 @@ services:
       interval: 5s
       timeout: 2s
       retries: 20
-  api:
+  keycloak-schema:
+    image: postgres:18-alpine
+    restart: "no"
+    env_file:
+      - .docker.env
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - PGPASSWORD="$$POSTGRES_PASSWORD" psql --host db --username "$$POSTGRES_USER" --dbname "$$POSTGRES_DB" --command "CREATE SCHEMA IF NOT EXISTS keycloak"
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.0@sha256:0f198be292568439d700cdbfb893e69a6009bb43a94a06a945b1d3d506c76b13
+    container_name: pomi-keycloak
+    restart: unless-stopped
+    env_file:
+      - .docker.env
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db:5432/pomi
+      KC_DB_SCHEMA: keycloak
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_HOSTNAME: http://localhost:8080
+      JAVA_OPTS_KC_HEAP: -XX:InitialRAMPercentage=20 -XX:MaxRAMPercentage=45
+    command:
+      - start
+      - --spi-theme--static-max-age=-1
+      - --spi-theme--cache-themes=false
+      - --spi-theme--cache-templates=false
+    ports:
+      - 8080:8080
+    volumes:
+      - ../pomi-infra/slices/pomi/keycloak:/opt/keycloak/config:ro
+      - ../pomi-keycloak-theme/theme/pomi:/opt/keycloak/themes/pomi:ro
+    depends_on:
+      keycloak-schema:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - /bin/bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000;
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3;
+          response="$$(cat <&3)";
+          status="$${response#*\"status\"}";
+          [[ "$$status" =~ ^[[:space:]]*:[[:space:]]*\"UP\" ]]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+  keycloak-config:
+    image: quay.io/keycloak/keycloak:26.7.0@sha256:0f198be292568439d700cdbfb893e69a6009bb43a94a06a945b1d3d506c76b13
+    restart: "no"
+    env_file:
+      - .docker.env
+    environment:
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8080
+      KEYCLOAK_REALM: pomi
+    entrypoint:
+      - /bin/bash
+      - /opt/keycloak/config/configure-keycloak.sh
+    volumes:
+      - ../pomi-infra/slices/pomi/keycloak:/opt/keycloak/config:ro
+    depends_on:
+      keycloak:
+        condition: service_healthy
+  db-migrate:
     build:
       context: .
       dockerfile: ./Dockerfile
-    container_name: api
-    restart: always
-    stdin_open: true
-    tty: true 
+      target: migrate
+    restart: "no"
     env_file:
       - .docker.env
+    depends_on:
+      db:
+        condition: service_healthy
+  data-api:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      target: data
+    container_name: pomi-data-api
+    restart: always
+    env_file:
+      - .docker.env
+    environment:
+      PORT: 3000
     ports:
       - 3000:3000
     depends_on:
-      db:
-       condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+  app-api:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      target: app
+    container_name: pomi-app-api
+    restart: always
+    env_file:
+      - .docker.env
+    environment:
+      PORT: 3001
+    ports:
+      - 3001:3001
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+      keycloak-config:
+        condition: service_completed_successfully
